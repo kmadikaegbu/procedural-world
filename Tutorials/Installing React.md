@@ -115,7 +115,45 @@ Choose Vite for a simple client-side app; choose Next.js for a full website/app.
 
 ---
 
-## 6. Alternative: No Install (for quick experiments)
+## 6. React for Mobile Apps
+
+Plain React (Vite/Next.js) builds **web** apps. For phones you have two paths:
+
+### a) Make the web app mobile-friendly (a PWA)
+
+Keep your Vite project, one codebase, runs in the mobile browser and can be "installed":
+
+```bash
+npm install -D vite-plugin-pwa
+```
+
+Add responsive layout and you're done. Best when you don't need the App Store or native device features. **This is the low-effort option.**
+
+### b) Build a real native app with React Native + Expo
+
+Same React ideas (components, props, state, hooks) but a different renderer — no HTML/CSS, you use `<View>` / `<Text>` and style with objects. Ships to the App Store / Play Store and can use the camera, push notifications, sensors, etc.
+
+```bash
+npx create-expo-app@latest my-app
+cd my-app
+npx expo start
+```
+
+| | PWA (Vite) | React Native (Expo) |
+|---|---|---|
+| Codebase | Shared with web | Separate app shell |
+| Distribution | A URL / browser install | App Store & Play Store |
+| Native features | Limited | Full (camera, push, sensors) |
+| Effort | Low | Higher |
+| UI | HTML + CSS | `<View>`/`<Text>` + style objects |
+
+> three.js note: in React Native you can't use the browser `WebGLRenderer`. Use `expo-gl` + `expo-three`, and import React Three Fiber from `@react-three/fiber/native`.
+
+**Rule of thumb:** needs to be in an app store or use device hardware → Expo. Just needs to work on phones → PWA.
+
+---
+
+## 7. Alternative: No Install (for quick experiments)
 
 To try React without installing anything, add these scripts to an HTML file:
 
@@ -128,7 +166,7 @@ Good for a 5-minute demo; not for real projects.
 
 ---
 
-## 7. Verify Your Install
+## 8. Verify Your Install
 
 ```bash
 cd my-app
@@ -145,7 +183,7 @@ If that works, React is installed correctly.
 
 ---
 
-## 8. .gitignore
+## 9. .gitignore
 
 Vite creates a `.gitignore` for you. Make sure it includes:
 
@@ -160,7 +198,7 @@ dist/
 
 ---
 
-## 9. Troubleshooting
+## 10. Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
@@ -173,7 +211,7 @@ dist/
 
 ---
 
-## 10. Quick Reference
+## 11. Quick Reference
 
 ```bash
 # check prerequisites
@@ -192,6 +230,9 @@ npm run preview
 
 # add React to an existing project
 npm install react react-dom
+
+# native mobile app (React Native + Expo)
+npx create-expo-app@latest my-app
 ```
 
 ---
@@ -201,4 +242,6 @@ npm install react react-dom
 - [React official docs — Start a New Project](https://react.dev/learn/start-a-new-react-project)
 - [Vite Guide](https://vite.dev/guide/)
 - [Next.js docs](https://nextjs.org/docs)
+- [Expo docs (React Native)](https://docs.expo.dev)
+- [vite-plugin-pwa](https://vite-pwa-org.netlify.app)
 - [Node.js downloads](https://nodejs.org)

@@ -1,0 +1,210 @@
+.app {
+  position: fixed;
+  inset: 0;
+}
+
+.canvas-wrap {
+  position: absolute;
+  inset: 0;
+}
+
+/* React UI overlay — sits on top of the canvas, click-through by default */
+.ui-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 28px 32px;
+}
+
+.ui-overlay > * {
+  pointer-events: auto;
+}
+
+.site-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+}
+
+.site-subtitle {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.panel {
+  align-self: flex-end;
+  width: 260px;
+  max-width: 100%;
+  max-height: calc(100vh - 56px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  font-size: 13px;
+  color: var(--text);
+  background: rgba(15, 15, 23, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.panel-title:not(:first-child) {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.panel-title {
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.panel .row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel .row:has(input[type='range']) {
+  grid-template-columns: 84px 1fr 34px;
+}
+
+.panel .row em {
+  font-style: normal;
+  text-align: right;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.panel input[type='range'] {
+  width: 100%;
+  accent-color: #00b4d8;
+}
+
+.panel input[type='checkbox'] {
+  accent-color: #00b4d8;
+  width: 15px;
+  height: 15px;
+}
+
+.panel input[type='color'] {
+  width: 44px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 5px;
+  background: none;
+  cursor: pointer;
+}
+
+.segmented {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+}
+
+.segmented button {
+  flex: 1;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.segmented button.active {
+  color: #0f0f17;
+  background: #00b4d8;
+}
+
+.hint-text {
+  margin: -2px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.preset-grid button {
+  padding: 6px 4px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.preset-grid button.active {
+  color: #0f0f17;
+  background: #00b4d8;
+  border-color: transparent;
+}
+
+.panel-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.panel-actions button {
+  flex: 1;
+  padding: 7px 8px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.panel-actions button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.panel-actions button:disabled,
+.panel input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .ui-overlay {
+    padding: 18px 20px;
+  }
+  .site-title {
+    font-size: 20px;
+  }
+  .panel {
+    align-self: stretch;
+    width: 100%;
+  }
+}

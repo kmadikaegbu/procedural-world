@@ -7,6 +7,7 @@ import {
 } from '@react-three/drei'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { Map } from './map/Map'
+import { Minimap } from './Minimap'
 import { MAX_TREES } from './map/Props'
 import { TERRAIN_DEFAULTS, type TerrainParams } from './map/noise'
 import NoisyOrb, {
@@ -46,7 +47,7 @@ const SCENES: Record<
   }
 > = {
   map: {
-    title: 'Procedural Map',
+    title: 'Roosevelt Island',
     subtitle: 'Noise terrain, biomes, trees & weather — all from a seed',
     persp: [46, 44, 92],
     ortho: [0, 90, 0],
@@ -96,18 +97,52 @@ const WEATHER_KIND_HINTS: Record<WeatherKind, string> = {
 function App() {
   const [scene, setScene] = useState<SceneMode>('map')
   const [view, setView] = useState<ViewMode>('3D')
+  const [showMinimap, setShowMinimap] = useState(true)
   const [terrain, setTerrain] = useState<TerrainParams>(TERRAIN_DEFAULTS)
   const [orbNoise, setOrbNoise] = useState<OrbNoiseParams>(ORB_NOISE_DEFAULTS)
   const [weather, setWeather] = useState<WeatherParams>(WEATHER_PRESETS.clear)
   const [kind, setKind] = useState<WeatherKind | 'custom'>('clear')
   const [running, setRunning] = useState(true)
   const [wireframe, setWireframe] = useState(false)
+  const [mapTab, setMapTab] = useState<'terrain' | 'weather' | 'props'>(
+    'terrain',
+  )
   const [showTrees, setShowTrees] = useState(true)
   const [treeCount, setTreeCount] = useState(400)
   const [scatterSeed, setScatterSeed] = useState(0)
   const controlsRef = useRef<OrbitControlsImpl>(null)
 
   const cfg = SCENES[scene]
+  const showingIsland = scene === 'map' && terrain.island
+  const headerTitle =
+    scene === 'map'
+      ? terrain.island
+        ? 'Roosevelt Island'
+        : 'Procedural World'
+      : cfg.title
+
+  // Subtitle lists only what's actually present right now, not a fixed blurb.
+  // terrain is always on (no toggle removes it); the rest track a real state:
+  // biomes read from the colored surface, so wireframe hides them; trees and
+  // weather (rain/snow) have their own on/off switches.
+  const envItems = [
+    { label: 'terrain', active: true },
+    { label: 'biomes', active: !wireframe },
+    { label: 'trees', active: showTrees },
+    { label: 'weather', active: weather.precip !== 'none' },
+  ]
+    .filter((i) => i.active)
+    .map((i) => i.label)
+
+  // gates the ground's snow-accumulation animation — see Terrain.tsx
+  const isSnowing = weather.precip === 'snow'
+
+  const headerSubtitle =
+    scene === 'map'
+      ? envItems.length <= 1
+        ? envItems.join('')
+        : `${envItems.slice(0, -1).join(', ')} & ${envItems[envItems.length - 1]}`
+      : cfg.subtitle
 
   // keyboard shortcut: "W" toggles wireframe (ignored while typing)
   useEffect(() => {
@@ -151,7 +186,7 @@ function App() {
     <div className="app">
       <div className="canvas-wrap">
         <Canvas shadows>
-          {view === '3D' ? (
+          {scene === 'map' || view === '3D' ? (
             <PerspectiveCamera
               key={`p-${scene}`}
               makeDefault
@@ -178,6 +213,9 @@ function App() {
                 showTrees={showTrees}
                 treeCount={treeCount}
                 scatterSeed={scatterSeed}
+                snowing={isSnowing}
+                snowIntensity={weather.precipIntensity}
+                running={running}
               />
             </>
           ) : (
@@ -198,7 +236,7 @@ function App() {
             key={`${scene}-${view}`}
             ref={controlsRef}
             enableDamping
-            enableRotate={view === '3D'}
+            enableRotate={scene === 'map' || view === '3D'}
             target={cfg.target}
             minDistance={cfg.minDistance}
             maxDistance={cfg.maxDistance}
@@ -209,10 +247,31 @@ function App() {
         </Canvas>
       </div>
 
+      {scene === 'map' && showMinimap && (
+        <Minimap
+          params={terrain}
+          wireframe={wireframe}
+          showTrees={showTrees}
+          treeCount={treeCount}
+          scatterSeed={scatterSeed}
+          snowing={isSnowing}
+          snowIntensity={weather.precipIntensity}
+          running={running}
+        />
+      )}
+
       <div className="ui-overlay">
         <header>
-          <h1 className="site-title">{cfg.title}</h1>
-          <p className="site-subtitle">{cfg.subtitle}</p>
+          <h1
+            className={
+              scene === 'map' && !showingIsland
+                ? 'site-title site-title--procedural'
+                : 'site-title'
+            }
+          >
+            {headerTitle}
+          </h1>
+          <p className="site-subtitle">{headerSubtitle}</p>
         </header>
 
         <div className="panel">
@@ -257,26 +316,76 @@ function App() {
               : 'Pauses the orb’s noise animation. The sliders still reshape it while frozen.'}
           </p>
 
-          <div className="panel-title">View</div>
-          <div className="segmented">
-            <button
-              className={view === '3D' ? 'active' : ''}
-              onClick={() => setView('3D')}
-              title="Free-orbiting perspective camera — rotate, pan, and zoom."
-            >
-              3D
-            </button>
-            <button
-              className={view === '2D' ? 'active' : ''}
-              onClick={() => setView('2D')}
-              title="Top-down orthographic camera, rotation locked — good for reading the shape/layout."
-            >
-              2D
-            </button>
-          </div>
+          {scene === 'map' ? (
+            <>
+              <div className="panel-title">View</div>
+              <div className="segmented">
+                <button
+                  className={showMinimap ? 'active' : ''}
+                  onClick={() => setShowMinimap(true)}
+                  title="Show a fixed top-down inset of the island in the bottom-left corner."
+                >
+                  2D inset on
+                </button>
+                <button
+                  className={!showMinimap ? 'active' : ''}
+                  onClick={() => setShowMinimap(false)}
+                  title="Hide the corner inset. The main view stays a free-orbiting 3D camera either way."
+                >
+                  2D inset off
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="panel-title">View</div>
+              <div className="segmented">
+                <button
+                  className={view === '3D' ? 'active' : ''}
+                  onClick={() => setView('3D')}
+                  title="Free-orbiting perspective camera — rotate, pan, and zoom."
+                >
+                  3D
+                </button>
+                <button
+                  className={view === '2D' ? 'active' : ''}
+                  onClick={() => setView('2D')}
+                  title="Top-down orthographic camera, rotation locked — good for reading the shape/layout."
+                >
+                  2D
+                </button>
+              </div>
+            </>
+          )}
 
           {scene === 'map' && (
             <>
+              <div className="segmented">
+                <button
+                  className={mapTab === 'terrain' ? 'active' : ''}
+                  onClick={() => setMapTab('terrain')}
+                  title="Noise stack, island outline, and mesh resolution — the shape of the land."
+                >
+                  Terrain
+                </button>
+                <button
+                  className={mapTab === 'weather' ? 'active' : ''}
+                  onClick={() => setMapTab('weather')}
+                  title="Sky, sun, fog, and precipitation — the atmosphere above the land."
+                >
+                  Weather
+                </button>
+                <button
+                  className={mapTab === 'props' ? 'active' : ''}
+                  onClick={() => setMapTab('props')}
+                  title="Trees and other objects scattered on the terrain."
+                >
+                  Props
+                </button>
+              </div>
+
+              {mapTab === 'weather' && (
+                <>
               <div className="panel-title">Weather</div>
               <div className="preset-grid">
                 {WEATHER_KINDS.map((k) => (
@@ -322,6 +431,121 @@ function App() {
                 />
                 <em>{weather.cloudCover.toFixed(2)}</em>
               </label>
+
+              <div className="panel-title">Cloud Puffs</div>
+
+              <label
+                className="row"
+                title="How many individual cloud puffs are drawn. 0 hides them regardless of Cloud cover."
+              >
+                <span>Count</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={12}
+                  step={1}
+                  value={weather.cloudCount}
+                  onChange={(e) => setW('cloudCount', Number(e.target.value))}
+                />
+                <em>{weather.cloudCount}</em>
+              </label>
+
+              <label
+                className="row"
+                title="Height of the cloud band above the ground, in world units."
+              >
+                <span>Altitude</span>
+                <input
+                  type="range"
+                  min={8}
+                  max={45}
+                  step={1}
+                  value={weather.cloudAltitude}
+                  onChange={(e) =>
+                    setW('cloudAltitude', Number(e.target.value))
+                  }
+                />
+                <em>{weather.cloudAltitude}</em>
+              </label>
+
+              <label
+                className="row"
+                title="Horizontal spacing between puffs. Lower crowds them together; higher spreads them across the sky."
+              >
+                <span>Spread</span>
+                <input
+                  type="range"
+                  min={4}
+                  max={40}
+                  step={1}
+                  value={weather.cloudSpread}
+                  onChange={(e) =>
+                    setW('cloudSpread', Number(e.target.value))
+                  }
+                />
+                <em>{weather.cloudSpread}</em>
+              </label>
+
+              <label
+                className="row"
+                title="Volume of each puff — bigger values make fluffier, larger clouds."
+              >
+                <span>Size</span>
+                <input
+                  type="range"
+                  min={2}
+                  max={30}
+                  step={1}
+                  value={weather.cloudSize}
+                  onChange={(e) => setW('cloudSize', Number(e.target.value))}
+                />
+                <em>{weather.cloudSize}</em>
+              </label>
+
+              <label
+                className="row"
+                title="Base opacity of the puffs, layered on top of the Cloud cover contribution."
+              >
+                <span>Opacity</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={weather.cloudOpacity}
+                  onChange={(e) =>
+                    setW('cloudOpacity', Number(e.target.value))
+                  }
+                />
+                <em>{weather.cloudOpacity.toFixed(2)}</em>
+              </label>
+
+              <label
+                className="row"
+                title="How fast each puff's turbulent surface morphs. 0 freezes their shape; still respects Pause."
+              >
+                <span>Speed</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={weather.cloudSpeed}
+                  onChange={(e) => setW('cloudSpeed', Number(e.target.value))}
+                />
+                <em>{weather.cloudSpeed.toFixed(2)}</em>
+              </label>
+
+              <div className="panel-actions">
+                <button
+                  onClick={() =>
+                    setW('cloudSeed', Math.floor(Math.random() * 1000))
+                  }
+                  title="Reroll the puff shapes without changing count, size, or any other setting."
+                >
+                  Reroll clouds
+                </button>
+              </div>
 
               <label
                 className="row"
@@ -391,7 +615,11 @@ function App() {
                 />
                 <em>{weather.precipIntensity.toFixed(2)}</em>
               </label>
+                </>
+              )}
 
+              {mapTab === 'terrain' && (
+                <>
               <div className="panel-title">Terrain</div>
 
               <label
@@ -462,6 +690,22 @@ function App() {
                   onChange={(e) => setT('amplitude', Number(e.target.value))}
                 />
                 <em>{terrain.amplitude.toFixed(1)}</em>
+              </label>
+
+              <label
+                className="row"
+                title="Height of the water surface. The land doesn't move — raise it to flood the coast, lower it to drain more shoreline. Biomes and tree placement shift with it."
+              >
+                <span>Sea Level</span>
+                <input
+                  type="range"
+                  min={-terrain.amplitude / 2}
+                  max={terrain.amplitude}
+                  step={0.1}
+                  value={terrain.seaLevel}
+                  onChange={(e) => setT('seaLevel', Number(e.target.value))}
+                />
+                <em>{terrain.seaLevel.toFixed(1)}</em>
               </label>
 
               <label
@@ -559,7 +803,11 @@ function App() {
                 0.45 ≈ the real 13:1 proportions; higher fattens it so the
                 terrain detail reads.
               </p>
+                </>
+              )}
 
+              {mapTab === 'props' && (
+                <>
               <div className="panel-title">Trees</div>
 
               <label
@@ -600,7 +848,11 @@ function App() {
                   Replant
                 </button>
               </div>
+                </>
+              )}
 
+              {mapTab === 'terrain' && (
+                <>
               <div className="panel-title">Detail</div>
 
               <label
@@ -618,6 +870,8 @@ function App() {
                 />
                 <em>{terrain.resolution}</em>
               </label>
+                </>
+              )}
             </>
           )}
 

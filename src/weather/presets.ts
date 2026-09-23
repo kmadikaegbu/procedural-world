@@ -7,11 +7,20 @@ export type Precip = 'none' | 'rain' | 'snow'
 export type WeatherParams = {
   sunElevation: number // 0 = horizon (sunset), 1 = noon, <0 = night
   sunAzimuth: number // compass direction of the sun, radians
-  cloudCover: number // 0 = clear, 1 = overcast
+  cloudCover: number // 0 = clear, 1 = overcast — dims the sun & darkens/thickens puffs
   fogDensity: number // 0 = none, 1 = pea soup
   precip: Precip
   precipIntensity: number // 0..1 → particle count + opacity
   wind: number // horizontal drift, world units/sec
+
+  // individual cloud-puff controls, independent of cloudCover's overall dimming
+  cloudCount: number // how many puffs — 0 hides them outright
+  cloudAltitude: number // height of the cloud band, world units
+  cloudSpread: number // horizontal spacing between puffs
+  cloudSize: number // volume per puff — bigger = fluffier/larger
+  cloudOpacity: number // base opacity, layered with cloudCover
+  cloudSpeed: number // turbulence/morph animation speed
+  cloudSeed: number // reroll puff shapes without touching anything else
 }
 
 export const WEATHER_DEFAULTS: WeatherParams = {
@@ -22,13 +31,26 @@ export const WEATHER_DEFAULTS: WeatherParams = {
   precip: 'none',
   precipIntensity: 0.5,
   wind: 1.5,
+
+  cloudCount: 4,
+  cloudAltitude: 24,
+  cloudSpread: 18,
+  cloudSize: 10,
+  cloudOpacity: 0.35,
+  cloudSpeed: 0.2,
+  cloudSeed: 0,
 }
 
 export type WeatherKind = 'clear' | 'cloudy' | 'rain' | 'snow' | 'storm' | 'fog'
 
 export const WEATHER_PRESETS: Record<WeatherKind, WeatherParams> = {
   clear: { ...WEATHER_DEFAULTS, cloudCover: 0.1, fogDensity: 0.05 },
-  cloudy: { ...WEATHER_DEFAULTS, cloudCover: 0.6, fogDensity: 0.15 },
+  cloudy: {
+    ...WEATHER_DEFAULTS,
+    cloudCover: 0.6,
+    fogDensity: 0.15,
+    cloudCount: 6,
+  },
   rain: {
     ...WEATHER_DEFAULTS,
     sunElevation: 0.18,
@@ -37,6 +59,9 @@ export const WEATHER_PRESETS: Record<WeatherKind, WeatherParams> = {
     precip: 'rain',
     precipIntensity: 0.6,
     wind: 3,
+    cloudCount: 7,
+    cloudSize: 13,
+    cloudSpeed: 0.3,
   },
   snow: {
     ...WEATHER_DEFAULTS,
@@ -46,6 +71,8 @@ export const WEATHER_PRESETS: Record<WeatherKind, WeatherParams> = {
     precip: 'snow',
     precipIntensity: 0.5,
     wind: 1,
+    cloudCount: 6,
+    cloudAltitude: 20,
   },
   storm: {
     ...WEATHER_DEFAULTS,
@@ -55,6 +82,9 @@ export const WEATHER_PRESETS: Record<WeatherKind, WeatherParams> = {
     precip: 'rain',
     precipIntensity: 1,
     wind: 6,
+    cloudCount: 9,
+    cloudSize: 16,
+    cloudSpeed: 0.45,
   },
   fog: {
     ...WEATHER_DEFAULTS,
@@ -62,6 +92,8 @@ export const WEATHER_PRESETS: Record<WeatherKind, WeatherParams> = {
     cloudCover: 0.4,
     fogDensity: 0.8,
     precip: 'none',
+    cloudCount: 3,
+    cloudAltitude: 14,
   },
 }
 

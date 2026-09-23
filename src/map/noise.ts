@@ -16,6 +16,7 @@ export type TerrainParams = {
   islandWidth: number // width multiplier — 0.45 ≈ true scale, 1 = legible
   offsetX: number // pan through the noise field, in sampled (post-frequency) units
   offsetZ: number // — same coastline, different hills underneath; seed jumps, this slides
+  seaLevel: number // world-Y height of the water surface — the land doesn't move, just what's submerged
 }
 
 export const TERRAIN_DEFAULTS: TerrainParams = {
@@ -30,6 +31,7 @@ export const TERRAIN_DEFAULTS: TerrainParams = {
   islandWidth: 1,
   offsetX: 0,
   offsetZ: 0,
+  seaLevel: 0,
 }
 
 // --- island shape -----------------------------------------------------------
@@ -145,9 +147,12 @@ function fbm(x: number, z: number, p: TerrainParams): number {
  */
 export const BANDS = { sand: 0.08, grass: 0.68, rock: 0.9 } as const
 
-/** Height window where trees belong — the grass band. */
+/** Height window where trees belong — the grass band, relative to sea level. */
 export function grassRange(p: TerrainParams): [number, number] {
-  return [BANDS.sand * p.amplitude, BANDS.grass * p.amplitude]
+  return [
+    p.seaLevel + BANDS.sand * p.amplitude,
+    p.seaLevel + BANDS.grass * p.amplitude,
+  ]
 }
 
 export function height(x: number, z: number, p: TerrainParams): number {

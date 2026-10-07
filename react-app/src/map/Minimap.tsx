@@ -1,7 +1,7 @@
 import { Canvas } from '@react-three/fiber'
 import { OrthographicCamera } from '@react-three/drei'
-import { Map } from './map/Map'
-import type { TerrainParams } from './map/noise'
+import { Map } from './Map'
+import type { TerrainParams } from './noise'
 
 /**
  * Fixed top-down inset of the map, pinned to the corner of the screen.

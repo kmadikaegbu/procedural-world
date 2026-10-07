@@ -8,7 +8,7 @@ import {
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { Map } from './map/Map'
 import { VoxelMap } from './map/VoxelMap'
-import { Minimap } from './map/Minimap'
+import { Minimap, type InsetMode } from './map/Minimap'
 import { MAX_TREES } from './map/Props'
 import { TERRAIN_DEFAULTS, type TerrainParams } from './map/noise'
 import {
@@ -120,6 +120,7 @@ function App() {
   const [scene, setScene] = useState<SceneMode>('map')
   const [view, setView] = useState<ViewMode>('3D')
   const [showMinimap, setShowMinimap] = useState(true)
+  const [insetMode, setInsetMode] = useState<InsetMode>('terrain')
   const [terrain, setTerrain] = useState<TerrainParams>(TERRAIN_DEFAULTS)
   const [orbNoise, setOrbNoise] = useState<OrbNoiseParams>(ORB_NOISE_DEFAULTS)
   const [weather, setWeather] = useState<WeatherParams>(WEATHER_PRESETS.clear)
@@ -317,6 +318,7 @@ function App() {
       {isMapLike && showMinimap && (
         <Minimap
           params={terrain}
+          mode={insetMode}
           wireframe={wireframe}
           showTrees={showTrees}
           treeCount={treeCount}
@@ -470,6 +472,24 @@ function App() {
                   title="Hide the corner inset. The main view stays a free-orbiting 3D camera either way."
                 >
                   2D inset off
+                </button>
+              </div>
+              <div className="segmented">
+                <button
+                  className={insetMode === 'terrain' ? 'active' : ''}
+                  disabled={!showMinimap}
+                  onClick={() => setInsetMode('terrain')}
+                  title="The inset shows the rendered island from above — biomes, water, trees."
+                >
+                  Inset: terrain
+                </button>
+                <button
+                  className={insetMode === 'noise' ? 'active' : ''}
+                  disabled={!showMinimap}
+                  onClick={() => setInsetMode('noise')}
+                  title="The inset shows the raw noise field as grayscale (black = low, white = high), after shaping but before the island mask. The red line is the coastline."
+                >
+                  Inset: noise
                 </button>
               </div>
             </>
@@ -904,6 +924,81 @@ function App() {
                   onChange={(e) => setT('ridged', e.target.checked)}
                 />
               </label>
+
+              <div className="panel-title">Noise Type</div>
+
+              <label
+                className="row"
+                title="Mixes two noise types in every octave. 0 = pure Perlin (smooth rolling hills). 1 = pure cellular / Worley (rounded hills, one per cell, with creases between them). In between blends the two."
+              >
+                <span>Perlin ↔ Cell</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={terrain.noiseBlend}
+                  onChange={(e) => setT('noiseBlend', Number(e.target.value))}
+                />
+                <em>{terrain.noiseBlend.toFixed(2)}</em>
+              </label>
+
+              <div className="panel-title">Shaping</div>
+
+              <label
+                className="row"
+                title="Redistributes heights with a power curve. 1 = unchanged. Below 1 lifts the lowlands into broad uplands; above 1 flattens the valleys and leaves sharp, isolated peaks."
+              >
+                <span>Redistribute</span>
+                <input
+                  type="range"
+                  min={0.3}
+                  max={3}
+                  step={0.05}
+                  value={terrain.redistribution}
+                  onChange={(e) =>
+                    setT('redistribution', Number(e.target.value))
+                  }
+                />
+                <em>{terrain.redistribution.toFixed(2)}</em>
+              </label>
+
+              <label
+                className="row"
+                title="Cuts the terrain into flat steps joined by short slopes, like mesas or rice terraces. 0 = off; more steps = finer terracing."
+              >
+                <span>Terraces</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={12}
+                  step={1}
+                  value={terrain.terraces}
+                  onChange={(e) => setT('terraces', Number(e.target.value))}
+                />
+                <em>{terrain.terraces === 0 ? 'off' : terrain.terraces}</em>
+              </label>
+
+              <div className="panel-actions">
+                <button
+                  onClick={() =>
+                    setTerrain((t) => ({
+                      ...t,
+                      noiseBlend: TERRAIN_DEFAULTS.noiseBlend,
+                      redistribution: TERRAIN_DEFAULTS.redistribution,
+                      terraces: TERRAIN_DEFAULTS.terraces,
+                    }))
+                  }
+                  title="Back to pure Perlin noise with no shaping."
+                >
+                  Reset shaping
+                </button>
+              </div>
+
+              <p className="hint-text">
+                Switch the inset to <strong>noise</strong> (View, above) to
+                see these change the raw noise field directly.
+              </p>
 
               <div className="panel-title">Island</div>
 

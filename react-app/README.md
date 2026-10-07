@@ -32,6 +32,7 @@ src/
 ├── App.tsx       scene switcher + control panel; owns ALL parameter state
 ├── map/          Map + Voxel scenes, terrain generation, minimap, timeline
 ├── weather/      sky, fog, clouds, rain/snow (used by Map and Voxel)
+├── noise/        cellular (Worley) noise, shared by the terrain and the orb
 └── orb/          Orb scene (Perlin + cellular noise sphere)
 ```
 
@@ -41,10 +42,11 @@ src/
   `TerrainParams`, `WeatherParams`, tree count, timeline year, and so on.
   It passes them down as props. Scene components have no state of their own
   that affects generation.
-- **Deterministic generation.** `map/noise.ts` builds the heightfield from a
-  seeded `ImprovedNoise` (fractal Perlin, optional ridging) and multiplies it
-  by a Roosevelt Island outline mask. The same seed and params always give
-  the same island.
+- **Deterministic generation.** `map/noise.ts` builds the heightfield from
+  seeded fractal noise: Perlin and/or cellular, blended per octave, with
+  optional ridging. It then applies the shaping ops (redistribute, terraces)
+  and multiplies the result by a Roosevelt Island outline mask. The same
+  seed and params always give the same island.
 - **Shared terrain, two renderers.** `Terrain.tsx` (smooth mesh) and
   `VoxelTerrain.tsx` (instanced cubes) both sample the same height function
   and color it through `biomes.ts`, so the two scenes always match.

@@ -4,6 +4,7 @@
 
 - [Progress by class](#progress-by-class)
 - [Feature log](#feature-log)
+- [Assignment checklist](CHECKLIST.md): what's still outstanding
 
 ## Progress by class
 
@@ -45,8 +46,10 @@ resolution; shaping ops; layered noise, noise-type blending.
 Frequency, Octaves, Persistence, and Ridged controls over layered (fractal)
 Perlin noise, a Resolution slider for grid density, a 2D/3D view toggle plus
 a live top-down minimap, and a Sea Level control that reshapes the coast.
-Noise-type blending was explored separately in the Orb scene, which
-combines Perlin with cellular/Worley noise.
+Completed afterwards: a Perlin ↔ cellular (Worley) noise-type blend on the
+terrain itself, two shaping ops (a Redistribute power curve and Terraces),
+and an inset mode that draws the raw noise field in grayscale, the 2D view
+of the noise equation.
 
 ### Class 04 — Voxels
 
@@ -103,8 +106,10 @@ class session — more granular than the by-class summary above.
 
 ### Terrain & map
 
-- Height-field terrain from seeded fractal Perlin noise (seed, frequency,
+- Height-field terrain from seeded fractal noise (seed, frequency,
   octaves, persistence, ridged toggle)
+- Noise-type blending: Perlin ↔ cellular (Worley), mixed per octave
+- Shaping ops: Redistribute (power curve) and Terraces (flat steps)
 - Masked into the real Roosevelt Island outline, with a width control and an
   island on/off toggle (raw square noise field when off)
 - Biome coloring (water → sand → grass → rock → snow), thresholds scaled to
@@ -135,7 +140,8 @@ class session — more granular than the by-class summary above.
   snapped onto the voxel grid so they can't float over open water
 - **Orb** — a separate noise-displaced sphere (fractal Perlin + cellular/
   Worley noise, adjustable gradient)
-- A fixed-corner 2D top-down minimap, live-updating with the main scene
+- A fixed-corner 2D top-down minimap, live-updating with the main scene;
+  switchable to a grayscale view of the raw noise field
 
 ### Tooling
 

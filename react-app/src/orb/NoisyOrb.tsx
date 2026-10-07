@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { ImprovedNoise } from 'three/examples/jsm/math/ImprovedNoise.js'
-import { cellular3 } from './cellularNoise'
+import { cellular3 } from '../noise/cellularNoise'
 
 export type OrbNoiseParams = {
   // fractal Perlin layer

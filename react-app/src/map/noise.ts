@@ -1,4 +1,5 @@
 import { ImprovedNoise } from 'three/examples/jsm/math/ImprovedNoise.js'
+import { cellular2 } from '../noise/cellularNoise'
 
 const perlin = new ImprovedNoise()
 
@@ -11,6 +12,9 @@ export type TerrainParams = {
   octaves: number // how many layers of detail
   persistence: number // how much each finer octave contributes (0–1)
   ridged: boolean // sharp mountain ridges vs. rolling hills
+  noiseBlend: number // 0 = pure Perlin, 1 = pure cellular (Worley) — mixed per octave
+  redistribution: number // shaping exponent: <1 lifts lowlands into plateaus, >1 flattens valleys + sharpens peaks
+  terraces: number // shaping: quantize height into this many steps (0 = off)
   resolution: number // grid segments per side — calibrates topography detail vs. cost
   island: boolean // mask the noise into the Roosevelt Island outline
   islandWidth: number // width multiplier — 0.45 ≈ true scale, 1 = legible
@@ -26,6 +30,9 @@ export const TERRAIN_DEFAULTS: TerrainParams = {
   octaves: 5,
   persistence: 0.5,
   ridged: false,
+  noiseBlend: 0,
+  redistribution: 1,
+  terraces: 0,
   resolution: 200,
   island: true,
   islandWidth: 1,
@@ -117,20 +124,32 @@ export function islandMask(x: number, z: number, p: TerrainParams): number {
 
 // --- height field -----------------------------------------------------------
 
-// fractal Brownian motion: sum several octaves of Perlin noise
+// fractal Brownian motion: sum several octaves of noise — Perlin, cellular
+// (Worley), or a blend of the two, chosen per octave by p.noiseBlend
 function fbm(x: number, z: number, p: TerrainParams): number {
   const s = p.seed * 100
+  const blend = clamp01(p.noiseBlend)
   let value = 0
   let amp = 1
   let freq = p.frequency
   let norm = 0
 
   for (let o = 0; o < p.octaves; o++) {
-    let n = perlin.noise(
-      x * freq + s + p.offsetX,
-      z * freq + s + p.offsetZ,
-      s * 0.1,
-    ) // -1..1
+    const nx = x * freq + s + p.offsetX
+    const nz = z * freq + s + p.offsetZ
+
+    // each type is only sampled when it contributes — cellular is 9 cell
+    // lookups per sample, so pure-Perlin terrain shouldn't pay for it
+    const perlinN = blend < 1 ? perlin.noise(nx, nz, s * 0.1) : 0 // -1..1
+    let cellN = 0
+    if (blend > 0) {
+      // distance to the nearest feature point, inverted so each cell
+      // becomes a rounded hill peaking at its point; mapped into -1..1
+      const { f1 } = cellular2(nx, nz, 1, p.seed + o * 7.3)
+      cellN = 1 - 2 * clamp01(f1 * 1.1)
+    }
+
+    let n = perlinN * (1 - blend) + cellN * blend
     if (p.ridged) n = 1 - Math.abs(n) // fold negatives up → ridges
     value += n * amp
     norm += amp
@@ -155,13 +174,43 @@ export function grassRange(p: TerrainParams): [number, number] {
   ]
 }
 
-export function height(x: number, z: number, p: TerrainParams): number {
-  const n = fbm(x, z, p)
-  if (!p.island) return n * p.amplitude
+/**
+ * Shaping ops, applied to noise already normalised into 0..1:
+ *  - redistribution: a power curve. 1 = untouched; <1 pushes heights up
+ *    (broad uplands); >1 pushes them down (flat lowlands, isolated peaks).
+ *  - terraces: snaps height into N flat steps joined by short slopes, like
+ *    rice paddies or eroded mesas. 0 = off.
+ * Both are identities at their defaults, so the base terrain is unchanged.
+ */
+function shape(n01: number, p: TerrainParams): number {
+  let h = n01
+  if (p.redistribution !== 1) h = Math.pow(h, p.redistribution)
+  if (p.terraces > 0) {
+    const k = h * p.terraces
+    const step = Math.floor(k)
+    // flat for the first 70% of each step, then a smooth riser to the next
+    h = (step + smoothstep(0.7, 1, k - step)) / p.terraces
+  }
+  return h
+}
 
-  // fbm with normalised octaves rarely reaches ±1, so stretch the usable range
-  // before mapping to elevation — otherwise everything bunches into one biome
-  const n01 = clamp01(0.5 + n * 1.15)
+/**
+ * The shaped noise field as 0..1, BEFORE the island mask — what the noise
+ * equation itself produces. Drives the grayscale "Noise" inset view, and is
+ * the same value height() builds the terrain from.
+ */
+export function noise01(x: number, z: number, p: TerrainParams): number {
+  const n = fbm(x, z, p)
+  // with the island on, fbm's normalised octaves rarely reach ±1, so stretch
+  // the usable range — otherwise everything bunches into one biome. With it
+  // off, keep the plain -1..1 → 0..1 map so the raw field reads as-is.
+  const n01 = p.island ? clamp01(0.5 + n * 1.15) : clamp01(0.5 + n * 0.5)
+  return shape(n01, p)
+}
+
+export function height(x: number, z: number, p: TerrainParams): number {
+  const n01 = noise01(x, z, p)
+  if (!p.island) return (n01 * 2 - 1) * p.amplitude
 
   // lift the land clear of the waterline so the coast comes from the mask,
   // not from the noise happening to dip below zero

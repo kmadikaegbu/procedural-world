@@ -37,6 +37,7 @@ This repository holds two things:
 | See the finished thing | [Live demo](https://procedural-world-design-app.web.app) |
 | Run the app locally | [Quick start](#quick-start), then [`react-app/README.md`](react-app/README.md) |
 | See what was built in each class | [`docs/progress/README.md`](docs/progress/README.md) |
+| See what's still outstanding | [`docs/progress/CHECKLIST.md`](docs/progress/CHECKLIST.md) |
 | Learn the tools from scratch | [`Tutorials/`](Tutorials/) |
 | See the visual rules (palette, lighting, materials) | [`Style Guide.md`](<Style Guide.md>) |
 | See why things were designed this way | [`Planning/`](Planning/) and [`Analysis/`](Analysis/) |
@@ -113,14 +114,16 @@ The Map and Voxel scenes share one parameter set, controlled from the panel:
 - **Climate Timeline**: a 1950–2100 year slider with Play/Stop that drives
   sea level. The rise curve is *stylized for illustration*, not real
   NOAA/IPCC data.
-- **Terrain** tab: seed, frequency, octaves, persistence, ridged noise, sea
+- **Terrain** tab: seed, frequency, octaves, persistence, ridged noise,
+  Perlin ↔ cellular noise blend, shaping (redistribute, terraces), sea
   level, island width, resolution, pan offset
 - **Weather** tab: presets, sun position, fog, cloud puffs (count, altitude,
   size, speed…), rain/snow with wind, and snow that builds up on the ground
 - **Props** tab: show/hide trees, tree count, replant
 
-A live top-down **minimap** sits in the corner, and every control shows a
-tooltip on hover.
+A live top-down **minimap** sits in the corner. It can switch to a
+grayscale view of the raw noise field. Every control shows a tooltip on
+hover.
 
 ---
 
@@ -171,8 +174,8 @@ react-app/src/
 ├── App.css, index.css  panel styling and theme tokens
 │
 ├── map/                Map and Voxel scenes
-│   ├── noise.ts        seeded fractal Perlin heightfield + island mask;
-│   │                   TerrainParams and its defaults
+│   ├── noise.ts        seeded fractal noise heightfield, shaping ops,
+│   │                   island mask; TerrainParams and its defaults
 │   ├── biomes.ts       height → biome color ramp (shared by both scenes)
 │   ├── Terrain.tsx     smooth terrain mesh
 │   ├── VoxelTerrain.tsx  instanced-cube terrain + grid-snapping helpers
@@ -180,7 +183,8 @@ react-app/src/
 │   ├── VoxelMap.tsx    Voxel scene: voxel terrain + water + props
 │   ├── Water.tsx       water plane at sea level
 │   ├── Props.tsx       seeded, density-clustered tree scattering
-│   ├── Minimap.tsx     top-down orthographic minimap
+│   ├── Minimap.tsx     top-down orthographic minimap (terrain or noise)
+│   ├── NoisePlane.tsx  grayscale image of the raw noise field
 │   └── timeline.ts     climate timeline: year → sea level
 │
 ├── weather/            sky, fog, clouds, rain/snow (shared by Map + Voxel)
@@ -188,9 +192,11 @@ react-app/src/
 │   ├── presets.ts      WeatherParams type, defaults, named presets
 │   ├── Sky.tsx, Clouds.tsx, Precipitation.tsx
 │
+├── noise/              noise shared by several scenes
+│   └── cellularNoise.ts  2D + 3D cellular / Worley noise
+│
 └── orb/                Orb scene
-    ├── NoisyOrb.tsx    noise-displaced sphere
-    └── cellularNoise.ts  3D cellular / Worley noise
+    └── NoisyOrb.tsx    noise-displaced sphere
 ```
 
 Data flows one way. `App.tsx` owns all parameters in React state and passes

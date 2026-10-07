@@ -72,7 +72,15 @@ approaches.
 three.js materials (`MeshStandardMaterial`, etc.) throughout; no custom
 GLSL has been written.
 
-*(Class 06 onward: add an entry here as each happens — deck link + class
+### Class 06
+
+**Deck:** [PWB — Class 06](https://www.figma.com/deck/U71zqbp10aK9ev95kpopkZ)
+
+**Class topics:** _TBD_
+
+**This repo's progress:** _TBD_
+
+*(Class 07 onward: add an entry here as each happens — deck link + class
 topics + what this repo actually did, same format as above.)*
 
 <details>

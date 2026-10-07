@@ -1,32 +1,68 @@
-# React + TypeScript + Vite
+# Procedural World Building — Roosevelt Island
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A procedurally generated Roosevelt Island, NYC: a noise-driven heightfield
+terrain masked to the real island outline, with biomes, scattered trees, a
+full weather system, a blocky voxel rendering mode, and a separate
+noise-displaced "orb" scene — all driven from one shared parameter set.
 
-Currently, two official plugins are available:
+This repo doubles as the course vault (notes, tutorials, planning) and the
+app itself, which lives in [`react-app/`](react-app/).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Contents
 
-## React Compiler
+- [Project structure](#project-structure)
+- [Progress](#progress)
+- [Getting started](#getting-started)
+- [Built with](#built-with)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Project structure
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```
+.
+├── Analysis/              research, precedent, technique references
+├── Planning/               design decisions, open questions, feature ideas
+├── Tutorials/              Git/GitHub, React, three.js, and procedural-map
+│                           how-tos written while building this
+├── docs/
+│   ├── progress/           running build log (see docs/progress/README.md)
+│   └── style-guide/
+├── Style Guide.md           visual design system — palette, lighting,
+│                           materials, procedural-generation rules
+├── archive/                 earlier, unrelated class vaults — kept for
+│                           history, not part of this project
+└── react-app/                the actual app (Vite + React + TypeScript +
+                              three.js / @react-three/fiber)
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Progress
+
+See [`docs/progress/README.md`](docs/progress/README.md) for the running
+build log.
+
+## Getting started
+
+```bash
+cd react-app
+npm install
+npm run dev
+```
+
+Opens at `http://localhost:5173`. See [`react-app/README.md`](react-app/README.md)
+for the underlying Vite template notes, and [`Tutorials/`](Tutorials/) for
+longer walkthroughs (installing React, installing three.js, building the
+procedural map from scratch).
+
+Deploys to Firebase Hosting from inside `react-app/`:
+
+```bash
+cd react-app
+firebase deploy
+```
+
+## Built with
+
+- [Vite](https://vite.dev) + [React](https://react.dev) + TypeScript
+- [three.js](https://threejs.org) via
+  [`@react-three/fiber`](https://r3f.docs.pmnd.rs/) and
+  [`@react-three/drei`](https://github.com/pmndrs/drei)
+- [Firebase Hosting](https://firebase.google.com/docs/hosting)

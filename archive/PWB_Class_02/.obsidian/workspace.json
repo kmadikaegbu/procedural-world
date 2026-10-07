@@ -1,0 +1,226 @@
+{
+  "main": {
+    "id": "3bb1fb801b7bfd9c",
+    "type": "split",
+    "children": [
+      {
+        "id": "43f0e63880a36fec",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "aa98d9eadc311c23",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "PWB_Class_02/Tutorials/Building a Procedural Map.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Building a Procedural Map"
+            }
+          },
+          {
+            "id": "5cd616762dce0a67",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Untitled.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Untitled"
+            }
+          }
+        ],
+        "currentTab": 1
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "7fc05043e2e6339e",
+    "type": "split",
+    "children": [
+      {
+        "id": "8bf888c6ae286aa1",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "014311129a3acc8b",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "71dbc174b9c6c798",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "85392bd97104a5a8",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "5ad791fb51f44b1c",
+    "type": "split",
+    "children": [
+      {
+        "id": "4d2af3913f38cac7",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "dc1450661feffb2b",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Untitled.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks"
+            }
+          },
+          {
+            "id": "14d8e359ecb487d0",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Untitled.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links"
+            }
+          },
+          {
+            "id": "894d616481c70ef6",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "e84545a2a5b6c785",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "c784ac07eac101dd",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Untitled.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "5cd616762dce0a67",
+  "lastOpenFiles": [
+    "littlefield-game-plan_1.md",
+    "PWB_Class_02/Tutorials/Building a Procedural Map.md",
+    "Untitled.md",
+    "Untitled 1.canvas",
+    "Untitled.canvas",
+    "PWB_Class_02/Session Log.md",
+    "Untitled",
+    "PWB_Class_02/Tutorials/Git & Github Tutorials.md",
+    "PWB_Class_02/README.md",
+    "PWB_Class_02/Tutorials/Installing three.js.md",
+    "This is a Note.md",
+    "PWB_Class_02/Tutorials/Installing React.md",
+    "Tutorials/Installing React.md",
+    "PWB_Class_02/Tutorials",
+    "Tutorials/Git & Github Tutorials.md",
+    "PWB_Class_02",
+    "Tutorials"
+  ]
+}

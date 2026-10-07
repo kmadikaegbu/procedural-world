@@ -1,7 +1,10 @@
 import { Canvas } from '@react-three/fiber'
 import { OrthographicCamera } from '@react-three/drei'
 import { Map } from './Map'
+import { NoisePlane } from './NoisePlane'
 import type { TerrainParams } from './noise'
+
+export type InsetMode = 'terrain' | 'noise'
 
 /**
  * Fixed top-down inset of the map, pinned to the corner of the screen.
@@ -9,9 +12,13 @@ import type { TerrainParams } from './noise'
  * simplest to reason about, at the cost of regenerating the terrain/props
  * a second time. Fine at this scene's scale; revisit if resolution/tree count
  * grow much further.
+ *
+ * `mode="noise"` swaps the rendered map for a flat grayscale image of the
+ * noise field itself — the 2D view of the noise equation.
  */
 export function Minimap({
   params,
+  mode = 'terrain',
   wireframe,
   showTrees,
   treeCount,
@@ -21,6 +28,7 @@ export function Minimap({
   running = true,
 }: {
   params: TerrainParams
+  mode?: InsetMode
   wireframe: boolean
   showTrees: boolean
   treeCount: number
@@ -31,7 +39,7 @@ export function Minimap({
 }) {
   return (
     <div className="minimap">
-      <span className="minimap-label">2D</span>
+      <span className="minimap-label">{mode === 'noise' ? 'Noise' : '2D'}</span>
       <Canvas>
         <color attach="background" args={['#0f0f17']} />
         {/* flat, weather-independent lighting — a minimap should stay
@@ -54,16 +62,20 @@ export function Minimap({
           far={400}
         />
 
-        <Map
-          params={params}
-          wireframe={wireframe}
-          showTrees={showTrees}
-          treeCount={treeCount}
-          scatterSeed={scatterSeed}
-          snowing={snowing}
-          snowIntensity={snowIntensity}
-          running={running}
-        />
+        {mode === 'noise' ? (
+          <NoisePlane params={params} />
+        ) : (
+          <Map
+            params={params}
+            wireframe={wireframe}
+            showTrees={showTrees}
+            treeCount={treeCount}
+            scatterSeed={scatterSeed}
+            snowing={snowing}
+            snowIntensity={snowIntensity}
+            running={running}
+          />
+        )}
       </Canvas>
     </div>
   )

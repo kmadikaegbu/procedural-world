@@ -1,4 +1,4 @@
-// Minimal 3D cellular (Worley / Voronoi) noise for CPU vertex displacement.
+// Minimal 2D/3D cellular (Worley / Voronoi) noise for CPU vertex displacement.
 // Returns the distance to the nearest feature point (f1) and second-nearest (f2).
 
 const frac = (n: number) => n - Math.floor(n)
@@ -50,6 +50,43 @@ export function cellular3(
         } else if (d < f2) {
           f2 = d
         }
+      }
+    }
+  }
+
+  return { f1, f2 }
+}
+
+/**
+ * 2D version of cellular3 — 9 neighbouring cells instead of 27, so roughly
+ * 3× cheaper. Used for the terrain heightfield, which only ever samples a
+ * flat (x, z) plane.
+ */
+export function cellular2(
+  x: number,
+  y: number,
+  jitter: number,
+  seed: number,
+): Cellular {
+  const xi = Math.floor(x)
+  const yi = Math.floor(y)
+  const xf = x - xi
+  const yf = y - yi
+
+  let f1 = Infinity
+  let f2 = Infinity
+
+  for (let di = -1; di <= 1; di++) {
+    for (let dj = -1; dj <= 1; dj++) {
+      const p = cellPoint(xi + di, yi + dj, 0, seed)
+      const fx = di + (0.5 + jitter * (p[0] - 0.5)) - xf
+      const fy = dj + (0.5 + jitter * (p[1] - 0.5)) - yf
+      const d = Math.sqrt(fx * fx + fy * fy)
+      if (d < f1) {
+        f2 = f1
+        f1 = d
+      } else if (d < f2) {
+        f2 = d
       }
     }
   }

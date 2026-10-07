@@ -15,12 +15,6 @@ dist-ssr
 # Firebase
 .firebase/
 
-# Unrelated repos kept here on disk for convenience — each is its own git
-# repo (one with a further-nested repo inside it); this repo stays blind to
-# both rather than seeing them as embedded/confusing content.
-/PWB_Class_01/
-/PWB_Class_02/
-
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

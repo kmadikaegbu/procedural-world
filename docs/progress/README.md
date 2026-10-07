@@ -33,9 +33,60 @@ noise-displaced orb), live control-panel sliders, a 2D/3D view toggle, and
 the first pass of [`Style Guide.md`](<../../Style Guide.md>) defining the
 visual design system (palette, lighting, procedural-generation rules).
 
-*(Classes 03 onward: add an entry here as each happens — deck link + class
-topics + what this repo actually did, same format as above. Screenshots can
-go in `docs/progress/class-NN/` and get linked in from here.)*
+### Class 03 — Noise Field + Simulations
+
+**Deck:** [PWB — Class 03](https://www.figma.com/deck/Hc8vcT9xVjjd1p3sT5xKgQ/PWB---Class-03)
+
+**Class topics / Assignment 1:** 3D grid in the viewport; 2D view of a noise
+equation; apply noise to the 3D grid; slider controls for noise + grid
+resolution; shaping ops; layered noise, noise-type blending.
+
+**This repo's progress:** The full noise-driven height field — Seed,
+Frequency, Octaves, Persistence, and Ridged controls over layered (fractal)
+Perlin noise, a Resolution slider for grid density, a 2D/3D view toggle plus
+a live top-down minimap, and a Sea Level control that reshapes the coast.
+Noise-type blending was explored separately in the Orb scene, which
+combines Perlin with cellular/Worley noise.
+
+### Class 04 — Voxels
+
+**Deck:** [PWB — Class 04](https://www.figma.com/deck/nGInnCOpuzyqmq9z8mFUod/PWB---Class-04)
+
+**Class topics:** Geographic data, voxels, and terraforming.
+
+**This repo's progress:** A Voxel scene rendering the exact same terrain
+parameters as blocky instanced cubes instead of a shaded mesh — same seed,
+sea level, and island shape as the Map scene, sharing weather and tree
+placement with it. Trees are snapped onto the voxel grid so they can't
+float over open water at the coastline.
+
+### Class 05 — Shaders
+
+**Deck:** [PWB — Class 05](https://www.figma.com/deck/XP1cVSq9wjUzFZuUn0ury1/PWB---Class-05)
+
+**Class topics / Assignment 2:** Shader studies; what shaders can do for
+simulations; choosing a strategy; a dedicated in-app section to swap shader
+approaches.
+
+**This repo's progress:** Not started yet — the app currently uses stock
+three.js materials (`MeshStandardMaterial`, etc.) throughout; no custom
+GLSL has been written.
+
+*(Class 06 onward: add an entry here as each happens — deck link + class
+topics + what this repo actually did, same format as above.)*
+
+<details>
+<summary>Adding screenshots for a class</summary>
+
+1. Save an image into `docs/progress/class-NN/` (create the folder if it
+   doesn't exist yet).
+2. Reference it under that class's entry above:
+   ```markdown
+   ![Caption](class-NN/screenshot.png)
+   ```
+3. Commit and push — it'll render on the GitHub repo page.
+
+</details>
 
 ## Feature log
 

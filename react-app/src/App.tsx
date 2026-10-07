@@ -11,6 +11,13 @@ import { VoxelMap } from './map/VoxelMap'
 import { Minimap } from './Minimap'
 import { MAX_TREES } from './map/Props'
 import { TERRAIN_DEFAULTS, type TerrainParams } from './map/noise'
+import {
+  TIMELINE_MIN,
+  TIMELINE_MAX,
+  TIMELINE_DEFAULT,
+  TIMELINE_YEARS_PER_SECOND,
+  seaLevelForYear,
+} from './map/timeline'
 import NoisyOrb, {
   ORB_NOISE_DEFAULTS,
   type OrbNoiseParams,
@@ -125,6 +132,8 @@ function App() {
   const [showTrees, setShowTrees] = useState(true)
   const [treeCount, setTreeCount] = useState(400)
   const [scatterSeed, setScatterSeed] = useState(0)
+  const [timelineYear, setTimelineYear] = useState(TIMELINE_DEFAULT)
+  const [timelinePlaying, setTimelinePlaying] = useState(false)
   const controlsRef = useRef<OrbitControlsImpl>(null)
 
   const cfg = SCENES[scene]
@@ -170,6 +179,40 @@ function App() {
 
   const setT = <K extends keyof TerrainParams>(k: K, v: TerrainParams[K]) =>
     setTerrain((t) => ({ ...t, [k]: v }))
+
+  // the Year slider is a meta-control: it just drives the existing
+  // Sea Level param through a stylized curve, rather than being a separate
+  // terrain parameter of its own. Scrubbing manually stops any Play run.
+  const setYear = (year: number) => {
+    const clamped = Math.min(Math.max(year, TIMELINE_MIN), TIMELINE_MAX)
+    setTimelineYear(clamped)
+    setT('seaLevel', seaLevelForYear(clamped))
+  }
+
+  // Play: advance the year at a fixed real-time rate until 2100, then stop.
+  useEffect(() => {
+    if (!timelinePlaying) return
+    let raf = 0
+    let last = performance.now()
+    const tick = (now: number) => {
+      const dt = (now - last) / 1000
+      last = now
+      setTimelineYear((y) => {
+        const next = y + dt * TIMELINE_YEARS_PER_SECOND
+        if (next >= TIMELINE_MAX) {
+          setTimelinePlaying(false)
+          setT('seaLevel', seaLevelForYear(TIMELINE_MAX))
+          return TIMELINE_MAX
+        }
+        setT('seaLevel', seaLevelForYear(next))
+        return next
+      })
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timelinePlaying])
 
   const setO = <K extends keyof OrbNoiseParams>(k: K, v: OrbNoiseParams[K]) =>
     setOrbNoise((o) => ({ ...o, [k]: v }))
@@ -346,6 +389,69 @@ function App() {
               ? 'Pauses rain/snow & cloud drift. Terrain, seed and biomes still respond live — the noise stack keeps driving the height field.'
               : 'Pauses the orb’s noise animation. The sliders still reshape it while frozen.'}
           </p>
+
+          {isMapLike && (
+            <>
+              <div className="panel-title">Climate Timeline</div>
+
+              <label
+                className="row"
+                title="Drives Sea Level through a stylized rise curve — dragging stops Play."
+              >
+                <span>Year</span>
+                <input
+                  type="range"
+                  min={TIMELINE_MIN}
+                  max={TIMELINE_MAX}
+                  step={1}
+                  value={Math.round(timelineYear)}
+                  onChange={(e) => {
+                    setTimelinePlaying(false)
+                    setYear(Number(e.target.value))
+                  }}
+                />
+                <em>{Math.round(timelineYear)}</em>
+              </label>
+
+              <div className="segmented">
+                <button
+                  className={timelinePlaying ? 'active' : ''}
+                  onClick={() => {
+                    if (timelineYear >= TIMELINE_MAX) setYear(TIMELINE_MIN)
+                    setTimelinePlaying(true)
+                  }}
+                  title="Animate forward from the current year to 2100."
+                >
+                  ▶ Play
+                </button>
+                <button
+                  className={!timelinePlaying ? 'active' : ''}
+                  onClick={() => setTimelinePlaying(false)}
+                  title="Stop at the current year."
+                >
+                  ⏸ Stop
+                </button>
+              </div>
+
+              <div className="panel-actions">
+                <button
+                  onClick={() => {
+                    setTimelinePlaying(false)
+                    setYear(TIMELINE_DEFAULT)
+                  }}
+                  title="Jump back to today and stop."
+                >
+                  Reset to today
+                </button>
+              </div>
+
+              <p className="hint-text">
+                A stylized sea-level-rise curve, not real NOAA/IPCC
+                projections — illustrates how flooding reshapes the coast
+                over time. Drives the Sea Level control directly.
+              </p>
+            </>
+          )}
 
           {isMapLike ? (
             <>

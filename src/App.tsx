@@ -7,6 +7,7 @@ import {
 } from '@react-three/drei'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { Map } from './map/Map'
+import { VoxelMap } from './map/VoxelMap'
 import { Minimap } from './Minimap'
 import { MAX_TREES } from './map/Props'
 import { TERRAIN_DEFAULTS, type TerrainParams } from './map/noise'
@@ -24,7 +25,7 @@ import type { Precip } from './weather/presets'
 import './App.css'
 
 type ViewMode = '3D' | '2D'
-type SceneMode = 'map' | 'orb'
+type SceneMode = 'map' | 'voxel' | 'orb'
 
 type Vec3 = [number, number, number]
 
@@ -49,6 +50,20 @@ const SCENES: Record<
   map: {
     title: 'Roosevelt Island',
     subtitle: 'Noise terrain, biomes, trees & weather — all from a seed',
+    persp: [46, 44, 92],
+    ortho: [0, 90, 0],
+    zoom: 6.5,
+    far: 400,
+    target: [0, 2, 0],
+    minDistance: 20,
+    maxDistance: 260,
+    minZoom: 3,
+    maxZoom: 40,
+    groundLocked: true,
+  },
+  voxel: {
+    title: 'Roosevelt Island — Voxel',
+    subtitle: 'The same terrain, blocked out as cubes instead of a smooth mesh',
     persp: [46, 44, 92],
     ortho: [0, 90, 0],
     zoom: 6.5,
@@ -113,13 +128,12 @@ function App() {
   const controlsRef = useRef<OrbitControlsImpl>(null)
 
   const cfg = SCENES[scene]
-  const showingIsland = scene === 'map' && terrain.island
-  const headerTitle =
-    scene === 'map'
-      ? terrain.island
-        ? 'Roosevelt Island'
-        : 'Procedural World'
-      : cfg.title
+  const isMapLike = scene === 'map' || scene === 'voxel'
+  const showingIsland = isMapLike && terrain.island
+  const headerTitle = isMapLike
+    ? (terrain.island ? 'Roosevelt Island' : 'Procedural World') +
+      (scene === 'voxel' ? ' — Voxel' : '')
+    : cfg.title
 
   // Subtitle lists only what's actually present right now, not a fixed blurb.
   // terrain is always on (no toggle removes it); the rest track a real state:
@@ -137,9 +151,8 @@ function App() {
   // gates the ground's snow-accumulation animation — see Terrain.tsx
   const isSnowing = weather.precip === 'snow'
 
-  const headerSubtitle =
-    scene === 'map'
-      ? envItems.length <= 1
+  const headerSubtitle = isMapLike
+    ? envItems.length <= 1
         ? envItems.join('')
         : `${envItems.slice(0, -1).join(', ')} & ${envItems[envItems.length - 1]}`
       : cfg.subtitle
@@ -186,7 +199,7 @@ function App() {
     <div className="app">
       <div className="canvas-wrap">
         <Canvas shadows>
-          {scene === 'map' || view === '3D' ? (
+          {isMapLike || view === '3D' ? (
             <PerspectiveCamera
               key={`p-${scene}`}
               makeDefault
@@ -218,6 +231,17 @@ function App() {
                 running={running}
               />
             </>
+          ) : scene === 'voxel' ? (
+            <>
+              <Weather params={weather} running={running} />
+              <VoxelMap
+                params={terrain}
+                wireframe={wireframe}
+                showTrees={showTrees}
+                treeCount={treeCount}
+                scatterSeed={scatterSeed}
+              />
+            </>
           ) : (
             <>
               <color attach="background" args={['#0f0f17']} />
@@ -236,7 +260,7 @@ function App() {
             key={`${scene}-${view}`}
             ref={controlsRef}
             enableDamping
-            enableRotate={scene === 'map' || view === '3D'}
+            enableRotate={isMapLike || view === '3D'}
             target={cfg.target}
             minDistance={cfg.minDistance}
             maxDistance={cfg.maxDistance}
@@ -247,7 +271,7 @@ function App() {
         </Canvas>
       </div>
 
-      {scene === 'map' && showMinimap && (
+      {isMapLike && showMinimap && (
         <Minimap
           params={terrain}
           wireframe={wireframe}
@@ -264,7 +288,7 @@ function App() {
         <header>
           <h1
             className={
-              scene === 'map' && !showingIsland
+              isMapLike && !showingIsland
                 ? 'site-title site-title--procedural'
                 : 'site-title'
             }
@@ -283,6 +307,13 @@ function App() {
               title="The procedural Roosevelt Island terrain — noise, biomes, trees, weather."
             >
               Map
+            </button>
+            <button
+              className={scene === 'voxel' ? 'active' : ''}
+              onClick={() => setScene('voxel')}
+              title="The same terrain and controls, rendered as blocky voxel cubes instead of a smooth mesh."
+            >
+              Voxel
             </button>
             <button
               className={scene === 'orb' ? 'active' : ''}
@@ -311,12 +342,12 @@ function App() {
             </button>
           </div>
           <p className="hint-text">
-            {scene === 'map'
+            {isMapLike
               ? 'Pauses rain/snow & cloud drift. Terrain, seed and biomes still respond live — the noise stack keeps driving the height field.'
               : 'Pauses the orb’s noise animation. The sliders still reshape it while frozen.'}
           </p>
 
-          {scene === 'map' ? (
+          {isMapLike ? (
             <>
               <div className="panel-title">View</div>
               <div className="segmented">
@@ -358,7 +389,7 @@ function App() {
             </>
           )}
 
-          {scene === 'map' && (
+          {isMapLike && (
             <>
               <div className="segmented">
                 <button
@@ -1102,7 +1133,7 @@ function App() {
           </label>
 
           <div className="panel-actions">
-            {scene === 'map' ? (
+            {isMapLike ? (
               <button
                 onClick={() => setT('seed', Math.floor(Math.random() * 200) + 1)}
                 title="Pick a new random terrain seed."

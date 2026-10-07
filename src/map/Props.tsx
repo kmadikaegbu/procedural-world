@@ -9,6 +9,7 @@ import {
   MAP_SIZE,
   type TerrainParams,
 } from './noise'
+import { snapToVoxelGrid, snapHeightToVoxelGrid } from './VoxelTerrain'
 
 const forestNoise = new ImprovedNoise()
 
@@ -24,7 +25,17 @@ type Tree = {
 // STEP A — decide *where* the trees could go (pure data, seeded, no rendering).
 // Always builds the full pool so the Count slider just changes how many of them
 // are drawn, instead of re-running rejection sampling on every drag.
-function useTrees(params: TerrainParams, scatterSeed: number): Tree[] {
+//
+// `voxel`, when true, is for VoxelMap: it snaps each candidate to the exact
+// grid VoxelTerrain samples (via the shared snap*ToVoxelGrid helpers) so a
+// tree can never land where no block was actually rendered underneath it —
+// the smooth height field and the voxel grid's coarser sampling can otherwise
+// disagree right at the coastline, floating trees over open water.
+function useTrees(
+  params: TerrainParams,
+  scatterSeed: number,
+  voxel?: boolean,
+): Tree[] {
   return useMemo(() => {
     const rng = makeRng(params.seed + 777 + scatterSeed * 131)
     // only sample where land can actually be — in island mode most of the map
@@ -37,14 +48,23 @@ function useTrees(params: TerrainParams, scatterSeed: number): Tree[] {
 
     while (out.length < MAX_TREES && tries < MAX_TREES * 60) {
       tries++
-      const x = (rng() - 0.5) * 2 * xReach
-      const z = (rng() - 0.5) * 2 * zReach
-      const y = height(x, z, params)
+      let x = (rng() - 0.5) * 2 * xReach
+      let z = (rng() - 0.5) * 2 * zReach
+      if (voxel) {
+        // land on a point VoxelTerrain itself samples, not a nearby one that
+        // happens to test differently
+        x = snapToVoxelGrid(x)
+        z = snapToVoxelGrid(z)
+      }
+      const h = height(x, z, params)
 
-      if (y < minY || y > maxY) continue // grass band only
+      if (h < minY || h > maxY) continue // grass band only
 
       const density = forestNoise.noise(x * 0.05, z * 0.05, params.seed) // -1..1
       if (rng() > (density + 1) / 2) continue // sparser where density is low
+
+      // sit on the block's actual top face, not the smooth in-between height
+      const y = voxel ? snapHeightToVoxelGrid(h) : h
 
       out.push({
         pos: [x, y, z],
@@ -53,7 +73,7 @@ function useTrees(params: TerrainParams, scatterSeed: number): Tree[] {
       })
     }
     return out
-  }, [params, scatterSeed])
+  }, [params, scatterSeed, voxel])
 }
 
 // STEP B — draw them all in ONE draw call. `range` caps how many are rendered.
@@ -61,12 +81,15 @@ export function Props({
   params,
   count = 400,
   scatterSeed = 0,
+  voxel = false,
 }: {
   params: TerrainParams
   count?: number
   scatterSeed?: number
+  /** Snap trees onto VoxelTerrain's grid — set when rendering inside VoxelMap. */
+  voxel?: boolean
 }) {
-  const trees = useTrees(params, scatterSeed)
+  const trees = useTrees(params, scatterSeed, voxel)
 
   return (
     <Instances limit={MAX_TREES} range={Math.min(count, trees.length)} castShadow>

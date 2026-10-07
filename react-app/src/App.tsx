@@ -8,7 +8,7 @@ import {
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { Map } from './map/Map'
 import { VoxelMap } from './map/VoxelMap'
-import { Minimap } from './Minimap'
+import { Minimap } from './map/Minimap'
 import { MAX_TREES } from './map/Props'
 import { TERRAIN_DEFAULTS, type TerrainParams } from './map/noise'
 import {
@@ -21,7 +21,7 @@ import {
 import NoisyOrb, {
   ORB_NOISE_DEFAULTS,
   type OrbNoiseParams,
-} from './NoisyOrb'
+} from './orb/NoisyOrb'
 import {
   Weather,
   WEATHER_PRESETS,

@@ -10,7 +10,15 @@ import { MOUSE } from 'three'
 import { Map } from './map/Map'
 import { VoxelMap } from './map/VoxelMap'
 import { Minimap, type InsetMode } from './map/Minimap'
-import { MAX_TREES } from './map/Props'
+import {
+  MAX_TREES,
+  SCATTER_DEFAULTS,
+  SCATTER_SLIDERS,
+  emptyMask,
+  type ScatterMask,
+  type ScatterSettings,
+} from './map/scatter'
+import { ScatterMaskBrush } from './map/ScatterMaskBrush'
 import {
   TREE_SLIDERS,
   paramsFromSpecies,
@@ -203,7 +211,18 @@ function App() {
     ...paramsFromSpecies('open'),
     species: 'mixed',
   }))
-  const treeSet = useTreeSet(tree)
+  const [scatter, setScatter] = useState<ScatterSettings>(SCATTER_DEFAULTS)
+  const treeSet = useTreeSet(tree, scatter.variants)
+  // the painted planting zone, and the brush that edits it
+  const [mask, setMask] = useState<ScatterMask>(emptyMask)
+  const [maskTool, setMaskTool] = useState<'off' | 'paint' | 'erase'>('off')
+  const [maskRadius, setMaskRadius] = useState(5)
+  const [placed, setPlaced] = useState({ drawn: 0, fit: 0 })
+  const onPlaced = useCallback(
+    (drawn: number, fit: number) =>
+      setPlaced((p) => (p.drawn === drawn && p.fit === fit ? p : { drawn, fit })),
+    [],
+  )
   const treeMixed = tree.species === 'mixed'
   const [lod, setLod] = useState<LodSettings>(LOD_DEFAULTS)
   // the latest reading taken with LOD off and with it on — so both columns stay
@@ -234,6 +253,8 @@ function App() {
   const isMapLike = scene === 'map' || scene === 'voxel'
   // the brush is live exactly while the Sculpt tab is open
   const sculpting = isMapLike && mapTab === 'sculpt'
+  // likewise for painting the planting mask, on the Props tab
+  const painting = isMapLike && mapTab === 'props' && maskTool !== 'off'
   const showingIsland = isMapLike && terrain.island
   const headerTitle = isMapLike
     ? (terrain.island ? 'Roosevelt Island' : 'Procedural World') +
@@ -319,6 +340,16 @@ function App() {
     setEdits(editHistory[editHistory.length - 1])
     setEditHistory((h) => h.slice(0, -1))
   }
+  const maskBrushProps = {
+    enabled: painting,
+    erase: maskTool === 'erase',
+    radius: maskRadius,
+    mask,
+    params: terrain,
+    // shown while painting, and while the mask is limiting where trees grow
+    showOverlay: painting || (scatter.maskEnabled && isMapLike && mapTab === 'props'),
+    onChange: setMask,
+  }
   const brushProps = {
     enabled: sculpting,
     tool: brushTool,
@@ -379,9 +410,13 @@ function App() {
             <>
               <Weather params={weather} running={running} />
               <TerraformBrush {...brushProps}>
+                <ScatterMaskBrush {...maskBrushProps}>
                 <Map
                   params={terrain}
                   treeSet={treeSet}
+                  scatter={scatter}
+                  mask={mask}
+                  onPlaced={onPlaced}
                   lod={lod}
                   onLodStats={onLodStats}
                   wireframe={wireframe}
@@ -392,15 +427,20 @@ function App() {
                   snowIntensity={weather.precipIntensity}
                   running={running}
                 />
+                </ScatterMaskBrush>
               </TerraformBrush>
             </>
           ) : scene === 'voxel' ? (
             <>
               <Weather params={weather} running={running} />
               <TerraformBrush {...brushProps}>
+                <ScatterMaskBrush {...maskBrushProps}>
                 <VoxelMap
                   params={terrain}
                   treeSet={treeSet}
+                  scatter={scatter}
+                  mask={mask}
+                  onPlaced={onPlaced}
                   lod={lod}
                   onLodStats={onLodStats}
                   wireframe={wireframe}
@@ -408,6 +448,7 @@ function App() {
                   treeCount={treeCount}
                   scatterSeed={scatterSeed}
                 />
+                </ScatterMaskBrush>
               </TerraformBrush>
             </>
           ) : (
@@ -429,7 +470,7 @@ function App() {
             ref={controlsRef}
             enableDamping
             enableRotate={isMapLike || view === '3D'}
-            mouseButtons={sculpting ? SCULPT_BUTTONS : ORBIT_BUTTONS}
+            mouseButtons={sculpting || painting ? SCULPT_BUTTONS : ORBIT_BUTTONS}
             target={cfg.target}
             minDistance={cfg.minDistance}
             maxDistance={cfg.maxDistance}
@@ -445,6 +486,8 @@ function App() {
           params={terrain}
           mode={insetMode}
           treeSet={treeSet}
+          scatter={scatter}
+          mask={mask}
           wireframe={wireframe}
           showTrees={showTrees}
           treeCount={treeCount}
@@ -1285,14 +1328,14 @@ function App() {
 
               <label
                 className="row"
-                title="How many trees are drawn, out of a fixed pool of possible spots. Cheap to drag — it only changes how many of the already-computed positions are shown."
+                title="How many trees are drawn, out of the pool of spots that fit the scatter rules below. Cheap to drag — it only changes how many of the already-computed positions are shown."
               >
                 <span>Count</span>
                 <input
                   type="range"
                   min={0}
                   max={MAX_TREES}
-                  step={25}
+                  step={50}
                   value={treeCount}
                   disabled={!showTrees}
                   onChange={(e) => setTreeCount(Number(e.target.value))}
@@ -1309,6 +1352,119 @@ function App() {
                   Replant
                 </button>
               </div>
+
+              <div className="panel-title">Scatter</div>
+
+              {SCATTER_SLIDERS.map((sl) => (
+                <label key={sl.key} className="row" title={sl.title}>
+                  <span>{sl.label}</span>
+                  <input
+                    type="range"
+                    min={sl.min}
+                    max={sl.max}
+                    step={sl.step}
+                    value={scatter[sl.key]}
+                    disabled={!showTrees}
+                    onChange={(e) => {
+                      const v = Number(e.target.value)
+                      setScatter((c) => {
+                        const next = { ...c, [sl.key]: v }
+                        // keep the scale range the right way round
+                        if (sl.key === 'scaleMin') next.scaleMax = Math.max(c.scaleMax, v)
+                        if (sl.key === 'scaleMax') next.scaleMin = Math.min(c.scaleMin, v)
+                        return next
+                      })
+                    }}
+                  />
+                  <em>{scatter[sl.key].toFixed(sl.step >= 1 ? 0 : sl.step >= 0.1 ? 1 : 2)}</em>
+                </label>
+              ))}
+
+              <p className="hint-text">
+                Placed <strong>{placed.drawn.toLocaleString()}</strong>
+                {placed.fit < treeCount && (
+                  <> — only {placed.fit.toLocaleString()} fit these rules</>
+                )}
+                . Every tree has its own seed; they draw as one instanced mesh
+                per shape and level —{' '}
+                {(lod.enabled ? lodReadout.on : lodReadout.off)?.meshes ?? '…'}{' '}
+                draw calls.
+              </p>
+
+              <div className="panel-title">Planting mask</div>
+
+              <label
+                className="row"
+                title="Plant only inside the area you paint. Painting turns this on."
+              >
+                <span>Limit to area</span>
+                <input
+                  type="checkbox"
+                  checked={scatter.maskEnabled}
+                  onChange={(e) =>
+                    setScatter((c) => ({ ...c, maskEnabled: e.target.checked }))
+                  }
+                />
+              </label>
+
+              <div className="segmented">
+                {(['off', 'paint', 'erase'] as const).map((t) => (
+                  <button
+                    key={t}
+                    className={maskTool === t ? 'active' : ''}
+                    onClick={() => {
+                      setMaskTool(t)
+                      if (t !== 'off') setScatter((c) => ({ ...c, maskEnabled: true }))
+                    }}
+                    title={
+                      t === 'off'
+                        ? 'Stop painting.'
+                        : t === 'paint'
+                          ? 'Left-drag on the land to mark where trees may grow.'
+                          : 'Left-drag to remove painted area.'
+                    }
+                  >
+                    {t === 'off' ? 'Brush off' : t === 'paint' ? 'Paint' : 'Erase'}
+                  </button>
+                ))}
+              </div>
+
+              <label className="row" title="Brush size, in world units.">
+                <span>Brush</span>
+                <input
+                  type="range"
+                  min={2}
+                  max={20}
+                  step={1}
+                  value={maskRadius}
+                  onChange={(e) => setMaskRadius(Number(e.target.value))}
+                />
+                <em>{maskRadius}</em>
+              </label>
+
+              <div className="panel-actions">
+                <button onClick={() => setMask(emptyMask())} title="Erase the whole mask.">
+                  Clear
+                </button>
+                <button
+                  onClick={() => {
+                    const m = emptyMask()
+                    m.data.fill(1)
+                    setMask(m)
+                  }}
+                  title="Paint the whole map (trees still only grow on suitable ground)."
+                >
+                  Fill all
+                </button>
+              </div>
+
+              <p className="hint-text">
+                {painting
+                  ? 'Left-drag paints; right-drag orbits, wheel zooms.'
+                  : scatter.maskEnabled && !mask.data.some((v) => v)
+                    ? 'The mask is empty, so no trees will grow — paint an area.'
+                    : 'Turn the brush on to paint where trees may grow.'}
+              </p>
 
               <div className="panel-title">Tree shape</div>
 
@@ -1400,7 +1556,7 @@ function App() {
                 <em>
                   {showTrees
                     ? (
-                        Math.min(treeCount, MAX_TREES) * treeSet.stats.triangles
+                        placed.drawn * treeSet.stats.triangles
                       ).toLocaleString()
                     : 0}{' '}
                   tris

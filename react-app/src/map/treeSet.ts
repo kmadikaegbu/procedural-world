@@ -145,8 +145,9 @@ export interface TreeSet {
   stats: TreeStats
 }
 
-const MIXED_VARIANTS = 6 // per species → 18 shapes
-const SINGLE_VARIANTS = 12 // one species has to supply the whole forest's variety
+// A single species has to supply the whole forest's variety, so it grows twice
+// as many shapes as each species of the mixed forest does.
+const SINGLE_FACTOR = 2
 
 function summarise(built: TreeLods[], genMs: number): TreeStats {
   const n = built.length
@@ -171,40 +172,46 @@ function summarise(built: TreeLods[], genMs: number): TreeStats {
   }
 }
 
-// The preset mix never changes, so grow it once and share it.
-let mixedSet: TreeSet | null = null
-function getMixedSet(): TreeSet {
-  if (!mixedSet) {
+// The preset mix only depends on how many variants, so grow each size once and share it.
+const mixedSets = new Map<number, TreeSet>()
+function getMixedSet(variants: number): TreeSet {
+  let set = mixedSets.get(variants)
+  if (!set) {
     const t0 = performance.now()
     const built = SPECIES_NAMES.flatMap((n) =>
-      buildVariants(SPECIES[n], MIXED_VARIANTS),
+      buildVariants(SPECIES[n], variants),
     )
-    mixedSet = {
+    set = {
       shapes: built.map(({ lods, tris }) => ({ lods, tris })),
       mixed: true,
-      variantsPerSpecies: MIXED_VARIANTS,
+      variantsPerSpecies: variants,
       stats: summarise(built, performance.now() - t0),
     }
+    mixedSets.set(variants, set)
   }
-  return mixedSet
+  return set
 }
 
-function growSingle(p: TreeParams, name: SpeciesName): TreeSet {
+function growSingle(p: TreeParams, name: SpeciesName, variants: number): TreeSet {
   const t0 = performance.now()
-  const built = buildVariants(speciesFromParams(p, name), SINGLE_VARIANTS, p.seed)
+  const count = variants * SINGLE_FACTOR
+  const built = buildVariants(speciesFromParams(p, name), count, p.seed)
   return {
     shapes: built.map(({ lods, tris }) => ({ lods, tris })),
     mixed: false,
-    variantsPerSpecies: SINGLE_VARIANTS,
+    variantsPerSpecies: count,
     stats: summarise(built, performance.now() - t0),
   }
 }
 
 /** Regrows the shapes whenever the settings change — i.e. live while a slider drags. */
-export function useTreeSet(p: TreeParams): TreeSet {
+export function useTreeSet(p: TreeParams, variants: number): TreeSet {
   const set = useMemo(
-    () => (p.species === 'mixed' ? getMixedSet() : growSingle(p, p.species)),
-    [p],
+    () =>
+      p.species === 'mixed'
+        ? getMixedSet(variants)
+        : growSingle(p, p.species, variants),
+    [p, variants],
   )
   // free the GPU buffers of a set we've replaced (the shared mixed set lives on)
   useEffect(

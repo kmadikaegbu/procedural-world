@@ -44,6 +44,8 @@ export interface LodReadout {
   fps: number
   /** Trees at each level. */
   byLevel: number[]
+  /** Instanced meshes drawn for the trees — i.e. tree draw calls (shadow pass not counted). */
+  meshes: number
 }
 
 /**

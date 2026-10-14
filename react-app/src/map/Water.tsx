@@ -2,7 +2,12 @@ import { MAP_SIZE } from './Terrain'
 
 export function Water({ level = 0 }: { level?: number }) {
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, level, 0]} receiveShadow>
+    <mesh
+      rotation={[-Math.PI / 2, 0, 0]}
+      position={[0, level, 0]}
+      receiveShadow
+      userData={{ ground: true }} // brushing the river can raise new land
+    >
       <planeGeometry args={[MAP_SIZE, MAP_SIZE]} />
       <meshStandardMaterial
         color="#5a86a0"

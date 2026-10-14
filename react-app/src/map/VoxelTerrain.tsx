@@ -76,13 +76,18 @@ export function VoxelTerrain({
     return out
   }, [params])
 
+  // the terraform-brush ground marker lives on a wrapper group: drei keeps its
+  // own bookkeeping in the instanced mesh's userData, so setting it there
+  // would clobber it
   return (
-    <Instances limit={MAX_VOXELS} range={voxels.length} castShadow receiveShadow>
-      <boxGeometry args={[VOXEL_SIZE * 0.94, VOXEL_SIZE * 0.94, VOXEL_SIZE * 0.94]} />
-      <meshStandardMaterial roughness={0.95} metalness={0} wireframe={wireframe} />
-      {voxels.map((v, i) => (
-        <Instance key={i} position={v.pos} color={v.color} />
-      ))}
-    </Instances>
+    <group userData={{ ground: true }}>
+      <Instances limit={MAX_VOXELS} range={voxels.length} castShadow receiveShadow>
+        <boxGeometry args={[VOXEL_SIZE * 0.94, VOXEL_SIZE * 0.94, VOXEL_SIZE * 0.94]} />
+        <meshStandardMaterial roughness={0.95} metalness={0} wireframe={wireframe} />
+        {voxels.map((v, i) => (
+          <Instance key={i} position={v.pos} color={v.color} />
+        ))}
+      </Instances>
+    </group>
   )
 }

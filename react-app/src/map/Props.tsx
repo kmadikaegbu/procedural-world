@@ -48,8 +48,14 @@ function useTrees(
 
     while (out.length < MAX_TREES && tries < MAX_TREES * 60) {
       tries++
+      // draw every random number for this candidate up front, whether or not
+      // it's kept — then a terraform edit that accepts/rejects one spot
+      // doesn't shift the sequence and reshuffle the rest of the forest
       let x = (rng() - 0.5) * 2 * xReach
       let z = (rng() - 0.5) * 2 * zReach
+      const keepRoll = rng()
+      const rot = rng() * Math.PI * 2
+      const scale = 0.6 + rng() * 0.8
       if (voxel) {
         // land on a point VoxelTerrain itself samples, not a nearby one that
         // happens to test differently
@@ -61,16 +67,12 @@ function useTrees(
       if (h < minY || h > maxY) continue // grass band only
 
       const density = forestNoise.noise(x * 0.05, z * 0.05, params.seed) // -1..1
-      if (rng() > (density + 1) / 2) continue // sparser where density is low
+      if (keepRoll > (density + 1) / 2) continue // sparser where density is low
 
       // sit on the block's actual top face, not the smooth in-between height
       const y = voxel ? snapHeightToVoxelGrid(h) : h
 
-      out.push({
-        pos: [x, y, z],
-        rot: rng() * Math.PI * 2,
-        scale: 0.6 + rng() * 0.8,
-      })
+      out.push({ pos: [x, y, z], rot, scale })
     }
     return out
   }, [params, scatterSeed, voxel])

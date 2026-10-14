@@ -115,7 +115,12 @@ export function Terrain({
   })
 
   return (
-    <mesh geometry={geometry} receiveShadow castShadow>
+    <mesh
+      geometry={geometry}
+      receiveShadow
+      castShadow
+      userData={{ ground: true }} // a terraform brush target
+    >
       <meshStandardMaterial
         vertexColors
         roughness={0.92}

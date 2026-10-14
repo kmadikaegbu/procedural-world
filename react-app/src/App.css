@@ -177,6 +177,12 @@
   cursor: pointer;
 }
 
+/* the map's tab row holds four labels in the 260px panel — trim the side
+   padding so they fit without wrapping */
+.segmented--tabs button {
+  padding: 6px 2px;
+}
+
 .segmented button.active {
   color: #0f0f17;
   background: #00b4d8;

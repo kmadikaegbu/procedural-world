@@ -21,11 +21,12 @@ All items complete.
 
 ## Class 04: Voxels
 
-Done: Voxel scene rendering the shared terrain as instanced cubes.
+Required items complete.
 
-- [ ] **Terraforming.** No way to edit the terrain by hand yet. Add a brush
-      that raises or lowers voxels or height (e.g. click-drag on the
-      terrain).
+- [x] Voxel scene rendering the shared terrain as instanced cubes
+- [x] **Terraforming.** The **Sculpt** tab has a Raise / Lower / Flatten
+      brush with Size, Strength, Undo, and Reset, in both the Map and Voxel
+      scenes
 - [ ] **(Optional) Real geographic data.** The island outline is traced
       from the RIOC map, but heights are pure noise. Optionally blend in
       real elevation (DEM) data for Roosevelt Island.

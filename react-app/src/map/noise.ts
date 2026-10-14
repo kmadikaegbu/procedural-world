@@ -2,6 +2,7 @@ import { ImprovedNoise } from 'three/examples/jsm/math/ImprovedNoise.js'
 import { cellular2 } from '../noise/cellularNoise'
 import { MAP_SIZE } from './mapSize'
 import { sampleEdits, type TerrainEdits } from './terraform'
+import { erode } from './erosion'
 
 const perlin = new ImprovedNoise()
 
@@ -23,6 +24,8 @@ export type TerrainParams = {
   offsetX: number // pan through the noise field, in sampled (post-frequency) units
   offsetZ: number // — same coastline, different hills underneath; seed jumps, this slides
   seaLevel: number // world-Y height of the water surface — the land doesn't move, just what's submerged
+  erosion: number // hydraulic erosion strength, in thousands of raindrops (0 = off)
+  erosionGrid: TerrainEdits | null // the simulated erosion offsets, derived from erosion + the params above (see erodeTerrain)
   edits: TerrainEdits | null // hand-sculpted height offsets from the terraform brush (null = none)
 }
 
@@ -42,6 +45,8 @@ export const TERRAIN_DEFAULTS: TerrainParams = {
   offsetX: 0,
   offsetZ: 0,
   seaLevel: 0,
+  erosion: 0,
+  erosionGrid: null,
   edits: null,
 }
 
@@ -213,7 +218,7 @@ export function noise01(x: number, z: number, p: TerrainParams): number {
 }
 
 /** The procedural height alone — noise, shaping, and island mask, no edits. */
-export function baseHeight(x: number, z: number, p: TerrainParams): number {
+function proceduralHeight(x: number, z: number, p: TerrainParams): number {
   const n01 = noise01(x, z, p)
   if (!p.island) return (n01 * 2 - 1) * p.amplitude
 
@@ -222,6 +227,27 @@ export function baseHeight(x: number, z: number, p: TerrainParams): number {
   const land = (0.12 + 0.88 * n01) * p.amplitude
   const m = islandMask(x, z, p)
   return land * m - SEABED_DEPTH * (1 - m)
+}
+
+/** Procedural height plus the erosion offsets — everything but hand edits. */
+export function baseHeight(x: number, z: number, p: TerrainParams): number {
+  return proceduralHeight(x, z, p) + sampleEdits(p.erosionGrid, x, z)
+}
+
+/**
+ * Runs the erosion simulation over the procedural terrain described by `p`
+ * and returns the offset grid to store in `erosionGrid` (null when off).
+ * Expensive — call it from a memo, not per frame.
+ */
+export function erodeTerrain(p: TerrainParams): TerrainEdits | null {
+  if (p.erosion <= 0) return null
+  return erode(
+    (x, z) => proceduralHeight(x, z, p),
+    (x, z) => (p.island ? smoothstep(0.3, 0.8, islandMask(x, z, p)) : 1),
+    p.amplitude,
+    p.erosion * 1000,
+    p.seed,
+  )
 }
 
 /** Final terrain height: the procedural surface plus any terraform edits. */

@@ -114,6 +114,9 @@ class session — more granular than the by-class summary above.
   octaves, persistence, ridged toggle)
 - Noise-type blending: Perlin ↔ cellular (Worley), mixed per octave
 - Shaping ops: Redistribute (power curve) and Terraces (flat steps)
+- Hydraulic erosion: a droplet simulation (`map/erosion.ts`) that carves valleys and
+  deposits sediment, stored as an offset grid so it layers on the noise; Erosion
+  slider in the Terrain tab (thousands of drops)
 - Masked into the real Roosevelt Island outline, with a width control and an
   island on/off toggle (raw square noise field when off)
 - Biome coloring (water → sand → grass → rock → snow), thresholds scaled to

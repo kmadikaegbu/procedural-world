@@ -11,7 +11,7 @@ import { Map } from './map/Map'
 import { VoxelMap } from './map/VoxelMap'
 import { Minimap, type InsetMode } from './map/Minimap'
 import { MAX_TREES } from './map/Props'
-import { TERRAIN_DEFAULTS, type TerrainParams } from './map/noise'
+import { TERRAIN_DEFAULTS, erodeTerrain, type TerrainParams } from './map/noise'
 import { TerraformBrush } from './map/TerraformBrush'
 import type { BrushTool, TerrainEdits } from './map/terraform'
 import {
@@ -147,7 +147,34 @@ function App() {
   const [view, setView] = useState<ViewMode>('3D')
   const [showMinimap, setShowMinimap] = useState(true)
   const [insetMode, setInsetMode] = useState<InsetMode>('terrain')
-  const [terrain, setTerrain] = useState<TerrainParams>(TERRAIN_DEFAULTS)
+  const [terrainState, setTerrain] = useState<TerrainParams>(TERRAIN_DEFAULTS)
+  // erosion is simulated, not a formula, so it's computed here and handed down
+  // as a grid. It depends on the procedural params only — not sea level, edits
+  // or resolution — so the climate timeline and sculpting don't re-run it.
+  const erosionGrid = useMemo(
+    () => erodeTerrain(terrainState),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      terrainState.erosion,
+      terrainState.seed,
+      terrainState.amplitude,
+      terrainState.frequency,
+      terrainState.octaves,
+      terrainState.persistence,
+      terrainState.ridged,
+      terrainState.noiseBlend,
+      terrainState.redistribution,
+      terrainState.terraces,
+      terrainState.island,
+      terrainState.islandWidth,
+      terrainState.offsetX,
+      terrainState.offsetZ,
+    ],
+  )
+  const terrain = useMemo(
+    () => ({ ...terrainState, erosionGrid }),
+    [terrainState, erosionGrid],
+  )
   const [orbNoise, setOrbNoise] = useState<OrbNoiseParams>(ORB_NOISE_DEFAULTS)
   const [weather, setWeather] = useState<WeatherParams>(WEATHER_PRESETS.clear)
   const [kind, setKind] = useState<WeatherKind | 'custom'>('clear')
@@ -1042,17 +1069,34 @@ function App() {
                 <em>{terrain.terraces === 0 ? 'off' : terrain.terraces}</em>
               </label>
 
+              <label
+                className="row"
+                title="Hydraulic erosion: thousands of simulated raindrops run downhill, carving valleys and dropping sediment below them. 0 = off. Layers on top of the noise, so it follows the seed and shaping."
+              >
+                <span>Erosion</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={terrain.erosion}
+                  onChange={(e) => setT('erosion', Number(e.target.value))}
+                />
+                <em>{terrain.erosion === 0 ? 'off' : `${terrain.erosion}k`}</em>
+              </label>
+
               <div className="panel-actions">
                 <button
                   onClick={() =>
                     setTerrain((t) => ({
                       ...t,
+                      erosion: TERRAIN_DEFAULTS.erosion,
                       noiseBlend: TERRAIN_DEFAULTS.noiseBlend,
                       redistribution: TERRAIN_DEFAULTS.redistribution,
                       terraces: TERRAIN_DEFAULTS.terraces,
                     }))
                   }
-                  title="Back to pure Perlin noise with no shaping."
+                  title="Back to pure Perlin noise with no shaping or erosion."
                 >
                   Reset shaping
                 </button>

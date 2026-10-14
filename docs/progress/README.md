@@ -61,7 +61,11 @@ of the noise equation.
 parameters as blocky instanced cubes instead of a shaded mesh — same seed,
 sea level, and island shape as the Map scene, sharing weather and tree
 placement with it. Trees are snapped onto the voxel grid so they can't
-float over open water at the coastline.
+float over open water at the coastline. Terraforming followed: a Sculpt tab
+with a Raise / Lower / Flatten brush that works in both scenes. Edits are
+stored as a height-offset grid on top of the noise, so biomes, trees,
+voxels, and the minimap all follow them, and they survive seed and shaping
+changes.
 
 ### Class 05 — Shaders
 
@@ -118,6 +122,9 @@ class session — more granular than the by-class summary above.
   move with it, not just a floating water plane
 - A pan/offset control that slides through the same noise field without
   jumping the coastline (separate from the seed, which does jump)
+- Terraforming: a Raise / Lower / Flatten brush (Sculpt tab) with size,
+  strength, undo, and reset. Edits sit on top of the procedural terrain, and
+  raising the river builds new land
 - Gradual snow accumulation on the ground while it's snowing, melting back
   when it stops
 - A climate timeline (1950–2100) that drives sea level through a stylized

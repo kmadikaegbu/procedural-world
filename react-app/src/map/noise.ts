@@ -1,9 +1,11 @@
 import { ImprovedNoise } from 'three/examples/jsm/math/ImprovedNoise.js'
 import { cellular2 } from '../noise/cellularNoise'
+import { MAP_SIZE } from './mapSize'
+import { sampleEdits, type TerrainEdits } from './terraform'
 
 const perlin = new ImprovedNoise()
 
-export const MAP_SIZE = 100 // world units across the terrain plane
+export { MAP_SIZE }
 
 export type TerrainParams = {
   seed: number
@@ -21,6 +23,7 @@ export type TerrainParams = {
   offsetX: number // pan through the noise field, in sampled (post-frequency) units
   offsetZ: number // — same coastline, different hills underneath; seed jumps, this slides
   seaLevel: number // world-Y height of the water surface — the land doesn't move, just what's submerged
+  edits: TerrainEdits | null // hand-sculpted height offsets from the terraform brush (null = none)
 }
 
 export const TERRAIN_DEFAULTS: TerrainParams = {
@@ -39,6 +42,7 @@ export const TERRAIN_DEFAULTS: TerrainParams = {
   offsetX: 0,
   offsetZ: 0,
   seaLevel: 0,
+  edits: null,
 }
 
 // --- island shape -----------------------------------------------------------
@@ -208,7 +212,8 @@ export function noise01(x: number, z: number, p: TerrainParams): number {
   return shape(n01, p)
 }
 
-export function height(x: number, z: number, p: TerrainParams): number {
+/** The procedural height alone — noise, shaping, and island mask, no edits. */
+export function baseHeight(x: number, z: number, p: TerrainParams): number {
   const n01 = noise01(x, z, p)
   if (!p.island) return (n01 * 2 - 1) * p.amplitude
 
@@ -217,6 +222,11 @@ export function height(x: number, z: number, p: TerrainParams): number {
   const land = (0.12 + 0.88 * n01) * p.amplitude
   const m = islandMask(x, z, p)
   return land * m - SEABED_DEPTH * (1 - m)
+}
+
+/** Final terrain height: the procedural surface plus any terraform edits. */
+export function height(x: number, z: number, p: TerrainParams): number {
+  return baseHeight(x, z, p) + sampleEdits(p.edits, x, z)
 }
 
 /** Half-extent the island can reach in x — lets prop scattering skip the river. */

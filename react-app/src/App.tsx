@@ -6,11 +6,14 @@ import {
   OrthographicCamera,
 } from '@react-three/drei'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
+import { MOUSE } from 'three'
 import { Map } from './map/Map'
 import { VoxelMap } from './map/VoxelMap'
 import { Minimap, type InsetMode } from './map/Minimap'
 import { MAX_TREES } from './map/Props'
 import { TERRAIN_DEFAULTS, type TerrainParams } from './map/noise'
+import { TerraformBrush } from './map/TerraformBrush'
+import type { BrushTool, TerrainEdits } from './map/terraform'
 import {
   TIMELINE_MIN,
   TIMELINE_MAX,
@@ -35,6 +38,29 @@ type ViewMode = '3D' | '2D'
 type SceneMode = 'map' | 'voxel' | 'orb'
 
 type Vec3 = [number, number, number]
+
+// how many strokes Undo can step back through
+const UNDO_LIMIT = 30
+
+// Default orbit mapping, and the one used while sculpting: the left button
+// belongs to the brush, so rotate moves to the right button. Wheel zoom is
+// unchanged. (-1 is OrbitControls' "no action" for a button.)
+const ORBIT_BUTTONS = {
+  LEFT: MOUSE.ROTATE,
+  MIDDLE: MOUSE.DOLLY,
+  RIGHT: MOUSE.PAN,
+}
+const SCULPT_BUTTONS = {
+  LEFT: -1 as MOUSE,
+  MIDDLE: MOUSE.DOLLY,
+  RIGHT: MOUSE.ROTATE,
+}
+
+const BRUSH_TOOLS: { tool: BrushTool; label: string; hint: string }[] = [
+  { tool: 'raise', label: 'Raise', hint: 'Push the land up under the brush. Drag in the river to build new land.' },
+  { tool: 'lower', label: 'Lower', hint: 'Dig the land down under the brush. Dig below sea level to cut channels and bays.' },
+  { tool: 'flatten', label: 'Flatten', hint: 'Level everything under the brush to the height where you started the stroke. Good for plateaus, roads, and building pads.' },
+]
 
 /** Camera + orbit framing differs wildly: the map is 100 units, the orb is ~1. */
 const SCENES: Record<
@@ -127,9 +153,13 @@ function App() {
   const [kind, setKind] = useState<WeatherKind | 'custom'>('clear')
   const [running, setRunning] = useState(true)
   const [wireframe, setWireframe] = useState(false)
-  const [mapTab, setMapTab] = useState<'terrain' | 'weather' | 'props'>(
-    'terrain',
-  )
+  const [mapTab, setMapTab] = useState<
+    'terrain' | 'sculpt' | 'weather' | 'props'
+  >('terrain')
+  const [brushTool, setBrushTool] = useState<BrushTool>('raise')
+  const [brushRadius, setBrushRadius] = useState(6)
+  const [brushStrength, setBrushStrength] = useState(3)
+  const [editHistory, setEditHistory] = useState<(TerrainEdits | null)[]>([])
   const [showTrees, setShowTrees] = useState(true)
   const [treeCount, setTreeCount] = useState(400)
   const [scatterSeed, setScatterSeed] = useState(0)
@@ -139,6 +169,8 @@ function App() {
 
   const cfg = SCENES[scene]
   const isMapLike = scene === 'map' || scene === 'voxel'
+  // the brush is live exactly while the Sculpt tab is open
+  const sculpting = isMapLike && mapTab === 'sculpt'
   const showingIsland = isMapLike && terrain.island
   const headerTitle = isMapLike
     ? (terrain.island ? 'Roosevelt Island' : 'Procedural World') +
@@ -215,6 +247,25 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timelinePlaying])
 
+  // terraform edits: snapshot before each stroke so Undo can step back
+  const pushHistory = () =>
+    setEditHistory((h) => [...h, terrain.edits].slice(-UNDO_LIMIT))
+  const setEdits = (edits: TerrainEdits | null) => setT('edits', edits)
+  const undoEdit = () => {
+    if (editHistory.length === 0) return
+    setEdits(editHistory[editHistory.length - 1])
+    setEditHistory((h) => h.slice(0, -1))
+  }
+  const brushProps = {
+    enabled: sculpting,
+    tool: brushTool,
+    radius: brushRadius,
+    strength: brushStrength,
+    params: terrain,
+    onStrokeStart: pushHistory,
+    onChange: setEdits,
+  }
+
   const setO = <K extends keyof OrbNoiseParams>(k: K, v: OrbNoiseParams[K]) =>
     setOrbNoise((o) => ({ ...o, [k]: v }))
 
@@ -264,27 +315,31 @@ function App() {
           {scene === 'map' ? (
             <>
               <Weather params={weather} running={running} />
-              <Map
-                params={terrain}
-                wireframe={wireframe}
-                showTrees={showTrees}
-                treeCount={treeCount}
-                scatterSeed={scatterSeed}
-                snowing={isSnowing}
-                snowIntensity={weather.precipIntensity}
-                running={running}
-              />
+              <TerraformBrush {...brushProps}>
+                <Map
+                  params={terrain}
+                  wireframe={wireframe}
+                  showTrees={showTrees}
+                  treeCount={treeCount}
+                  scatterSeed={scatterSeed}
+                  snowing={isSnowing}
+                  snowIntensity={weather.precipIntensity}
+                  running={running}
+                />
+              </TerraformBrush>
             </>
           ) : scene === 'voxel' ? (
             <>
               <Weather params={weather} running={running} />
-              <VoxelMap
-                params={terrain}
-                wireframe={wireframe}
-                showTrees={showTrees}
-                treeCount={treeCount}
-                scatterSeed={scatterSeed}
-              />
+              <TerraformBrush {...brushProps}>
+                <VoxelMap
+                  params={terrain}
+                  wireframe={wireframe}
+                  showTrees={showTrees}
+                  treeCount={treeCount}
+                  scatterSeed={scatterSeed}
+                />
+              </TerraformBrush>
             </>
           ) : (
             <>
@@ -305,6 +360,7 @@ function App() {
             ref={controlsRef}
             enableDamping
             enableRotate={isMapLike || view === '3D'}
+            mouseButtons={sculpting ? SCULPT_BUTTONS : ORBIT_BUTTONS}
             target={cfg.target}
             minDistance={cfg.minDistance}
             maxDistance={cfg.maxDistance}
@@ -517,13 +573,20 @@ function App() {
 
           {isMapLike && (
             <>
-              <div className="segmented">
+              <div className="segmented segmented--tabs">
                 <button
                   className={mapTab === 'terrain' ? 'active' : ''}
                   onClick={() => setMapTab('terrain')}
                   title="Noise stack, island outline, and mesh resolution — the shape of the land."
                 >
                   Terrain
+                </button>
+                <button
+                  className={mapTab === 'sculpt' ? 'active' : ''}
+                  onClick={() => setMapTab('sculpt')}
+                  title="Terraform by hand — raise, lower, and flatten the land with a brush."
+                >
+                  Sculpt
                 </button>
                 <button
                   className={mapTab === 'weather' ? 'active' : ''}
@@ -1034,6 +1097,85 @@ function App() {
               <p className="hint-text">
                 0.45 ≈ the real 13:1 proportions; higher fattens it so the
                 terrain detail reads.
+              </p>
+                </>
+              )}
+
+              {mapTab === 'sculpt' && (
+                <>
+              <div className="panel-title">Terraform</div>
+
+              <div className="segmented">
+                {BRUSH_TOOLS.map(({ tool, label, hint }) => (
+                  <button
+                    key={tool}
+                    className={brushTool === tool ? 'active' : ''}
+                    onClick={() => setBrushTool(tool)}
+                    title={hint}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <label
+                className="row"
+                title="Brush radius, in world units. The island is about 100 units long."
+              >
+                <span>Size</span>
+                <input
+                  type="range"
+                  min={2}
+                  max={20}
+                  step={0.5}
+                  value={brushRadius}
+                  onChange={(e) => setBrushRadius(Number(e.target.value))}
+                />
+                <em>{brushRadius.toFixed(1)}</em>
+              </label>
+
+              <label
+                className="row"
+                title="How fast the brush works. For Raise/Lower it's height per second at the brush centre. For Flatten it's how quickly the land eases to the target height."
+              >
+                <span>Strength</span>
+                <input
+                  type="range"
+                  min={0.5}
+                  max={10}
+                  step={0.5}
+                  value={brushStrength}
+                  onChange={(e) => setBrushStrength(Number(e.target.value))}
+                />
+                <em>{brushStrength.toFixed(1)}</em>
+              </label>
+
+              <div className="panel-actions">
+                <button
+                  disabled={editHistory.length === 0}
+                  onClick={undoEdit}
+                  title="Step back one brush stroke (or one reset)."
+                >
+                  Undo
+                </button>
+                <button
+                  disabled={!terrain.edits}
+                  onClick={() => {
+                    pushHistory()
+                    setEdits(null)
+                  }}
+                  title="Remove every hand edit and go back to the pure procedural terrain. Undo brings them back."
+                >
+                  Reset edits
+                </button>
+              </div>
+
+              <p className="hint-text">
+                While this tab is open, <strong>left-drag</strong> on the
+                land or water to sculpt. <strong>Right-drag</strong> orbits
+                and the wheel zooms. Edits sit on top of the noise, so they
+                survive seed, shaping, and sea-level changes, and biomes,
+                trees, and voxels follow them.
               </p>
                 </>
               )}

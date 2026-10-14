@@ -54,6 +54,13 @@ src/
   placement as well as moving `Water.tsx`. The climate timeline
   (`timeline.ts`) maps a year to a sea level and writes it into that same
   param.
+- **Terraforming is a terrain param too.** `TerrainParams.edits` is a
+  128×128 grid of height offsets (`terraform.ts`) that `height()` adds on top
+  of the procedural surface. `TerraformBrush.tsx` wraps the active scene,
+  raycasts to anything marked `userData.ground`, and paints into a working
+  copy of the grid during a stroke. It commits a new grid about every 80ms,
+  so every consumer of `height()` regenerates from it. App keeps a snapshot
+  per stroke for Undo.
 - **Instancing.** Trees and voxels use drei `<Instances>` with a fixed
   `limit` (allocated once) and a live `range`. Changing the count never
   reallocates GPU buffers, which is why the sliders stay cheap to drag.

@@ -117,6 +117,9 @@ The Map and Voxel scenes share one parameter set, controlled from the panel:
 - **Terrain** tab: seed, frequency, octaves, persistence, ridged noise,
   Perlin ↔ cellular noise blend, shaping (redistribute, terraces), sea
   level, island width, resolution, pan offset
+- **Sculpt** tab: terraform by hand. Left-drag with a Raise, Lower, or
+  Flatten brush (size, strength, undo, reset); right-drag orbits while
+  sculpting
 - **Weather** tab: presets, sun position, fog, cloud puffs (count, altitude,
   size, speed…), rain/snow with wind, and snow that builds up on the ground
 - **Props** tab: show/hide trees, tree count, replant
@@ -176,6 +179,9 @@ react-app/src/
 ├── map/                Map and Voxel scenes
 │   ├── noise.ts        seeded fractal noise heightfield, shaping ops,
 │   │                   island mask; TerrainParams and its defaults
+│   ├── terraform.ts    terraform edit grid: sampling + brush math
+│   ├── TerraformBrush.tsx  pointer handling + brush cursor for sculpting
+│   ├── mapSize.ts      MAP_SIZE, shared by noise.ts and terraform.ts
 │   ├── biomes.ts       height → biome color ramp (shared by both scenes)
 │   ├── Terrain.tsx     smooth terrain mesh
 │   ├── VoxelTerrain.tsx  instanced-cube terrain + grid-snapping helpers

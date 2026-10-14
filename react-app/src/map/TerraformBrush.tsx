@@ -31,7 +31,7 @@ function isGround(obj: THREE.Object3D | null): boolean {
  * The nearest surface a brush can land on: terrain, voxels (each a drei
  * <Instance> nested under a marked group), or water — never trees.
  */
-function groundHit(e: ThreeEvent<PointerEvent>) {
+export function groundHit(e: ThreeEvent<PointerEvent>) {
   return e.intersections.find((i) => isGround(i.object))
 }
 

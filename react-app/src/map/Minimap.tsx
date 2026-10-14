@@ -4,6 +4,7 @@ import { Map } from './Map'
 import { NoisePlane } from './NoisePlane'
 import type { TerrainParams } from './noise'
 import type { TreeSet } from './treeSet'
+import type { ScatterMask, ScatterSettings } from './scatter'
 
 export type InsetMode = 'terrain' | 'noise'
 
@@ -22,6 +23,8 @@ export function Minimap({
   mode = 'terrain',
   wireframe,
   treeSet,
+  scatter,
+  mask,
   showTrees,
   treeCount,
   scatterSeed,
@@ -33,6 +36,8 @@ export function Minimap({
   mode?: InsetMode
   wireframe: boolean
   treeSet: TreeSet
+  scatter: ScatterSettings
+  mask: ScatterMask
   showTrees: boolean
   treeCount: number
   scatterSeed: number
@@ -72,6 +77,8 @@ export function Minimap({
             params={params}
             wireframe={wireframe}
             treeSet={treeSet}
+            scatter={scatter}
+            mask={mask}
             showTrees={showTrees}
             treeCount={treeCount}
             scatterSeed={scatterSeed}

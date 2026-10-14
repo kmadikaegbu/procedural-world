@@ -2,6 +2,8 @@ import { Terrain } from './Terrain'
 import { Water } from './Water'
 import { Props } from './Props'
 import { TERRAIN_DEFAULTS, type TerrainParams } from './noise'
+import type { TreeSet } from './treeSet'
+import type { LodReadout, LodSettings } from './lod'
 
 export { TERRAIN_DEFAULTS }
 export type { TerrainParams }
@@ -14,6 +16,9 @@ export type { TerrainParams }
  */
 export function Map({
   params = TERRAIN_DEFAULTS,
+  treeSet,
+  lod,
+  onLodStats,
   showTrees = true,
   treeCount = 400,
   scatterSeed = 0,
@@ -23,6 +28,9 @@ export function Map({
   running = true,
 }: {
   params?: TerrainParams
+  treeSet: TreeSet
+  lod?: LodSettings
+  onLodStats?: (r: LodReadout) => void
   showTrees?: boolean
   treeCount?: number
   scatterSeed?: number
@@ -48,7 +56,14 @@ export function Map({
           the coast instead of just sliding a plane past mismatched colors */}
       <Water level={params.seaLevel} />
       {showTrees && (
-        <Props params={params} count={treeCount} scatterSeed={scatterSeed} />
+        <Props
+          params={params}
+          treeSet={treeSet}
+          lod={lod}
+          onLodStats={onLodStats}
+          count={treeCount}
+          scatterSeed={scatterSeed}
+        />
       )}
     </group>
   )

@@ -17,9 +17,12 @@ import { makeRng } from './noise'
  *   [ ]      save / restore position + heading (opens / closes a child branch)
  *   A, B..   placeholders: rewritten by the rules, never drawn
  *
- * Same species + same seed → identical tree. Every random choice (which rule
- * fires, how far each turn is jittered, where leaves sit) comes from ONE
- * seeded stream consumed in a fixed order.
+ * Same species + same seed → identical tree. Which rule fires comes from one
+ * seeded stream; everything the turtle randomises (turn jitter, leaf spin and
+ * size) is a hash of the symbol's own id instead. Each symbol's id comes from
+ * its parent's, so it never depends on how many other symbols exist — which is
+ * what lets the LODs be the SAME tree grown less far: drop the symbols born in
+ * the last generation and every remaining branch lands exactly where it was.
  */
 
 // ---------------------------------------------------------------------------
@@ -53,8 +56,12 @@ export interface Species {
   radiusFactor: number
   /** Radius multiplier along each F — the taper from trunk to twig */
   taper: number
-  /** Bends every segment toward `dir` (lean, droop, or reach for the light) */
-  tropism?: { dir: [number, number, number]; strength: number }
+  /** Bends every segment down (+) or toward the light (−). ~0.05 is noticeable. */
+  gravity: number
+  /** Bends every segment sideways (toward +X), so the whole tree leans. */
+  lean: number
+  /** Branches per node the hand-written `rules` produce — the UI's slider default. */
+  branches: number
   leaf: {
     size: number // leaf card length, same units as `length`
     perTip: number // cards clustered at each branch tip
@@ -88,7 +95,9 @@ const OPEN: Species = {
   radius: 0.16,
   radiusFactor: 0.68,
   taper: 0.9,
-  tropism: { dir: [0, 1, 0], strength: 0.05 }, // reaches a little for the light
+  gravity: -0.05, // reaches a little for the light
+  lean: 0,
+  branches: 2,
   leaf: {
     size: 0.9,
     perTip: 2,
@@ -117,6 +126,9 @@ const DENSE: Species = {
   radius: 0.2,
   radiusFactor: 0.62,
   taper: 0.88,
+  gravity: 0,
+  lean: 0,
+  branches: 3,
   leaf: {
     size: 0.8,
     perTip: 4,
@@ -146,7 +158,9 @@ const LEANING: Species = {
   radius: 0.15,
   radiusFactor: 0.66,
   taper: 0.9,
-  tropism: { dir: [1, 0.1, 0.2], strength: 0.14 }, // the lean
+  gravity: -0.014,
+  lean: 0.14, // the wind-bend
+  branches: 2,
   leaf: {
     size: 0.85,
     perTip: 3,
@@ -182,6 +196,25 @@ export function parseRules(text: string): Map<string, Alternatives> {
   return table
 }
 
+/** Mix two 32-bit ints into a well-scrambled third. */
+export function hash32(a: number, b: number): number {
+  let h = (a ^ Math.imul(b + 0x7f4a7c15, 0x9e3779b1)) >>> 0
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b)
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35)
+  return (h ^ (h >>> 16)) >>> 0
+}
+/** hash32 as a 0..1 float. */
+export const hash01 = (a: number, b: number) => hash32(a, b) / 4294967296
+
+/** One symbol of the expanded string, plus where it came from. */
+export interface Sym {
+  ch: string
+  /** Stable identity: a hash of its parent's id and its slot in the replacement. */
+  id: number
+  /** Generation that produced it (0 = the axiom). */
+  born: number
+}
+
 /** Safety valve: a rule set that fans out too fast stops growing here. */
 const MAX_SYMBOLS = 8000
 
@@ -190,14 +223,20 @@ export function expand(
   rules: Map<string, Alternatives>,
   iterations: number,
   rng: () => number,
-): string {
-  let cur = axiom
-  for (let g = 0; g < iterations; g++) {
-    let next = ''
-    for (const ch of cur) {
-      const alts = rules.get(ch)
+  seed: number,
+): { symbols: Sym[]; generations: number } {
+  let cur: Sym[] = [...axiom].map((ch, i) => ({
+    ch,
+    id: hash32(seed, i + 1),
+    born: 0,
+  }))
+  let generations = 0
+  for (let g = 1; g <= iterations; g++) {
+    const next: Sym[] = []
+    for (const sym of cur) {
+      const alts = rules.get(sym.ch)
       if (!alts) {
-        next += ch
+        next.push(sym) // untouched: keeps its id and birth generation
         continue
       }
       // weighted pick — one rng() per rewritten symbol, in string order
@@ -212,12 +251,16 @@ export function expand(
           break
         }
       }
-      next += pick.to
+      let slot = 0
+      for (const ch of pick.to) {
+        next.push({ ch, id: hash32(sym.id, ++slot), born: g })
+      }
     }
     if (next.length > MAX_SYMBOLS) break
     cur = next
+    generations = g
   }
-  return cur
+  return { symbols: cur, generations }
 }
 
 // ---------------------------------------------------------------------------
@@ -243,6 +286,8 @@ export interface Leaf {
 export interface TreeSkeleton {
   segments: Segment[]
   leaves: Leaf[]
+  /** Generations actually run — less than asked for if MAX_SYMBOLS cut it short. */
+  generations: number
 }
 
 interface Turtle {
@@ -270,10 +315,12 @@ const clone = (t: Turtle): Turtle => ({
 const DEG = Math.PI / 180
 const arr = (v: Vector3): [number, number, number] => [v.x, v.y, v.z]
 
+/** Turtle output before it is scaled to the species' height (see `scaled`). */
 export function interpret(
-  symbols: string,
+  symbols: Sym[],
+  generations: number,
   sp: Species,
-  rng: () => number,
+  seed: number,
 ): TreeSkeleton {
   const segments: Segment[] = []
   const leaves: Leaf[] = []
@@ -290,13 +337,16 @@ export function interpret(
     drew: false,
   }
   const stack: Turtle[] = []
-  const tropism = sp.tropism
-    ? new Vector3(...sp.tropism.dir).normalize()
-    : null
+  // one bend vector: gravity pulls −Y, lean pushes +X (with a little sideways drift)
+  const tropism = new Vector3(sp.lean, -sp.gravity, sp.lean * 0.2)
+  const tropismStrength = tropism.length()
+  if (tropismStrength > 1e-6) tropism.divideScalar(tropismStrength)
   const axis = new Vector3()
 
-  const jittered = (deg: number) =>
-    deg * DEG * (1 + (rng() * 2 - 1) * sp.jitter)
+  // every random number below is hash01(some symbol's id, a salt) — never a
+  // shared stream — so a symbol behaves the same whatever else is in the string
+  const jittered = (deg: number, id: number) =>
+    deg * DEG * (1 + (hash01(id, 1) * 2 - 1) * sp.jitter)
 
   // rotate two of the three frame vectors about the third
   const turn = (about: Vector3, a: Vector3, b: Vector3, rad: number) => {
@@ -304,9 +354,10 @@ export function interpret(
     b.applyAxisAngle(about, rad)
   }
 
-  const addLeaf = (at: Vector3, tip: boolean) => {
+  const addLeaf = (at: Vector3, tip: boolean, id: number, k: number) => {
+    const r = (n: number) => hash01(id, 100 + k * 8 + n)
     // spin the card's width axis randomly around the heading, so cards fan out
-    const spin = rng() * Math.PI * 2
+    const spin = r(0) * Math.PI * 2
     const s = t.L.clone().applyAxisAngle(t.H, spin)
     // tip cards continue the branch; mid-branch cards stick out sideways
     const dir = t.H.clone().addScaledVector(s, tip ? 0.6 : 1.3).normalize()
@@ -316,23 +367,23 @@ export function interpret(
       pos: arr(at),
       dir: arr(dir),
       side: arr(side),
-      size: sp.leaf.size * (0.75 + rng() * 0.5),
-      mix: rng(),
+      size: sp.leaf.size * (0.75 + r(1) * 0.5),
+      mix: r(2),
     })
   }
 
-  const tipLeaves = () => {
+  const tipLeaves = (id: number) => {
     if (!t.drew) return
-    for (let i = 0; i < sp.leaf.perTip; i++) addLeaf(t.pos, true)
+    for (let i = 0; i < sp.leaf.perTip; i++) addLeaf(t.pos, true, id, i)
   }
 
-  for (const ch of symbols) {
+  for (const { ch, id } of symbols) {
     switch (ch) {
       case 'F': {
-        if (tropism) {
+        if (tropismStrength > 1e-6) {
           // bend H toward the tropism vector; the nearer they are, the less it bends
           axis.crossVectors(t.H, tropism)
-          const strength = sp.tropism!.strength * axis.length()
+          const strength = tropismStrength * axis.length()
           if (strength > 1e-6) {
             axis.normalize()
             t.H.applyAxisAngle(axis, strength)
@@ -352,17 +403,17 @@ export function interpret(
           depth: t.depth,
         })
         t.drew = true
-        if (t.depth >= sp.leaf.minDepth && rng() < sp.leaf.midChance) {
-          addLeaf(start.lerp(t.pos, 0.5), false)
+        if (t.depth >= sp.leaf.minDepth && hash01(id, 50) < sp.leaf.midChance) {
+          addLeaf(start.lerp(t.pos, 0.5), false, id, 0)
         }
         break
       }
-      case '+': turn(t.U, t.H, t.L, jittered(sp.angle)); break
-      case '-': turn(t.U, t.H, t.L, -jittered(sp.angle)); break
-      case '&': turn(t.L, t.H, t.U, jittered(sp.angle)); break
-      case '^': turn(t.L, t.H, t.U, -jittered(sp.angle)); break
-      case '\\': turn(t.H, t.L, t.U, jittered(sp.roll)); break
-      case '/': turn(t.H, t.L, t.U, -jittered(sp.roll)); break
+      case '+': turn(t.U, t.H, t.L, jittered(sp.angle, id)); break
+      case '-': turn(t.U, t.H, t.L, -jittered(sp.angle, id)); break
+      case '&': turn(t.L, t.H, t.U, jittered(sp.angle, id)); break
+      case '^': turn(t.L, t.H, t.U, -jittered(sp.angle, id)); break
+      case '\\': turn(t.H, t.L, t.U, jittered(sp.roll, id)); break
+      case '/': turn(t.H, t.L, t.U, -jittered(sp.roll, id)); break
       case '[': {
         stack.push(clone(t))
         t.depth++
@@ -372,30 +423,33 @@ export function interpret(
         break
       }
       case ']': {
-        tipLeaves()
+        tipLeaves(id)
         t = stack.pop() ?? t
         break
       }
       // A, B, digits… — placeholders, ignored
     }
   }
-  tipLeaves() // the trunk's own tip
+  tipLeaves(hash32(seed, 0xbeef)) // the trunk's own tip
 
-  return normalise({ segments, leaves }, sp.height)
+  return { segments, leaves, generations }
 }
 
-/** Rescale so every recipe/seed lands at the species' target height. */
-function normalise(sk: TreeSkeleton, height: number): TreeSkeleton {
+/** Scale that lands a skeleton at `height` — measured on the FULL tree and reused by every LOD. */
+function heightScale(sk: TreeSkeleton, height: number): number {
   let top = 0
   for (const s of sk.segments) top = Math.max(top, s.start[1], s.end[1])
-  if (top <= 0) return sk
-  const k = height / top
+  return top > 0 ? height / top : 1
+}
+
+function scaled(sk: TreeSkeleton, k: number): TreeSkeleton {
   const sc = (p: [number, number, number]): [number, number, number] => [
     p[0] * k,
     p[1] * k,
     p[2] * k,
   ]
   return {
+    generations: sk.generations,
     segments: sk.segments.map((s) => ({
       ...s,
       start: sc(s.start),
@@ -408,12 +462,55 @@ function normalise(sk: TreeSkeleton, height: number): TreeSkeleton {
 }
 
 // ---------------------------------------------------------------------------
-// The one call everything else uses
+// The calls everything else uses
 // ---------------------------------------------------------------------------
 
-/** Deterministic: the same (species, seed) always returns the same tree. */
-export function generateTree(sp: Species, seed: number): TreeSkeleton {
-  const rng = makeRng(seed)
-  const symbols = expand(sp.axiom, parseRules(sp.rules), sp.iterations, rng)
-  return interpret(symbols, sp, rng)
+/**
+ * One tree at three growth stages, all from one expansion and one scale:
+ *   full    — every generation
+ *   reduced — one generation fewer (the LOD1 tree)
+ *   trunk   — trunk + main limbs only (depth ≤ 1), with the FULL leaf set so the
+ *             LOD2 builder can merge them into clusters
+ */
+export interface TreeStages {
+  full: TreeSkeleton
+  reduced: TreeSkeleton
+  trunk: TreeSkeleton
 }
+
+/** Deterministic: the same (species, seed) always returns the same trees. */
+export function generateTreeStages(sp: Species, seed: number): TreeStages {
+  const rng = makeRng(seed)
+  const { symbols, generations } = expand(
+    sp.axiom,
+    parseRules(sp.rules),
+    sp.iterations,
+    rng,
+    seed,
+  )
+  const full = interpret(symbols, generations, sp, seed)
+  const k = heightScale(full, sp.height)
+
+  // dropping the symbols born in the last generation == having stopped one early
+  const last = Math.max(generations - 1, 0)
+  const reduced = interpret(
+    symbols.filter((s) => s.born <= last),
+    last,
+    sp,
+    seed,
+  )
+  const trunk: TreeSkeleton = {
+    segments: full.segments.filter((s) => s.depth <= 1),
+    leaves: full.leaves,
+    generations: Math.min(generations, 1),
+  }
+  return {
+    full: scaled(full, k),
+    reduced: scaled(reduced, k),
+    trunk: scaled(trunk, k),
+  }
+}
+
+/** The full-detail tree. */
+export const generateTree = (sp: Species, seed: number): TreeSkeleton =>
+  generateTreeStages(sp, seed).full

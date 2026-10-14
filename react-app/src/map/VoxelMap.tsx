@@ -2,6 +2,8 @@ import { VoxelTerrain } from './VoxelTerrain'
 import { Water } from './Water'
 import { Props } from './Props'
 import { TERRAIN_DEFAULTS, type TerrainParams } from './noise'
+import type { TreeSet } from './treeSet'
+import type { LodReadout, LodSettings } from './lod'
 
 /**
  * Blocky stand-in for <Map>, reading the exact same TerrainParams — same
@@ -12,12 +14,18 @@ import { TERRAIN_DEFAULTS, type TerrainParams } from './noise'
  */
 export function VoxelMap({
   params = TERRAIN_DEFAULTS,
+  treeSet,
+  lod,
+  onLodStats,
   showTrees = true,
   treeCount = 400,
   scatterSeed = 0,
   wireframe = false,
 }: {
   params?: TerrainParams
+  treeSet: TreeSet
+  lod?: LodSettings
+  onLodStats?: (r: LodReadout) => void
   showTrees?: boolean
   treeCount?: number
   scatterSeed?: number
@@ -30,6 +38,9 @@ export function VoxelMap({
       {showTrees && (
         <Props
           params={params}
+          treeSet={treeSet}
+          lod={lod}
+          onLodStats={onLodStats}
           count={treeCount}
           scatterSeed={scatterSeed}
           voxel

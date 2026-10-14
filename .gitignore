@@ -29,3 +29,6 @@ node_modules/
 dist/
 dist-ssr/
 *.local
+
+# Local session notes: never pushed
+Session Log.md

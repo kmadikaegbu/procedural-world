@@ -30,3 +30,6 @@ dist/
 dist-ssr/
 *.local
 .claude/.last-logged
+
+# Claude Code session log — written locally by the .claude hooks, never pushed
+Session Log.md

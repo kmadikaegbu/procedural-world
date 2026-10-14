@@ -19,7 +19,7 @@ const FILL_DEPTH = 3
 // drei's <Instances limit> allocates its instance buffers ONCE, on first
 // mount — it is a fixed capacity, not a live prop. The actual per-frame count
 // (which changes as terrain params change) must go through `range` instead,
-// same as the tree pool in Props.tsx. This is a generous upper bound: worst
+// same as the tree pool in trees/scatter.ts. This is a generous upper bound: worst
 // case is every column rendered (no water to skip) at the grid size below.
 const MAX_VOXELS = 16000
 
@@ -29,7 +29,7 @@ const HALF = (COLS * VOXEL_SIZE) / 2
 /**
  * Snaps an X or Z coordinate to the exact column lattice the loop below
  * samples (offset by half a cell from 0, not a plain multiple of VOXEL_SIZE).
- * Props.tsx uses this so a tree's (x, z) always lands on a point VoxelTerrain
+ * trees/scatter.ts uses this so a tree's (x, z) always lands on a point VoxelTerrain
  * itself tests — never in a gap between two grid points that individually
  * disagree with the smooth height field.
  */

@@ -3,17 +3,17 @@ import {
   generateTreeStages,
   type Leaf,
   type Segment,
-  type Species,
   type TreeStages,
-} from './lsystem'
+} from './turtle'
+import type { Species } from './species'
 
 /**
  * TreeStages → four BufferGeometries (LOD0 … LOD3), all from the same recipe.
  *
  *   LOD0  every generation, every leaf card, 7-sided limbs / 6-sided twigs
- *   LOD1  one generation fewer; half the leaves, 1.45× bigger; 5 / 4 sides
- *   LOD2  trunk + main limbs only (4 sides); leaves merged into a few blobs
- *   LOD3  one blob in the tree's own average colour (20 triangles)
+ *   LOD1  one generation fewer of branches; half the leaves, 1.45× bigger; 5 / 4 sides
+ *   LOD2  trunk + main limbs only (4 sides); leaves merged into up to 8 clumps
+ *   LOD3  a trunk stick + one blob in the tree's own average colour (26 triangles)
  *
  * Each is one merged, vertex-coloured mesh, so a whole forest is a handful of
  * instanced draw calls (see Props.tsx).
@@ -21,10 +21,13 @@ import {
 
 export const LOD_COUNT = 4
 
-class MeshBuilder {
+/** Collects triangles (tubes, leaf cards, blobs) into one vertex-coloured mesh. */
+export class MeshBuilder {
   pos: number[] = []
   nrm: number[] = []
   col: number[] = []
+  /** Per vertex: 0 bark, 0..1 a leaf's drop rank, −1 a whole-tree blob (see materials.ts). */
+  leaf: number[] = []
   idx: number[] = []
 
   private get verts() {
@@ -35,10 +38,12 @@ class MeshBuilder {
     p: ArrayLike<number>,
     n: ArrayLike<number>,
     c: { r: number; g: number; b: number },
+    leaf = 0,
   ) {
     this.pos.push(p[0], p[1], p[2])
     this.nrm.push(n[0], n[1], n[2])
     this.col.push(c.r, c.g, c.b)
+    this.leaf.push(leaf)
   }
 
   /** Open tube (no end caps — the next segment or a leaf hides the join). */
@@ -101,7 +106,9 @@ class MeshBuilder {
     const c = color.clone().multiplyScalar(shade)
 
     const base = this.verts
-    for (const p of q) this.vertex([p.x, p.y, p.z], [n.x, n.y, n.z], c)
+    // the leaf's drop rank decides when it falls in autumn (never exactly 0 — that means bark)
+    const rank = Math.max(l.rank, 0.001)
+    for (const p of q) this.vertex([p.x, p.y, p.z], [n.x, n.y, n.z], c, rank)
     // wound so the outward-facing side is the "front": the material is
     // double-sided, but three flips normals on back faces
     const fn = new Vector3()
@@ -122,6 +129,7 @@ class MeshBuilder {
     rz: number,
     color: Color,
     coarse = false,
+    leaf = -1,
   ) {
     const base = this.verts
     const verts = coarse ? OCT_VERTS : ICO_VERTS
@@ -133,6 +141,7 @@ class MeshBuilder {
         [centre.x + x * rx, centre.y + y * ry, centre.z + z * rz],
         [x, y, z],
         { r: color.r * shade, g: color.g * shade, b: color.b * shade },
+        leaf,
       )
     }
     for (const f of faces) this.idx.push(base + f[0], base + f[1], base + f[2])
@@ -173,6 +182,7 @@ class MeshBuilder {
     g.setAttribute('position', new BufferAttribute(new Float32Array(this.pos), 3))
     g.setAttribute('normal', new BufferAttribute(new Float32Array(this.nrm), 3))
     g.setAttribute('color', new BufferAttribute(new Float32Array(this.col), 3))
+    g.setAttribute('aLeaf', new BufferAttribute(new Float32Array(this.leaf), 1))
     g.setIndex(new BufferAttribute(new Uint32Array(this.idx), 1))
     g.computeBoundingSphere()
     return g
@@ -207,11 +217,11 @@ const ICO_FACES = [
 
 // ---------------------------------------------------------------------------
 
-/** Radial sides per LOD0–2: [trunk and limbs (depth 0–1), twigs (depth 2+)]. LOD2 has no twigs. */
+/** Radial sides per LOD0–2: [trunk, everything thinner]. LOD0/1 count limbs (depth 1) as "trunk"; LOD2 doesn't. */
 export const LOD_SIDES: [number, number][] = [
   [7, 6],
   [5, 4],
-  [4, 4],
+  [4, 3],
 ]
 
 export interface TreeLods {
@@ -234,10 +244,16 @@ export function buildTreeLods(stages: TreeStages, sp: Species): TreeLods {
   const maxDepth = Math.max(1, ...full.segments.map((s) => s.depth))
   const leafColor = (l: Leaf) => new Color().lerpColors(leafA, leafB, l.mix)
 
-  const tubes = (b: MeshBuilder, segs: Segment[], sides: [number, number]) => {
+  // `thinFrom`: the depth from which branches count as thin and get the cheaper side count
+  const tubes = (
+    b: MeshBuilder,
+    segs: Segment[],
+    sides: [number, number],
+    thinFrom = 2,
+  ) => {
     for (const s of segs) {
       const bark = new Color().lerpColors(barkA, barkB, s.depth / maxDepth)
-      b.tube(s, s.depth >= 2 ? sides[1] : sides[0], bark)
+      b.tube(s, s.depth >= thinFrom ? sides[1] : sides[0], bark)
     }
   }
   const centreOf = (leaves: Leaf[]) => {
@@ -263,55 +279,98 @@ export function buildTreeLods(stages: TreeStages, sp: Species): TreeLods {
   tubes(b0, full.segments, LOD_SIDES[0])
   cards(b0, full.leaves, 1, 1)
 
-  // LOD1 — a generation younger, half the cards, each bigger to keep the canopy's mass
+  // Each leaf card covers more than its anchor point: these are the points it
+  // reaches (base, tip, both shoulders) — used to size the stand-ins below so
+  // they cover the same patch of sky as the real leaves.
+  const cardPoints = (l: Leaf): Vector3[] => {
+    const p = new Vector3(...l.pos)
+    const d = new Vector3(...l.dir).multiplyScalar(l.size)
+    const sd = new Vector3(...l.side).multiplyScalar(l.size * 0.35)
+    const mid = p.clone().addScaledVector(d, 0.4)
+    return [p, p.clone().add(d), mid.clone().add(sd), mid.clone().sub(sd)]
+  }
+
+  // LOD1 — a generation fewer of BRANCHES, but leaves still placed where the full
+  // tree has them (half as many, each 1.45× bigger ≈ the same leaf area), so the
+  // crown keeps its outline and the switch from LOD0 doesn't shrink it
   const b1 = new MeshBuilder()
   tubes(b1, reduced.segments, LOD_SIDES[1])
-  cards(b1, reduced.leaves, 2, 1.45)
+  cards(b1, full.leaves, 2, 1.45)
 
-  // LOD2 — bare main limbs; the whole tree's leaves merged into coarse cells,
-  // one blob per cell
+  // LOD2 — bare main limbs; the leaves merged into a few clumps. The crown is cut
+  // into cells, and each of the fullest cells becomes one ellipsoid fitted to
+  // the leaves inside it (not a fixed size), so the clumps trace the crown.
   const b2 = new MeshBuilder()
-  tubes(b2, trunk.segments, LOD_SIDES[2])
-  const cell = sp.height * 0.45
-  const cells = new Map<string, { sum: Vector3; col: Color; n: number }>()
+  tubes(b2, trunk.segments, LOD_SIDES[2], 1)
+  const cell = sp.height * 0.32
+  const cells = new Map<string, { lo: Vector3; hi: Vector3; col: Color; n: number }>()
   for (const l of full.leaves) {
     const key = l.pos.map((v) => Math.floor(v / cell)).join(',')
-    const c = cells.get(key) ?? { sum: new Vector3(), col: new Color(0, 0, 0), n: 0 }
-    c.sum.add(new Vector3(...l.pos))
+    const c = cells.get(key) ?? {
+      lo: new Vector3(Infinity, Infinity, Infinity),
+      hi: new Vector3(-Infinity, -Infinity, -Infinity),
+      col: new Color(0, 0, 0),
+      n: 0,
+    }
+    for (const q of cardPoints(l)) {
+      c.lo.min(q)
+      c.hi.max(q)
+    }
     c.col.add(leafColor(l))
     c.n++
     cells.set(key, c)
   }
-  const clusters = [...cells.values()].sort((a, b) => b.n - a.n).slice(0, 5)
-  for (const c of clusters) {
+  const clusters = [...cells.values()].sort((a, b) => b.n - a.n).slice(0, 8)
+  clusters.forEach((c, k) => {
+    const centre = c.lo.clone().add(c.hi).multiplyScalar(0.5)
+    // a solid clump looks heavier than loose cards with sky between them,
+    // so it's a little smaller than the box the leaves fill, and a little darker
+    const half = c.hi.clone().sub(c.lo).multiplyScalar(0.5 * 0.8)
+    const min = cell * 0.18
+    // drop rank: the biggest clump holds on longest in autumn
+    const rank = 0.05 + ((k + 0.5) / clusters.length) * 0.9
     b2.blob(
-      c.sum.divideScalar(c.n),
-      cell * 0.6,
-      cell * 0.5,
-      cell * 0.6,
-      c.col.multiplyScalar(1 / c.n),
-      true,
+      centre,
+      Math.max(half.x, min),
+      Math.max(half.y, min),
+      Math.max(half.z, min),
+      c.col.multiplyScalar(0.9 / c.n),
+      k >= 3, // the three biggest clumps are smooth; small ones can be cruder
+      rank,
     )
-  }
+  })
 
-  // LOD3 — one ellipsoid over the canopy, in the colour the tree averages to
+  // LOD3 — a trunk stick + one ellipsoid covering the whole crown, in the colour
+  // the full tree averages to
   const b3 = new MeshBuilder()
   const pts = full.leaves.length
-    ? full.leaves.map((l) => l.pos)
-    : full.segments.map((s) => s.end)
+    ? full.leaves.flatMap(cardPoints)
+    : full.segments.map((s) => new Vector3(...s.end))
   const lo = new Vector3(Infinity, Infinity, Infinity)
   const hi = new Vector3(-Infinity, -Infinity, -Infinity)
   for (const p of pts) {
-    lo.min(new Vector3(...p))
-    hi.max(new Vector3(...p))
+    lo.min(p)
+    hi.max(p)
   }
   const mid = lo.clone().add(hi).multiplyScalar(0.5)
-  const half = hi.clone().sub(lo).multiplyScalar(0.5)
+  const half = hi.clone().sub(lo).multiplyScalar(0.5 * 0.85)
+  const crownBase = new Vector3(mid.x, lo.y + half.y * 0.4, mid.z)
+  b3.tube(
+    {
+      start: [0, 0, 0],
+      end: [crownBase.x, crownBase.y, crownBase.z],
+      r0: full.segments[0]?.r0 ?? 0.05,
+      r1: (full.segments[0]?.r0 ?? 0.05) * 0.7,
+      depth: 0,
+    },
+    3,
+    barkA,
+  )
   b3.blob(
     mid,
-    Math.max(half.x * 1.05, 0.15),
-    Math.max(half.y * 1.05, 0.15),
-    Math.max(half.z * 1.05, 0.15),
+    Math.max(half.x, 0.15),
+    Math.max(half.y, 0.15),
+    Math.max(half.z, 0.15),
     b0.averageColor(),
   )
 

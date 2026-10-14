@@ -1,6 +1,7 @@
+import { Euler, Matrix4, Quaternion, Vector3 } from 'three'
 import { ImprovedNoise } from 'three/examples/jsm/math/ImprovedNoise.js'
-import { hash01, hash32 } from './lsystem'
-import { grassRange, height, islandXReach, MAP_SIZE, type TerrainParams } from './noise'
+import { hash01, hash32 } from './grammar'
+import { grassRange, height, islandXReach, MAP_SIZE, type TerrainParams } from '../noise'
 
 /**
  * Where the trees go — pure data in, pure data out, no meshes.
@@ -240,4 +241,20 @@ export function scatterTrees(
     }
   }
   return out
+}
+
+const _m = new Matrix4()
+const _q = new Quaternion()
+const _e = new Euler(0, 0, 0, 'YXZ') // spin about the trunk first, then lean
+const _p = new Vector3()
+const _s = new Vector3()
+
+/** Write a placed tree's transform (position × spin × lean × size) into `out` at `at`. */
+export function treeMatrix(t: PlacedTree, out: Float32Array, at: number) {
+  _e.set(t.tiltX, t.yaw, t.tiltZ)
+  _q.setFromEuler(_e)
+  _p.set(...t.pos)
+  _s.set(t.scale * t.girth, t.scale, t.scale * t.girth)
+  _m.compose(_p, _q, _s)
+  out.set(_m.elements, at)
 }

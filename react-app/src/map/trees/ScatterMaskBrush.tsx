@@ -1,8 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react'
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
-import { height, type TerrainParams } from './noise'
-import { groundHit } from './TerraformBrush'
+import { height, type TerrainParams } from '../noise'
+import { groundHit } from '../TerraformBrush'
 import { MASK_CELL, MASK_RES, paintMask, type ScatterMask } from './scatter'
 
 // same cadence as the sculpt brush: a stroke is pushed into React state ~12×/s,

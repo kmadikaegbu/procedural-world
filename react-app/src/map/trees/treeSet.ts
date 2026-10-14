@@ -1,7 +1,7 @@
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import type { BufferGeometry } from 'three'
-import { SPECIES, SPECIES_NAMES, type Species, type SpeciesName } from './lsystem'
-import { LOD_COUNT, buildVariants, type TreeLods } from './treeGeometry'
+import { SPECIES, SPECIES_NAMES, type Species, type SpeciesName } from './species'
+import { LOD_COUNT, buildVariants, type TreeLods } from './geometry'
 
 /**
  * The tree settings the UI edits, and the set of tree shapes they grow.
@@ -172,30 +172,36 @@ function summarise(built: TreeLods[], genMs: number): TreeStats {
   }
 }
 
-// The preset mix only depends on how many variants, so grow each size once and share it.
-const mixedSets = new Map<number, TreeSet>()
-function getMixedSet(variants: number): TreeSet {
-  let set = mixedSets.get(variants)
-  if (!set) {
-    const t0 = performance.now()
-    const built = SPECIES_NAMES.flatMap((n) =>
-      buildVariants(SPECIES[n], variants),
-    )
-    set = {
+// ---------------------------------------------------------------------------
+// Cache: every set of shapes we've grown, keyed by everything that shapes them
+// (species, every slider, seed, number of variants). Each entry holds all four
+// LODs of every shape. Dragging a slider back to a value you've already seen
+// reuses the cached meshes instead of regrowing them.
+// ---------------------------------------------------------------------------
+
+const CACHE_SIZE = 10
+const cache = new Map<string, TreeSet>() // insertion order = least recently used first
+
+function cacheKey(p: TreeParams, variants: number): string {
+  // the mixed forest ignores the sliders — only the number of variants matters
+  return p.species === 'mixed'
+    ? `mixed|${variants}`
+    : JSON.stringify({ ...p, variants })
+}
+
+function grow(p: TreeParams, variants: number): TreeSet {
+  const t0 = performance.now()
+  if (p.species === 'mixed') {
+    const built = SPECIES_NAMES.flatMap((n) => buildVariants(SPECIES[n], variants))
+    return {
       shapes: built.map(({ lods, tris }) => ({ lods, tris })),
       mixed: true,
       variantsPerSpecies: variants,
       stats: summarise(built, performance.now() - t0),
     }
-    mixedSets.set(variants, set)
   }
-  return set
-}
-
-function growSingle(p: TreeParams, name: SpeciesName, variants: number): TreeSet {
-  const t0 = performance.now()
   const count = variants * SINGLE_FACTOR
-  const built = buildVariants(speciesFromParams(p, name), count, p.seed)
+  const built = buildVariants(speciesFromParams(p, p.species), count, p.seed)
   return {
     shapes: built.map(({ lods, tris }) => ({ lods, tris })),
     mixed: false,
@@ -204,21 +210,28 @@ function growSingle(p: TreeParams, name: SpeciesName, variants: number): TreeSet
   }
 }
 
-/** Regrows the shapes whenever the settings change — i.e. live while a slider drags. */
-export function useTreeSet(p: TreeParams, variants: number): TreeSet {
-  const set = useMemo(
-    () =>
-      p.species === 'mixed'
-        ? getMixedSet(variants)
-        : growSingle(p, p.species, variants),
-    [p, variants],
-  )
-  // free the GPU buffers of a set we've replaced (the shared mixed set lives on)
-  useEffect(
-    () => () => {
-      if (!set.mixed) for (const sh of set.shapes) for (const g of sh.lods) g.dispose()
-    },
-    [set],
-  )
+/** The set for these settings — from the cache if we've grown it before. */
+export function getTreeSet(p: TreeParams, variants: number): TreeSet {
+  const key = cacheKey(p, variants)
+  const hit = cache.get(key)
+  if (hit) {
+    cache.delete(key) // move to the back: most recently used
+    cache.set(key, hit)
+    return hit
+  }
+  const set = grow(p, variants)
+  cache.set(key, set)
+  // over budget: free the least recently used set's GPU memory. It can't be on
+  // screen — the set just requested is the one being drawn.
+  while (cache.size > CACHE_SIZE) {
+    const [oldKey, old] = cache.entries().next().value!
+    cache.delete(oldKey)
+    for (const sh of old.shapes) for (const g of sh.lods) g.dispose()
+  }
   return set
+}
+
+/** The shapes for the current settings; regrown (or fetched from the cache) only when they change. */
+export function useTreeSet(p: TreeParams, variants: number): TreeSet {
+  return useMemo(() => getTreeSet(p, variants), [p, variants])
 }

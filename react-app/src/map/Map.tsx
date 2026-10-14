@@ -2,9 +2,8 @@ import { Terrain } from './Terrain'
 import { Water } from './Water'
 import { Props } from './Props'
 import { TERRAIN_DEFAULTS, type TerrainParams } from './noise'
-import type { TreeSet } from './treeSet'
-import type { LodReadout, LodSettings } from './lod'
-import type { ScatterMask, ScatterSettings } from './scatter'
+import type { Forest } from './trees/forest'
+import type { LodReadout } from './trees/lod'
 
 export { TERRAIN_DEFAULTS }
 export type { TerrainParams }
@@ -17,30 +16,22 @@ export type { TerrainParams }
  */
 export function Map({
   params = TERRAIN_DEFAULTS,
-  treeSet,
-  scatter,
-  mask,
-  lod,
+  forest,
+  main = false,
   onLodStats,
   onPlaced,
-  showTrees = true,
-  treeCount = 400,
-  scatterSeed = 0,
   wireframe = false,
   snowing = false,
   snowIntensity = 1,
   running = true,
 }: {
   params?: TerrainParams
-  treeSet: TreeSet
-  scatter?: ScatterSettings
-  mask?: ScatterMask | null
-  lod?: LodSettings
+  /** The trees: placement, shapes, LOD, look, season, ivy (see trees/forest.ts). */
+  forest: Forest
+  /** The main 3D view rather than the minimap — LOD and stats only apply here. */
+  main?: boolean
   onLodStats?: (r: LodReadout) => void
   onPlaced?: (drawn: number, fit: number) => void
-  showTrees?: boolean
-  treeCount?: number
-  scatterSeed?: number
   wireframe?: boolean
   /** Is it actively snowing right now — builds a white coat on the ground. */
   snowing?: boolean
@@ -62,17 +53,13 @@ export function Map({
           biome ramp and tree placement use, so raising it actually floods
           the coast instead of just sliding a plane past mismatched colors */}
       <Water level={params.seaLevel} />
-      {showTrees && (
+      {forest.show && (
         <Props
           params={params}
-          treeSet={treeSet}
-          scatter={scatter}
-          mask={mask}
-          lod={lod}
+          forest={forest}
+          main={main}
           onLodStats={onLodStats}
           onPlaced={onPlaced}
-          count={treeCount}
-          scatterSeed={scatterSeed}
         />
       )}
     </group>

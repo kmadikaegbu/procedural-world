@@ -3,6 +3,7 @@ import { OrthographicCamera } from '@react-three/drei'
 import { Map } from './Map'
 import { NoisePlane } from './NoisePlane'
 import type { TerrainParams } from './noise'
+import type { TreeSet } from './treeSet'
 
 export type InsetMode = 'terrain' | 'noise'
 
@@ -20,6 +21,7 @@ export function Minimap({
   params,
   mode = 'terrain',
   wireframe,
+  treeSet,
   showTrees,
   treeCount,
   scatterSeed,
@@ -30,6 +32,7 @@ export function Minimap({
   params: TerrainParams
   mode?: InsetMode
   wireframe: boolean
+  treeSet: TreeSet
   showTrees: boolean
   treeCount: number
   scatterSeed: number
@@ -68,6 +71,7 @@ export function Minimap({
           <Map
             params={params}
             wireframe={wireframe}
+            treeSet={treeSet}
             showTrees={showTrees}
             treeCount={treeCount}
             scatterSeed={scatterSeed}

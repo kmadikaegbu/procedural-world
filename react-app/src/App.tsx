@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import {
   OrbitControls,
@@ -11,6 +11,14 @@ import { Map } from './map/Map'
 import { VoxelMap } from './map/VoxelMap'
 import { Minimap, type InsetMode } from './map/Minimap'
 import { MAX_TREES } from './map/Props'
+import {
+  TREE_SLIDERS,
+  paramsFromSpecies,
+  useTreeSet,
+  type TreeParams,
+} from './map/treeSet'
+import { SPECIES_NAMES, type SpeciesName } from './map/lsystem'
+import { LOD_COLORS, LOD_DEFAULTS, type LodReadout, type LodSettings } from './map/lod'
 import { TERRAIN_DEFAULTS, erodeTerrain, type TerrainParams } from './map/noise'
 import { TerraformBrush } from './map/TerraformBrush'
 import type { BrushTool, TerrainEdits } from './map/terraform'
@@ -190,6 +198,34 @@ function App() {
   const [showTrees, setShowTrees] = useState(true)
   const [treeCount, setTreeCount] = useState(400)
   const [scatterSeed, setScatterSeed] = useState(0)
+  // starts as the mixed preset forest; picking a species loads its recipe into the sliders
+  const [tree, setTree] = useState<TreeParams>(() => ({
+    ...paramsFromSpecies('open'),
+    species: 'mixed',
+  }))
+  const treeSet = useTreeSet(tree)
+  const treeMixed = tree.species === 'mixed'
+  const [lod, setLod] = useState<LodSettings>(LOD_DEFAULTS)
+  // the latest reading taken with LOD off and with it on — so both columns stay
+  // filled after you flip the switch and can be compared side by side
+  const [lodReadout, setLodReadout] = useState<{
+    off: LodReadout | null
+    on: LodReadout | null
+  }>({ off: null, on: null })
+  const onLodStats = useCallback(
+    (r: LodReadout) =>
+      setLodReadout((prev) => ({ ...prev, [r.enabled ? 'on' : 'off']: r })),
+    [],
+  )
+  // keep the three distances in order: moving one pushes its neighbours along
+  const setLodThreshold = (i: number, v: number) =>
+    setLod((l) => {
+      const t = [...l.thresholds] as LodSettings['thresholds']
+      t[i] = v
+      for (let j = i + 1; j < 3; j++) t[j] = Math.max(t[j], t[j - 1] + 5)
+      for (let j = i - 1; j >= 0; j--) t[j] = Math.min(t[j], t[j + 1] - 5)
+      return { ...l, thresholds: t }
+    })
   const [timelineYear, setTimelineYear] = useState(TIMELINE_DEFAULT)
   const [timelinePlaying, setTimelinePlaying] = useState(false)
   const controlsRef = useRef<OrbitControlsImpl>(null)
@@ -345,6 +381,9 @@ function App() {
               <TerraformBrush {...brushProps}>
                 <Map
                   params={terrain}
+                  treeSet={treeSet}
+                  lod={lod}
+                  onLodStats={onLodStats}
                   wireframe={wireframe}
                   showTrees={showTrees}
                   treeCount={treeCount}
@@ -361,6 +400,9 @@ function App() {
               <TerraformBrush {...brushProps}>
                 <VoxelMap
                   params={terrain}
+                  treeSet={treeSet}
+                  lod={lod}
+                  onLodStats={onLodStats}
                   wireframe={wireframe}
                   showTrees={showTrees}
                   treeCount={treeCount}
@@ -402,6 +444,7 @@ function App() {
         <Minimap
           params={terrain}
           mode={insetMode}
+          treeSet={treeSet}
           wireframe={wireframe}
           showTrees={showTrees}
           treeCount={treeCount}
@@ -1266,6 +1309,215 @@ function App() {
                   Replant
                 </button>
               </div>
+
+              <div className="panel-title">Tree shape</div>
+
+              <label
+                className="row"
+                title="Which L-system recipe grows the trees. Picking one loads its settings into the sliders below; Mixed plants all three presets in stands."
+              >
+                <span>Species</span>
+                <select
+                  value={tree.species}
+                  onChange={(e) => {
+                    const v = e.target.value as SpeciesName | 'mixed'
+                    setTree((t) =>
+                      v === 'mixed'
+                        ? { ...t, species: 'mixed' }
+                        : paramsFromSpecies(v, t.seed),
+                    )
+                  }}
+                >
+                  <option value="mixed">Mixed (3 presets)</option>
+                  {SPECIES_NAMES.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {treeMixed && (
+                <p className="hint-text">
+                  Pick a single species to edit its parameters — the sliders
+                  regrow the whole forest live.
+                </p>
+              )}
+
+              {TREE_SLIDERS.map((sl) => (
+                <label key={sl.key} className="row" title={sl.title}>
+                  <span>{sl.label}</span>
+                  <input
+                    type="range"
+                    min={sl.min}
+                    max={sl.max}
+                    step={sl.step}
+                    value={tree[sl.key]}
+                    disabled={treeMixed}
+                    onChange={(e) => {
+                      const v = Number(e.target.value)
+                      setTree((t) => ({ ...t, [sl.key]: v }))
+                    }}
+                  />
+                  <em>
+                    {tree[sl.key].toFixed(
+                      sl.step >= 1 ? 0 : sl.step >= 0.1 ? 1 : 2,
+                    )}
+                  </em>
+                </label>
+              ))}
+
+              <div className="panel-actions">
+                <button
+                  disabled={treeMixed}
+                  onClick={() =>
+                    setTree((t) => ({
+                      ...t,
+                      seed: Math.floor(Math.random() * 1000),
+                    }))
+                  }
+                  title="Grow a different set of trees from the same recipe."
+                >
+                  Randomize seed
+                </button>
+              </div>
+
+              <div className="tree-stats" title="Averages for one tree of the current set. Forest ≈ trees drawn × average triangles.">
+                <span>Triangles</span>
+                <em>{treeSet.stats.triangles.toLocaleString()}</em>
+                <span>Branches</span>
+                <em>{treeSet.stats.branches.toLocaleString()}</em>
+                <span>Leaves</span>
+                <em>{treeSet.stats.leaves.toLocaleString()}</em>
+                <span>Tris per LOD</span>
+                <em>{treeSet.stats.lodTriangles.join(' / ')}</em>
+                <span>Generation</span>
+                <em>
+                  {treeSet.stats.genMs.toFixed(1)} ms ·{' '}
+                  {treeSet.stats.variants} shapes
+                </em>
+                <span>Forest ≈</span>
+                <em>
+                  {showTrees
+                    ? (
+                        Math.min(treeCount, MAX_TREES) * treeSet.stats.triangles
+                      ).toLocaleString()
+                    : 0}{' '}
+                  tris
+                </em>
+              </div>
+              {!treeMixed && treeSet.stats.generations < tree.generations && (
+                <p className="hint-text">
+                  Capped at {treeSet.stats.generations} generations — more
+                  would make a tree too large to build.
+                </p>
+              )}
+
+              <div className="panel-title">Level of detail</div>
+
+              <label
+                className="row"
+                title="Draw trees at a cheaper level of detail the farther they are from the camera. Every level is grown from the same recipe."
+              >
+                <span>Enable LOD</span>
+                <input
+                  type="checkbox"
+                  checked={lod.enabled}
+                  onChange={(e) =>
+                    setLod((l) => ({ ...l, enabled: e.target.checked }))
+                  }
+                />
+              </label>
+
+              <label
+                className="row"
+                title="Draws a coloured ring on the ground at each switch distance and tints every tree by the level it is drawn at now."
+              >
+                <span>Debug view</span>
+                <input
+                  type="checkbox"
+                  checked={lod.debug}
+                  disabled={!lod.enabled}
+                  onChange={(e) =>
+                    setLod((l) => ({ ...l, debug: e.target.checked }))
+                  }
+                />
+              </label>
+
+              {(
+                [
+                  ['LOD1 at', 'Trees farther than this from the camera drop to LOD1: one generation fewer, half the leaves (bigger), 4–5 sides.'],
+                  ['LOD2 at', 'Beyond this: trunk and main limbs only, with the leaves merged into a few clusters.'],
+                  ['LOD3 at', 'Beyond this: a single blob in the tree’s average colour.'],
+                ] as const
+              ).map(([label, title], i) => (
+                <label key={label} className="row" title={title}>
+                  <span style={{ color: LOD_COLORS[i + 1] }}>{label}</span>
+                  <input
+                    type="range"
+                    min={10}
+                    max={250}
+                    step={5}
+                    value={lod.thresholds[i]}
+                    onChange={(e) => setLodThreshold(i, Number(e.target.value))}
+                  />
+                  <em>{lod.thresholds[i]}</em>
+                </label>
+              ))}
+
+              <label
+                className="row"
+                title="A dead band around each distance: a tree only switches to a farther level once it is this far PAST the threshold, and back only once it is this far inside it, so trees on a boundary don't flicker."
+              >
+                <span>Hysteresis</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={25}
+                  step={1}
+                  value={Math.round(lod.hysteresis * 100)}
+                  onChange={(e) =>
+                    setLod((l) => ({
+                      ...l,
+                      hysteresis: Number(e.target.value) / 100,
+                    }))
+                  }
+                />
+                <em>{Math.round(lod.hysteresis * 100)}%</em>
+              </label>
+
+              <div
+                className="tree-stats tree-stats--lod"
+                title="Latest reading with LOD off and with it on. Flip the Enable LOD switch to fill the other column. Frame tris is everything the GPU drew (terrain, water, trees, shadow pass)."
+              >
+                <span />
+                <b>LOD off</b>
+                <b>LOD on</b>
+                <span>Tree tris</span>
+                <em>{lodReadout.off ? lodReadout.off.treeTris.toLocaleString() : '—'}</em>
+                <em>{lodReadout.on ? lodReadout.on.treeTris.toLocaleString() : '—'}</em>
+                <span>Frame tris</span>
+                <em>{lodReadout.off ? lodReadout.off.frameTris.toLocaleString() : '—'}</em>
+                <em>{lodReadout.on ? lodReadout.on.frameTris.toLocaleString() : '—'}</em>
+                <span>FPS</span>
+                <em>{lodReadout.off ? Math.round(lodReadout.off.fps) : '—'}</em>
+                <em>{lodReadout.on ? Math.round(lodReadout.on.fps) : '—'}</em>
+              </div>
+              {lodReadout.on && lod.enabled && (
+                <p className="hint-text">
+                  Trees per level:{' '}
+                  {lodReadout.on.byLevel.map((n, l) => (
+                    <span key={l} style={{ color: LOD_COLORS[l] }}>
+                      {l > 0 && ' · '}L{l} {n}
+                    </span>
+                  ))}
+                </p>
+              )}
+              <p className="hint-text">
+                Flip Enable LOD to fill both columns. FPS tops out at your
+                display’s refresh rate, so the triangle counts show the
+                saving even when FPS can’t.
+              </p>
                 </>
               )}
 

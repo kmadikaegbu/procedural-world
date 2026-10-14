@@ -3,8 +3,7 @@ import { OrthographicCamera } from '@react-three/drei'
 import { Map } from './Map'
 import { NoisePlane } from './NoisePlane'
 import type { TerrainParams } from './noise'
-import type { TreeSet } from './treeSet'
-import type { ScatterMask, ScatterSettings } from './scatter'
+import type { Forest } from './trees/forest'
 
 export type InsetMode = 'terrain' | 'noise'
 
@@ -22,12 +21,7 @@ export function Minimap({
   params,
   mode = 'terrain',
   wireframe,
-  treeSet,
-  scatter,
-  mask,
-  showTrees,
-  treeCount,
-  scatterSeed,
+  forest,
   snowing = false,
   snowIntensity = 1,
   running = true,
@@ -35,12 +29,7 @@ export function Minimap({
   params: TerrainParams
   mode?: InsetMode
   wireframe: boolean
-  treeSet: TreeSet
-  scatter: ScatterSettings
-  mask: ScatterMask
-  showTrees: boolean
-  treeCount: number
-  scatterSeed: number
+  forest: Forest
   snowing?: boolean
   snowIntensity?: number
   running?: boolean
@@ -76,12 +65,7 @@ export function Minimap({
           <Map
             params={params}
             wireframe={wireframe}
-            treeSet={treeSet}
-            scatter={scatter}
-            mask={mask}
-            showTrees={showTrees}
-            treeCount={treeCount}
-            scatterSeed={scatterSeed}
+            forest={forest}
             snowing={snowing}
             snowIntensity={snowIntensity}
             running={running}

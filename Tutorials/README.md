@@ -12,6 +12,7 @@ zero.
 | 4 | [Building a Procedural Map](<Building a Procedural Map.md>) | Noise-driven terrain, height-based biomes, water, and seeded props |
 | 5 | [Procedural Water](<Procedural Water.md>) | Shader-driven water: Gerstner waves, depth colour, shoreline foam, ripples, reflections, weather |
 | 6 | [How the World Fits Together](<How the World Fits Together.md>) | How land, water, biomes, trees, sun, wind, rain, snow, clouds and seasons affect each other |
+| 7 | [Real-World Scale](<Real-World Scale.md>) | What a world unit is in metres; people, trees, houses and buildings at true scale; what's exaggerated and why |
 
 The finished result of these guides is the app in
 [`../react-app/`](../react-app/).

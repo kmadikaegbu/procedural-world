@@ -3,6 +3,7 @@
   --text-dim: #a9a6b6;
   --bg: #0f0f17;
   --accent-purple: #b794f6;
+  --accent-cyan: #48cae4; /* a lighter tint of the panel's #00b4d8, for the title */
   --accent-red: #f16565;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;

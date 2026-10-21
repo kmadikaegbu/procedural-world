@@ -31,7 +31,8 @@ src/
 ├── main.tsx      mounts <App />
 ├── App.tsx       scene switcher + control panel; owns ALL parameter state
 ├── map/          Map + Voxel scenes, terrain generation, minimap, timeline
-│   └── trees/    procedural trees: L-system, LOD, scatter, ivy, seasons, panel
+│   ├── trees/    procedural trees: L-system, LOD, scatter, ivy, seasons, panel
+│   └── water/    procedural water: waves, depth colour, foam, panel
 ├── weather/      sky, fog, clouds, rain/snow (used by Map and Voxel)
 ├── noise/        cellular (Worley) noise, shared by the terrain and the orb
 └── orb/          Orb scene (Perlin + cellular noise sphere)
@@ -213,6 +214,45 @@ than 10.
 | `seasons.ts`, `materials.ts`, `FallenLeaves.tsx` | look and seasons |
 | `ivy.ts`, `IvyMesh.tsx` | ivy growth |
 | `TreePanel.tsx`, `useTreeControls.ts` | the UI panel and its state |
+
+## Procedural water
+
+The sea is one flat sheet at sea level. Everything that makes it look like
+water happens in its shader (`src/map/water/waterMaterial.ts`), which is three's
+standard material with extra steps spliced in, so lighting, shadows and fog
+still work. The controls are in the **Water** section at the bottom of the
+**Weather** tab.
+
+- **Waves:** four Gerstner waves, each with its own direction, length and
+  speed, chosen from the terrain seed (`waves.ts`). A Gerstner wave pulls the
+  surface toward each crest as well as lifting it, which gives sharp crests and
+  flat troughs. Waves shrink where the water gets shallow.
+- **Colour by depth:** `depthMap.ts` samples the terrain's `height()` into a
+  256×256 image. The shader reads it to find how deep the water is: pale and
+  see-through in the shallows, dark blue in deep water. The image stores
+  terrain height, not depth, so sea-level changes (the climate timeline) need
+  no rebuild.
+- **Foam:** white water lapping where land is close, plus rare whitecaps on
+  the tallest crests. The island's banks are nearly vertical, so the shore
+  foam asks "how near is dry land?" (probing the depth map around each point),
+  not "how shallow is it?".
+- **Ripples and reflection:** moving noise tilts the surface so the sun
+  glitters. At shallow viewing angles the water mirrors the sky (Fresnel).
+- **Weather:** wind makes the waves taller and choppier, rain adds ripple
+  rings, cloud cover greys the reflection, and Paused freezes the waves.
+
+| Slider | What it does |
+| --- | --- |
+| Wave height | how tall the swells are (wind adds to it) |
+| Choppiness | rounded swells (0) to sharp, peaked crests (1) |
+| Wave size | distance between crests |
+| Wave speed | how fast they travel; 0 freezes them |
+| Direction | the way they travel (90 = south, along the island) |
+| Ripples | fine surface ripples that break up glints and reflections |
+| Clarity | how deep you can see before the water turns deep blue |
+| Foam | shoreline foam and whitecaps |
+| Reflection | how strongly the surface mirrors the sky |
+| Shallow / Deep | the two water colours |
 
 ## Deploying
 

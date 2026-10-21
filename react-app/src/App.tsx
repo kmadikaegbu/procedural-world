@@ -12,6 +12,8 @@ import { VoxelMap } from './map/VoxelMap'
 import { Minimap, type InsetMode } from './map/Minimap'
 import { ScatterMaskBrush } from './map/trees/ScatterMaskBrush'
 import { TreePanel } from './map/trees/TreePanel'
+import { WATER_DEFAULTS, type WaterSettings } from './map/water/settings'
+import { WaterPanel } from './map/water/WaterPanel'
 import { useTreeControls } from './map/trees/useTreeControls'
 import { TERRAIN_DEFAULTS, erodeTerrain, type TerrainParams } from './map/noise'
 import { TerraformBrush } from './map/TerraformBrush'
@@ -181,6 +183,7 @@ function App() {
   const [weather, setWeather] = useState<WeatherParams>(WEATHER_PRESETS.clear)
   const [kind, setKind] = useState<WeatherKind | 'custom'>('clear')
   const [running, setRunning] = useState(true)
+  const [water, setWater] = useState<WaterSettings>(WATER_DEFAULTS)
   const [wireframe, setWireframe] = useState(false)
   const [mapTab, setMapTab] = useState<
     'terrain' | 'sculpt' | 'weather' | 'props'
@@ -361,6 +364,8 @@ function App() {
                 <Map
                   params={terrain}
                   forest={forest}
+                  water={water}
+                  weather={weather}
                   main
                   onPlaced={onPlaced}
                   onLodStats={onLodStats}
@@ -380,6 +385,9 @@ function App() {
                 <VoxelMap
                   params={terrain}
                   forest={forest}
+                  water={water}
+                  weather={weather}
+                  running={running}
                   onPlaced={onPlaced}
                   onLodStats={onLodStats}
                   wireframe={wireframe}
@@ -422,6 +430,8 @@ function App() {
           params={terrain}
           mode={insetMode}
           forest={forest}
+          water={water}
+          weather={weather}
           wireframe={wireframe}
           snowing={isSnowing}
           snowIntensity={weather.precipIntensity}
@@ -879,6 +889,8 @@ function App() {
                 />
                 <em>{weather.precipIntensity.toFixed(2)}</em>
               </label>
+
+              <WaterPanel settings={water} setSettings={setWater} />
                 </>
               )}
 

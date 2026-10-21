@@ -440,7 +440,7 @@ function App() {
       )}
 
       <div className="ui-overlay">
-        <header>
+        <header className="site-header">
           <h1
             className={
               isMapLike && !showingIsland

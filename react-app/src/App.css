@@ -60,28 +60,41 @@
   }
 }
 
+/* The title sits on the sky, which runs from near-white at noon to near-black
+   at night — no single text colour reads on both. A dark glass card (the same
+   style as the control panel) gives the text a steady background instead.
+   align-self keeps the card hugging the text rather than spanning the screen,
+   which also leaves the rest of the top edge free for orbiting the camera. */
+.site-header {
+  align-self: flex-start;
+  padding: 10px 16px 12px;
+  /* 0.78, not lighter: over a white noon sky a thinner card turns mid-grey
+     and the purple title drops below readable contrast */
+  background: rgba(15, 15, 23, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
 .site-title {
   margin: 0;
   font-size: 26px;
   font-weight: 600;
   letter-spacing: -0.02em;
-  color: var(--accent-purple);
-  text-shadow:
-    0 2px 12px rgba(0, 0, 0, 0.5),
-    0 0 24px rgba(183, 148, 246, 0.35);
+  color: var(--accent-cyan);
+  text-shadow: 0 0 24px rgba(72, 202, 228, 0.35);
 }
 
 .site-title--procedural {
   color: var(--accent-red);
-  text-shadow:
-    0 2px 12px rgba(0, 0, 0, 0.5),
-    0 0 24px rgba(241, 101, 101, 0.35);
+  text-shadow: 0 0 24px rgba(241, 101, 101, 0.35);
 }
 
 .site-subtitle {
   margin: 4px 0 0;
   font-size: 14px;
-  color: var(--text-dim);
+  color: var(--text);
 }
 
 .panel {
@@ -297,6 +310,9 @@
 @media (max-width: 640px) {
   .ui-overlay {
     padding: 18px 20px;
+  }
+  .site-header {
+    padding: 8px 12px 10px;
   }
   .site-title {
     font-size: 20px;

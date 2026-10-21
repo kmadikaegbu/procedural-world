@@ -14,6 +14,8 @@ import { ScatterMaskBrush } from './map/trees/ScatterMaskBrush'
 import { TreePanel } from './map/trees/TreePanel'
 import { WATER_DEFAULTS, type WaterSettings } from './map/water/settings'
 import { WaterPanel } from './map/water/WaterPanel'
+import { GRASS_DEFAULTS, type GrassSettings } from './map/grass/settings'
+import { GrassPanel } from './map/grass/GrassPanel'
 import { useTreeControls } from './map/trees/useTreeControls'
 import { TERRAIN_DEFAULTS, erodeTerrain, type TerrainParams } from './map/noise'
 import { TerraformBrush } from './map/TerraformBrush'
@@ -184,6 +186,7 @@ function App() {
   const [kind, setKind] = useState<WeatherKind | 'custom'>('clear')
   const [running, setRunning] = useState(true)
   const [water, setWater] = useState<WaterSettings>(WATER_DEFAULTS)
+  const [grass, setGrass] = useState<GrassSettings>(GRASS_DEFAULTS)
   const [wireframe, setWireframe] = useState(false)
   const [mapTab, setMapTab] = useState<
     'terrain' | 'sculpt' | 'weather' | 'props'
@@ -365,6 +368,7 @@ function App() {
                   params={terrain}
                   forest={forest}
                   water={water}
+                  grass={grass}
                   weather={weather}
                   main
                   onPlaced={onPlaced}
@@ -431,6 +435,7 @@ function App() {
           mode={insetMode}
           forest={forest}
           water={water}
+          grass={grass}
           weather={weather}
           wireframe={wireframe}
           snowing={isSnowing}
@@ -1274,6 +1279,8 @@ function App() {
                 />
                 <em>{terrain.resolution}</em>
               </label>
+
+              <GrassPanel settings={grass} setSettings={setGrass} />
                 </>
               )}
             </>

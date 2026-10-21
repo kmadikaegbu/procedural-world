@@ -115,6 +115,24 @@ procedurally, in terms of the values that flow between them in the code.
 - **Fallen leaves gather under the trees** in autumn, and fewer stay in winter.
 - **Dropped leaves stop casting shadows,** so winter shadows are just branches.
 
+## Grass, land, season and weather
+
+- **Grass grows where the land is grass-height,** with ragged, natural edges
+  against the sand and rock instead of neat contour lines.
+- **Low ground is lusher.** Near the river the grass is deep green; higher up
+  it drains and dries toward straw. Patches of greener and drier grass break
+  it up at two sizes, about 100 m and 20 m.
+- **Steep slopes go bare.** Where the ground is too steep, grass thins out to
+  soil.
+- **The season changes the grass too,** with the same control as the trees:
+  fresh green in spring, full green in summer, yellowing in autumn, dull and
+  dormant in winter.
+- **Wind rolls across it.** Bands of light and dark move over the meadow, like
+  wind flattening a field, stronger in stormy weather and absent when calm.
+- **Rain wets it.** It soaks up rain over a few seconds, turning darker and
+  shinier, then takes about 20 seconds to dry after the rain stops.
+- **Snow covers it.** The grass fades out as the snow coat builds.
+
 ---
 
 ## What does *not* interact (yet)
@@ -180,6 +198,11 @@ flowchart TD
 
     SEASON --> TREES
     SEASON --> LEAVES
+    H --> GRASS["Grass shader<br/>moisture · bare slopes · grain"]
+    SEASON --> GRASS
+    WP -- "wind · rain" --> GRASS
+    SNOW --> GRASS
+    GRASS --> TERRAIN
     SKY -- "light + shadows" --> TERRAIN
     SKY -- "light + shadows" --> TREES
     SKY -- "light + shadows" --> WATER
@@ -286,6 +309,18 @@ changes the water around it. They all re-ask the same function.
 | Leaf colour blends toward the season's tint, keeping each leaf's light or dark variation. | `trees/materials.ts` |
 | Fallen leaves per tree: spring 0, summer 1, autumn 12, winter 5. | `trees/seasons.ts` |
 | A shadow-only material applies the same "hide dropped leaves" rule. | `trees/materials.ts` |
+
+### Height, season and weather → grass
+
+| Rule | Where |
+| --- | --- |
+| Grass where `sand top ≤ height ≤ grass top + 75% of the grass→rock fade`, the height first nudged by noise so the edges wander. | `grass/grassMaterial.ts` |
+| Moisture `= lushness + 0.3 − 0.35 × (how high in the grass band) ± patches − season dryness`, picking a colour between dry straw and lush green. | `grass/grassMaterial.ts` |
+| Bare soil where the slope `1 − normal.y` passes a threshold set by Bare slopes (0.7 → 0.18). | `grass/grassMaterial.ts` |
+| Season: tint and dryness per season (spring fresher, autumn +0.25 drier, winter +0.45 drier and dull). | `grass/settings.ts` `GRASS_SEASONS` |
+| Wind sheen: `sin(position · (1, 0.3) × 1.3 − time × (0.6 + 0.5·wind))`, scaled by `min(wind ÷ 4, 1)`, so it's flat when calm. | `grass/grassMaterial.ts` |
+| Wetness eases toward the rain amount (about 6 s to wet, 20 s to dry). Wet grass is 20% darker and shinier. | `map/Terrain.tsx` |
+| Grass fades out as the snow coat builds: `× (1 − snow amount)`. | `grass/grassMaterial.ts` |
 
 ### Fog → everything
 

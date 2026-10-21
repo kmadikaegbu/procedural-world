@@ -3,6 +3,10 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { height, MAP_SIZE, type TerrainParams } from './noise'
 import { BIOME_COLORS, biomeColor, makeRamp } from './biomes'
+import { createTerrainMaterial } from './grass/grassMaterial'
+import { GRASS_DEFAULTS, GRASS_SEASONS, type GrassSettings } from './grass/settings'
+import type { Season } from './trees/seasons'
+import { WEATHER_DEFAULTS, type WeatherParams } from '../weather/presets'
 
 export { MAP_SIZE }
 
@@ -20,13 +24,29 @@ export function Terrain({
   snowing = false,
   snowIntensity = 1,
   running = true,
+  grass = GRASS_DEFAULTS,
+  season = 'summer',
+  weather = WEATHER_DEFAULTS,
 }: {
   params: TerrainParams
   wireframe?: boolean
   snowing?: boolean
   snowIntensity?: number
   running?: boolean
+  /** Look of the grass (see grass/settings.ts). */
+  grass?: GrassSettings
+  /** The same season the trees use — it yellows or freshens the grass. */
+  season?: Season
+  /** Wind rolls sheen across the grass; rain wets it. */
+  weather?: WeatherParams
 }) {
+  // biome colours per vertex + procedural grass per pixel (grass/grassMaterial.ts)
+  const { material, uniforms } = useMemo(() => createTerrainMaterial(), [])
+  useEffect(() => () => material.dispose(), [material])
+  useEffect(() => {
+    material.wireframe = wireframe
+  }, [material, wireframe])
+
   // `baseColors` is the pure biome ramp, computed once and never mutated —
   // the snow coat is always blended FROM this, so build-up and melt-back
   // stay consistent instead of drifting from repeated in-place lerps.
@@ -72,6 +92,8 @@ export function Terrain({
 
   const snowAmountRef = useRef(0)
   const appliedRef = useRef(0)
+  const timeRef = useRef(0)
+  const wetRef = useRef(0)
 
   // the color buffer above always starts snow-free, so reset the tracked
   // amount whenever the terrain (and therefore that buffer) regenerates
@@ -81,6 +103,35 @@ export function Terrain({
   }, [geometry])
 
   useFrame((_, delta) => {
+    // --- grass: feed the shader this frame's numbers ---
+    const u = uniforms
+    if (running) {
+      timeRef.current += Math.min(delta, 0.1)
+      // grass soaks up rain over ~6 s, and takes ~20 s to dry once it stops
+      const target = weather.precip === 'rain' ? weather.precipIntensity : 0
+      const speed = target > wetRef.current ? 1 / 6 : 1 / 20
+      wetRef.current += (target - wetRef.current) * Math.min(1, delta * speed)
+    }
+    u.uTime.value = timeRef.current
+    u.uWet.value = wetRef.current
+    u.uWind.value = weather.wind
+    u.uSea.value = params.seaLevel
+    u.uAmp.value = params.amplitude
+    u.uLush.value = grass.lushness
+    u.uPatch.value = grass.patchiness
+    u.uDetail.value = grass.detail
+    u.uSheen.value = grass.windSheen
+    u.uBare.value = grass.bareSlopes
+    u.uLushColor.value.set(grass.lushColor)
+    u.uDryColor.value.set(grass.dryColor)
+    u.uSoilColor.value.set(grass.soilColor)
+    const grassSeason = GRASS_SEASONS[season]
+    u.uSeasonTint.value.set(grassSeason.tint)
+    u.uSeasonMix.value = grassSeason.mix
+    u.uSeasonDry.value = grassSeason.dry
+    u.uSnow.value = snowAmountRef.current
+
+    // --- snow coat on the vertex colours ---
     const rate = !running
       ? 0 // paused: freeze accumulation in place, same as rain/cloud drift
       : snowing
@@ -117,16 +168,10 @@ export function Terrain({
   return (
     <mesh
       geometry={geometry}
+      material={material}
       receiveShadow
       castShadow
       userData={{ ground: true }} // a terraform brush target
-    >
-      <meshStandardMaterial
-        vertexColors
-        roughness={0.92}
-        metalness={0}
-        wireframe={wireframe}
-      />
-    </mesh>
+    />
   )
 }

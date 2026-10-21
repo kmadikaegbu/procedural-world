@@ -18,9 +18,9 @@ Thumbs.db
 *.sw?
 
 # Obsidian: keep vault settings, not this machine's open-file layout
-.obsidian/workspace.json
-.obsidian/workspace-mobile.json
-.obsidian/cache/
+**/.obsidian/workspace.json
+**/.obsidian/workspace-mobile.json
+**/.obsidian/cache/
 
 # The app's own dependencies/build output are covered by
 # react-app/.gitignore — these are just a safety net in case something

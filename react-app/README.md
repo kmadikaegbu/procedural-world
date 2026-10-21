@@ -32,7 +32,9 @@ src/
 ├── App.tsx       scene switcher + control panel; owns ALL parameter state
 ├── map/          Map + Voxel scenes, terrain generation, minimap, timeline
 │   ├── trees/    procedural trees: L-system, LOD, scatter, ivy, seasons, panel
-│   └── water/    procedural water: waves, depth colour, foam, panel
+│   ├── water/    procedural water: waves, depth colour, foam, panel
+│   ├── grass/    procedural grass on the terrain: moisture, bare slopes, wind sheen
+│   └── glsl/     shader snippets shared by water and grass (noise)
 ├── weather/      sky, fog, clouds, rain/snow (used by Map and Voxel)
 ├── noise/        cellular (Worley) noise, shared by the terrain and the orb
 └── orb/          Orb scene (Perlin + cellular noise sphere)
@@ -253,6 +255,25 @@ still work. The controls are in the **Water** section at the bottom of the
 | Foam | shoreline foam and whitecaps |
 | Reflection | how strongly the surface mirrors the sky |
 | Shallow / Deep | the two water colours |
+
+## Procedural grass
+
+The terrain's biome colour is per vertex (~17 m apart), which on its own
+gives flat colour with contour-line edges. `src/map/grass/grassMaterial.ts`
+patches the terrain's standard material to work **per pixel, on grass only**:
+ragged band edges, moisture (lusher low down, drier high up, patches at
+~100 m and ~20 m), bare soil on steep slopes, fine grain in colour and
+lighting, wind sheen, wetness after rain, and fading under snow. Sand, rock,
+riverbed and snow keep their vertex colours.
+
+At this scale (1 unit ≈ 33.5 m, closest camera ~670 m) a single blade would be
+far smaller than a pixel, so this is grass as seen from a drone or plane, not
+individual blades.
+
+Controls: **Grass** section at the bottom of the **Terrain** tab. Lushness,
+Patchiness, Grain, Wind sheen and Bare slopes, plus lush, dry and soil colours.
+The **Season** control (Props tab) and the weather (wind, rain, snow) also
+change it. The Voxel scene keeps its plain biome colours.
 
 ## Deploying
 

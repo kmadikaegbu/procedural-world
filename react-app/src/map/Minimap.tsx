@@ -5,6 +5,7 @@ import { NoisePlane } from './NoisePlane'
 import type { TerrainParams } from './noise'
 import type { Forest } from './trees/forest'
 import type { WaterSettings } from './water/settings'
+import type { GrassSettings } from './grass/settings'
 import type { WeatherParams } from '../weather/presets'
 
 export type InsetMode = 'terrain' | 'noise'
@@ -25,6 +26,7 @@ export function Minimap({
   wireframe,
   forest,
   water,
+  grass,
   weather,
   snowing = false,
   snowIntensity = 1,
@@ -35,6 +37,7 @@ export function Minimap({
   wireframe: boolean
   forest: Forest
   water: WaterSettings
+  grass: GrassSettings
   weather: WeatherParams
   snowing?: boolean
   snowIntensity?: number
@@ -73,6 +76,7 @@ export function Minimap({
             wireframe={wireframe}
             forest={forest}
             water={water}
+            grass={grass}
             weather={weather}
             snowing={snowing}
             snowIntensity={snowIntensity}

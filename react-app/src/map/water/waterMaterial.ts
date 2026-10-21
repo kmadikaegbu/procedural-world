@@ -6,6 +6,7 @@ import {
   type WebGLProgramParametersWithUniforms,
 } from 'three'
 import { MAP_SIZE } from '../noise'
+import { NOISE_GLSL } from '../glsl/noise'
 import { WAVE_COUNT } from './waves'
 
 /**
@@ -185,30 +186,8 @@ float landProximity(vec2 xz) {
   return prox;
 }
 
-// --- a tiny noise toolkit (no textures needed) ---
-float wHash(vec2 p) {
-  p = fract(p * vec2(123.34, 456.21));
-  p += dot(p, p + 45.32);
-  return fract(p.x * p.y);
-}
-// "value noise": random values on a grid, smoothly blended in between
-float vnoise(vec2 p) {
-  vec2 i = floor(p);
-  vec2 f = fract(p);
-  vec2 u = f * f * (3.0 - 2.0 * f);
-  return mix(mix(wHash(i), wHash(i + vec2(1.0, 0.0)), u.x),
-             mix(wHash(i + vec2(0.0, 1.0)), wHash(i + vec2(1.0, 1.0)), u.x), u.y);
-}
-// the slope of the noise — used to tilt the surface normal
-vec2 noiseGrad(vec2 p) {
-  float e = 0.12;
-  return vec2(vnoise(p + vec2(e, 0.0)) - vnoise(p - vec2(e, 0.0)),
-              vnoise(p + vec2(0.0, e)) - vnoise(p - vec2(0.0, e))) / (2.0 * e);
-}
-// three layers of noise at different scales = natural-looking variation
-float fbm2(vec2 p) {
-  return 0.5 * vnoise(p) + 0.3 * vnoise(p * 2.03 + 7.1) + 0.2 * vnoise(p * 4.1 + 3.7);
-}
+// --- noise toolkit (wHash, vnoise, noiseGrad, fbm2), shared with the grass ---
+${NOISE_GLSL}
 // raindrops: each grid cell, at a random moment, sends out one expanding ring
 vec2 rainRipples(vec2 p, float t) {
   vec2 q = p * 3.0;

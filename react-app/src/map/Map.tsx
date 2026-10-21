@@ -1,6 +1,7 @@
 import { Terrain } from './Terrain'
 import { Water } from './water/WaterSurface'
 import type { WaterSettings } from './water/settings'
+import type { GrassSettings } from './grass/settings'
 import type { WeatherParams } from '../weather/presets'
 import { Props } from './Props'
 import { TERRAIN_DEFAULTS, type TerrainParams } from './noise'
@@ -20,6 +21,7 @@ export function Map({
   params = TERRAIN_DEFAULTS,
   forest,
   water,
+  grass,
   weather,
   main = false,
   onLodStats,
@@ -34,6 +36,8 @@ export function Map({
   forest: Forest
   /** Look of the sea (see water/settings.ts); the weather's wind and rain also shape it. */
   water?: WaterSettings
+  /** Look of the grass (see grass/settings.ts); season and weather also change it. */
+  grass?: GrassSettings
   weather?: WeatherParams
   /** The main 3D view rather than the minimap — LOD and stats only apply here. */
   main?: boolean
@@ -55,6 +59,9 @@ export function Map({
         snowing={snowing}
         snowIntensity={snowIntensity}
         running={running}
+        grass={grass}
+        season={forest.season}
+        weather={weather}
       />
       {/* water sits at params.seaLevel — the same reference the terrain's
           biome ramp and tree placement use, so raising it actually floods

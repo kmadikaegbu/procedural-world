@@ -163,6 +163,232 @@ modelled" against "as real"), these settings get close:
 
 ---
 
+# Part 2 — Working with scale
+
+Steps 1–6 *measured* the scale this project ended up with. The steps below
+are for **deciding** it on purpose: the order to make the choices in, so
+objects, detail and camera all agree with each other.
+
+## Step 7 — Define a working scale
+
+Before placing anything, decide **what 1 unit means** and write it down in
+the code, so every file uses the same ruler.
+
+| Choice | Good for | This project |
+| --- | --- | --- |
+| **1 unit = 1 m** | Walk-around scenes, physics, characters. Most game engines assume it. | Would make the map 3,350 units across. |
+| **1 unit = a larger chunk** (here ~33.5 m) | Whole-island or city views, where the map should be a convenient size like 100. | ✔ The choice made, by fitting the island into `MAP_SIZE = 100`. |
+
+Either works. The important part is to **choose once and name it**. A
+suggested pattern (these constants are **not in the code yet**; they'd make
+the scale explicit):
+
+```ts
+// scale.ts — the one place the world's ruler is defined
+export const METERS_PER_UNIT = 33.5          // 1 world unit = 33.5 m
+export const m = (meters: number) => meters / METERS_PER_UNIT
+
+// how much each category is enlarged for readability (1 = true to scale)
+export const TERRAIN_VERTICAL_EXAGGERATION = 15   // hills
+export const OBJECT_EXAGGERATION = 2.5            // trees, buildings, people
+```
+
+Then a size in the code reads as a real measurement:
+`m(25) * OBJECT_EXAGGERATION` instead of a mystery number like `2.1`.
+
+> [!tip] Why name it?
+> Today the tree height `2.1`, the wave height `0.12` and the hill height `4`
+> were each tuned by eye, separately. Nothing ties them together, which is how
+> leaves ended up ~100× too big while the island's length is exact. A named
+> scale makes every size traceable to metres.
+
+## Step 8 — Make objects proportional to that scale
+
+**Rule:** every object = its real size in metres, converted with `m()`, times
+**one shared** exaggeration factor for its category.
+
+```
+size in units = m(real metres) × OBJECT_EXAGGERATION
+```
+
+Using **the same factor for every object** keeps them in proportion with each
+other, even when they're all enlarged. A tree is always about 14 people tall,
+whatever the factor.
+
+With `OBJECT_EXAGGERATION = 2.5`:
+
+| Object | Real | True scale (×1) | Exaggerated (×2.5) | Ratio to a person |
+| --- | --- | --- | --- | --- |
+| Person | 1.75 m | 0.05 u | 0.13 u | 1 |
+| Two-storey house | 8 m | 0.24 u | 0.60 u | ~4.6 |
+| Street tree | 25 m | 0.75 u | 1.87 u | ~14 |
+| 10-storey building | 33 m | 1.0 u | 2.5 u | ~19 |
+| The House at Cornell Tech | 82 m | 2.45 u | 6.1 u | ~47 |
+| Tram, high point | 76 m | 2.3 u | 5.7 u | ~43 |
+
+> [!example] Where today's trees fit
+> The model's average tree is ~2.15 units. That's a 25 m tree at about **×2.9**.
+> So if buildings were added next to today's trees, they should use the same
+> ×2.9, making The House about 7 units tall, or the trees would tower over
+> 26-storey towers.
+
+**Things that must scale with the objects too:**
+
+- **Spacing:** tree spacing, ivy step length and fallen-leaf spread are
+  object-sized, so multiply them by the same factor. If trees are 2.5× bigger
+  but spacing stays real, the crowns pile into each other.
+- **Leaves and small parts:** an ivy leaf is ~0.1 m. At ×2.5 that's 0.0075
+  units; today it's 0.2–0.32 (×70–100). That mismatch is why ivy leaves look
+  chunky.
+- **Terrain vs objects:** keep objects' exaggeration **at or below** the
+  terrain's vertical exaggeration (×15 here). Otherwise a tree outgrows the
+  hill it stands on and the landscape looks like a tabletop model.
+
+## Step 9 — Resolution is tied to scale
+
+Every grid, texture and mesh samples the world at some spacing. **A feature
+needs at least 2 samples across it to show at all, and about 4 to look
+smooth.** So each resolution sets the smallest thing that system can show:
+
+```
+smallest visible feature ≈ 2–4 × sample spacing
+sample spacing          = area covered ÷ resolution
+```
+
+What that means for this project:
+
+| System | Resolution | Spacing (units) | Spacing (real) | Smallest feature it can show |
+| --- | --- | --- | --- | --- |
+| Terrain mesh (Resolution 200) | 200 × 200 over 100 u | 0.5 | ~17 m | landforms ≥ ~35–70 m |
+| Sculpt edit grid | 128 × 128 | 0.78 | ~26 m | brush detail ≥ ~50 m |
+| Erosion grid | 256 × 256 | 0.39 | ~13 m | gullies ≥ ~26 m |
+| Water depth map | 256 × 256 | 0.39 | ~13 m | shoreline detail ≥ ~26 m |
+| Water wave mesh | 192 × 192 | 0.52 | ~17 m | waves ≥ ~35 m (the shortest, 54 m, gets only ~3 samples) |
+| Shadow map | 2048 px over 120 u | 0.06 | ~2 m | shadows of things ≥ ~4 m; a person's shadow is under one pixel |
+| Planting mask | 64 × 64 | 1.56 | ~52 m | painted zones ≥ ~100 m |
+| Voxel blocks | — | 1.5 | ~50 m | one block = a 50 m cube |
+
+> [!info] This explains two things already in the notes
+> - **Missing shore foam:** the river bank's shallow strip is ~0.2 units wide,
+>   narrower than one depth-map pixel (0.39), so depth-based foam couldn't see
+>   it (see [Procedural Water](<Procedural Water.md>)).
+> - **Octaves:** the terrain noise's base wavelength is 1 ÷ frequency =
+>   1 ÷ 0.035 ≈ 28.6 units. Each octave halves it, so the 5th octave is
+>   ~1.8 units, about 3.6 grid squares. A 6th or 7th octave would be smaller
+>   than the grid can show: extra cost for detail that never appears.
+
+**Choosing a resolution:** decide the smallest feature you want, then work
+backwards.
+
+```
+resolution needed = area ÷ (smallest feature ÷ 3)
+```
+
+To show 6 m features (say, a building footprint) over the 3.35 km map, you'd
+need 3,350 ÷ 2 ≈ **1,700 samples per side, about 2.9 million vertices**. One
+mesh that size is too heavy, which is why large worlds are split into chunks
+with their own LOD (the same idea as the tree LOD).
+
+> [!tip] The unit choice doesn't change the cost — the detail does
+> Switching to 1 unit = 1 m changes only the *numbers*: spacing becomes 17
+> units instead of 0.5. The vertex count for the same 17 m detail is
+> identical. What costs performance is wanting **finer real-world detail**,
+> whatever the units.
+
+The **screen** is a resolution too: at the default camera (~8.7 pixels per
+unit, Step 5), anything under ~0.35 units (12 m) is smaller than 3 pixels and
+won't read, however finely it's modelled.
+
+## Step 10 — Camera position and scale
+
+The camera has to be placed for the scale too: how far away, how wide a view,
+and the distances it can render.
+
+**1. Framing: how far back to see the whole subject**
+
+```
+distance to fit = subject size ÷ (2 × tan(field of view ÷ 2))
+```
+
+With the 50° camera and the 96-unit island: 96 ÷ (2 × tan 25°) ≈ **103
+units**. The default camera sits ~111 units away, so it was framed to fit
+the whole island with a little margin.
+
+**2. Zoom limits in real terms**
+
+| Camera setting | Units | Real distance | Like viewing from… |
+| --- | --- | --- | --- |
+| Closest zoom (`minDistance`) | 20 | ~670 m | a low drone over the river |
+| Default | ~111 | ~3.7 km | a plane on approach |
+| Farthest (`maxDistance`) | 260 | ~8.7 km | high altitude |
+
+Nothing in the app is viewed from street level, which is why people and
+houses would be invisible at true scale.
+
+**3. What should be visible decides the exaggeration**
+
+Turn Step 5's pixel formula around: to make something at least *N* pixels
+tall,
+
+```
+size needed (units) = N ÷ pixels per unit at that camera distance
+```
+
+| To show… at ≥ 4 px | At closest zoom (48 px/u) | At default (8.7 px/u) |
+| --- | --- | --- |
+| A person | 0.083 u → **×1.6** | 0.46 u → ×9 (absurd) |
+| A house | 0.083 u → fine at ×1 | 0.46 u → ×1.9 |
+| A tree | fine at ×1 | 0.46 u → fine at ×1 (just) |
+
+So the camera range tells you which objects are worth adding. People only make
+sense if the camera can come closer than ~670 m, or they'd need to be
+enlarged ×9.
+
+**4. Near and far planes**
+
+The camera only draws between a **near** and a **far** distance. Here the
+near plane is 0.1 units (~3.4 m) and the far plane is three.js's default 2,000
+units (~67 km).
+
+- A street-level camera at 1.7 m eye height (0.05 units) would sit *closer
+  than the near plane* to the ground, so nearby ground and objects would be
+  clipped away. You'd need near ≈ 0.005 units, which stretches the near-to-far
+  ratio to 400,000:1. The depth buffer then can't tell close surfaces apart
+  (flickering called **z-fighting**). This is one reason street-level games use
+  1 unit = 1 m with near = 0.1 m.
+- For this camera (670 m to 8.7 km), the current planes are comfortable.
+
+**5. Everything else that follows the camera range**
+
+| Setting | Value | Real-world meaning |
+| --- | --- | --- |
+| LOD switch distances | 45 / 85 / 125 u | 1.5 / 2.8 / 4.2 km |
+| Fog (default weather) | density ≈ 0.0076 per unit | fully fogged by ~260 u ≈ 8.7 km, just past the farthest zoom |
+| Fog (heaviest preset) | density ≈ 0.0175 per unit | fully fogged by ~113 u ≈ 3.8 km |
+| Shadow camera | ±60 u | covers the 100-unit map; a bigger map would need wider bounds, which coarsens each shadow pixel |
+
+If the scale or camera range changed, every one of these would need to move
+with it.
+
+## A checklist for starting a scene
+
+1. **Pick the ruler.** One real thing, its real size, and `METERS_PER_UNIT`.
+2. **Name it in code:** `m()` plus one exaggeration factor per category
+   (terrain height, objects).
+3. **Size every object** as `m(real metres) × its category's factor`,
+   including spacing and small parts.
+4. **Decide the camera range** (closest, default, farthest) and frame the
+   subject with `size ÷ (2·tan(fov/2))`.
+5. **Check visibility:** at each camera distance, is each object ≥ 3–4 pixels?
+   If not, enlarge its category, hide it, or LOD it.
+6. **Set resolutions** from the smallest feature you need:
+   `area ÷ (feature ÷ 3)`. Stop adding noise octaves once they're smaller than
+   the grid.
+7. **Derive the rest from the camera range:** near/far planes, LOD
+   distances, fog density, shadow bounds.
+
+---
+
 ## Quick reference
 
 ```
@@ -173,6 +399,11 @@ house    ≈ 0.25 units
 real tree ≈ 0.6–0.9 units      model tree ≈ 1.2–3.2 units
 10-storey ≈ 1 unit             The House (26 storeys) ≈ 2.45 units
 island   = 96 units long       true width ≈ 7.3 units
+
+size     = m(real metres) × exaggeration      (one factor per category)
+feature  ≥ 2–4 × sample spacing               (spacing = area ÷ resolution)
+framing  = subject ÷ (2 · tan(fov / 2))       (island: ~103 u)
+visible  ≥ 3–4 px = size × pixels per unit
 ```
 
 Where these numbers live in the code: `MAP_SIZE` in `react-app/src/map/mapSize.ts`;

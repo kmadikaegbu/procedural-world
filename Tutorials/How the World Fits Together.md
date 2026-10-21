@@ -122,17 +122,17 @@ procedurally, in terms of the values that flow between them in the code.
 These links would make sense in the real world, but the code doesn't have them.
 Knowing them is useful: they're honest limits, and good "what's next" answers.
 
-| You might expect… | What actually happens |
-| --- | --- |
-| Wind moving the clouds | Clouds drift at their own **Cloud speed**. Wind doesn't push them. |
-| Wind swaying the trees | Trees are still. The *leaning* species looks wind-bent, but that's its fixed shape. |
-| Wind shaping the land | No. The land doesn't change with wind. |
-| Rain eroding the land | The **Erosion** slider simulates raindrops carving valleys, but it's separate from the weather. Rainy weather doesn't erode anything. |
-| Rain landing on the island | Raindrops fall *through* the island; they don't splash on the ground. |
-| Snow weather making it winter | Weather **Snow** whitens the ground, but the trees keep whatever **Season** you picked. |
-| Snow on trees or in Voxel view | Snow only coats the smooth terrain, not trees, and not the Voxel scene. |
-| Water reflecting the island | The water reflects the sky's *colour* only, not the island or trees. |
-| Sea level changing with the weather | Only the Sea Level slider and the climate timeline move the water. |
+| You might expect…                   | What actually happens                                                                                                                 |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Wind moving the clouds              | Clouds drift at their own **Cloud speed**. Wind doesn't push them.                                                                    |
+| Wind swaying the trees              | Trees are still. The *leaning* species looks wind-bent, but that's its fixed shape.                                                   |
+| Wind shaping the land               | No. The land doesn't change with wind.                                                                                                |
+| Rain eroding the land               | The **Erosion** slider simulates raindrops carving valleys, but it's separate from the weather. Rainy weather doesn't erode anything. |
+| Rain landing on the island          | Raindrops fall *through* the island; they don't splash on the ground.                                                                 |
+| Snow weather making it winter       | Weather **Snow** whitens the ground, but the trees keep whatever **Season** you picked.                                               |
+| Snow on trees or in Voxel view      | Snow only coats the smooth terrain, not trees, and not the Voxel scene.                                                               |
+| Water reflecting the island         | The water reflects the sky's *colour* only, not the island or trees.                                                                  |
+| Sea level changing with the weather | Only the Sea Level slider and the climate timeline move the water.                                                                    |
 
 ---
 
@@ -328,4 +328,5 @@ Each of these would be a new arrow in the diagram:
   and trees, not just the sky colour.
 
 Previous: [Procedural Water](<Procedural Water.md>) ·
+Next: [Real-World Scale](<Real-World Scale.md>) ·
 Index: [Tutorials](<README.md>)

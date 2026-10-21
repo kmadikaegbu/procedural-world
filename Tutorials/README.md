@@ -10,6 +10,7 @@ zero.
 | 2 | [Installing React](<Installing React.md>) | Setting up a React + TypeScript project with Vite |
 | 3 | [Installing three.js](<Installing three.js.md>) | Adding three.js and `@react-three/fiber` for 3D in the browser |
 | 4 | [Building a Procedural Map](<Building a Procedural Map.md>) | Noise-driven terrain, height-based biomes, water, and seeded props |
+| 5 | [Procedural Water](<Procedural Water.md>) | Shader-driven water: Gerstner waves, depth colour, shoreline foam, ripples, reflections, weather |
 
 The finished result of these guides is the app in
 [`../react-app/`](../react-app/).

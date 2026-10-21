@@ -338,4 +338,5 @@ All in `react-app/src/map/water/`:
   ripples, foam streaks and colour patches.
 
 Previous: [Building a Procedural Map](<Building a Procedural Map.md>) ·
+Next: [How the World Fits Together](<How the World Fits Together.md>) ·
 Index: [Tutorials](<README.md>)

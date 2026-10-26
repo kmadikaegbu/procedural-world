@@ -24,6 +24,8 @@
 // Species — the "recipe". One recipe + many seeds = many unique trees.
 // ---------------------------------------------------------------------------
 
+import { objectSize } from '../scale'
+
 export interface Species {
   name: string
   axiom: string
@@ -65,7 +67,11 @@ export interface Species {
     colors: [string, string] // each card is a random blend of the two
   }
   bark: [string, string] // trunk colour → twig colour
-  /** Finished tree is rescaled to this height (world units, before the per-tree scale) */
+  /**
+   * Finished tree is rescaled to this height (world units, before the per-tree
+   * scale). Written as objectSize(real metres): the real height × the readable
+   * objects factor (see scale.ts), so every species shares one proportion.
+   */
   height: number
 }
 
@@ -101,7 +107,7 @@ const OPEN: Species = {
     colors: ['#6f8f4f', '#9bb55e'],
   },
   bark: ['#5b4636', '#7d6650'],
-  height: 2.3,
+  height: objectSize(28), // open: a full-crowned London plane, NYC's tallest common street tree
 }
 
 /** Dense: short, bushy, rounded crown packed with leaves. */
@@ -132,7 +138,7 @@ const DENSE: Species = {
     colors: ['#3f6b3a', '#5e8f45'],
   },
   bark: ['#4d3b2e', '#6a5340'],
-  height: 2.0,
+  height: objectSize(19), // dense: a compact, bushy park tree
 }
 
 /** Leaning: wind-bent trunk with its limbs combed to one side. */
@@ -164,7 +170,7 @@ const LEANING: Species = {
     colors: ['#7d8f3f', '#b0a845'],
   },
   bark: ['#6a5a48', '#8b7a62'],
-  height: 2.1,
+  height: objectSize(14), // leaning: a stunted, wind-bent waterfront tree
 }
 
 export const SPECIES = { open: OPEN, dense: DENSE, leaning: LEANING } as const

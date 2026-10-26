@@ -11,19 +11,22 @@ export function IvyMesh({
   settings,
   seed,
   materials,
+  sizeRatio = 1,
 }: {
   params: TerrainParams
   trees: PlacedTree[]
   settings: IvySettings
   seed: number
   materials: TreeMaterials
+  /** 1 at the readable scale; smaller at true scale (see scale.ts). */
+  sizeRatio?: number
 }) {
   const geometry = useMemo(
     () =>
       settings.plants > 0
-        ? buildIvyGeometry(growIvy(params, settings, trees, seed))
+        ? buildIvyGeometry(growIvy(params, settings, trees, seed, sizeRatio))
         : null,
-    [params, settings, trees, seed],
+    [params, settings, trees, seed, sizeRatio],
   )
   // free the old mesh's GPU memory when it's replaced
   useEffect(() => () => geometry?.dispose(), [geometry])

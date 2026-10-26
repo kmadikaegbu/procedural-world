@@ -2,6 +2,7 @@ import { Euler, Matrix4, Quaternion, Vector3 } from 'three'
 import { ImprovedNoise } from 'three/examples/jsm/math/ImprovedNoise.js'
 import { hash01, hash32 } from './grammar'
 import { grassRange, height, islandXReach, MAP_SIZE, type TerrainParams } from '../noise'
+import { EXAGGERATION, m, ratios, type ScaleMode } from '../scale'
 
 /**
  * Where the trees go — pure data in, pure data out, no meshes.
@@ -25,10 +26,20 @@ export interface ScatterSettings {
   yaw: number
   /** Random lean range in degrees (± this much off vertical). */
   tilt: number
-  /** Each tree's size is a random pick in this range (1 = the species' natural height). */
+  /**
+   * Smallest and largest tree, as a multiple of the species' mature height
+   * (1 = a fully grown tree). The size each tree actually gets inside this
+   * range comes from its stand's age and its site — see treeSize().
+   */
   scaleMin: number
   scaleMax: number
-  /** Minimum distance between any two trees, in world units. 0 = no rule. */
+  /**
+   * How much trees differ in size. 0 = every tree the same middling size;
+   * 1 = natural woodland (young and old stands, stunted trees on exposed or
+   * steep ground, tall ones in sheltered hollows); above 1 exaggerates it.
+   */
+  sizeVariety: number
+  /** Minimum distance between any two trees, in REAL METRES (scaled like the trees). 0 = no rule. */
   minSpacing: number
   /** Steepest ground a tree may stand on, in degrees. 90 = no limit. */
   slopeLimit: number
@@ -42,9 +53,10 @@ export const SCATTER_DEFAULTS: ScatterSettings = {
   clustering: 1,
   yaw: 360,
   tilt: 4,
-  scaleMin: 0.6,
-  scaleMax: 1.4,
-  minSpacing: 0.5,
+  scaleMin: 0.3, // a young tree, ~⅓ of mature height
+  scaleMax: 1.15, // a veteran, a little taller than the species' mature height
+  sizeVariety: 1,
+  minSpacing: 6, // metres — ≈ 0.5 units at the readable scale
   slopeLimit: 55,
   maskEnabled: false,
   variants: 6,
@@ -61,9 +73,10 @@ export const SCATTER_SLIDERS: {
   { key: 'clustering', label: 'Clustering', title: 'How strongly trees group into stands. 0 = spread evenly over the grass, 1 = dense groves with clearings.', min: 0, max: 1, step: 0.05 },
   { key: 'yaw', label: 'Rotation', title: 'Random spin range in degrees. 360 = any direction, 0 = every tree faces the same way.', min: 0, max: 360, step: 15 },
   { key: 'tilt', label: 'Tilt', title: 'Random lean off vertical, ± this many degrees.', min: 0, max: 15, step: 0.5 },
-  { key: 'scaleMin', label: 'Scale min', title: 'Smallest tree, as a multiple of its natural size.', min: 0.2, max: 2.5, step: 0.05 },
-  { key: 'scaleMax', label: 'Scale max', title: 'Largest tree, as a multiple of its natural size.', min: 0.2, max: 2.5, step: 0.05 },
-  { key: 'minSpacing', label: 'Spacing', title: 'Minimum distance between any two trees, in world units. Higher = a sparser, more orderly forest — it can cap how many trees fit.', min: 0, max: 6, step: 0.1 },
+  { key: 'scaleMin', label: 'Scale min', title: 'Smallest tree (a sapling), as a multiple of its species\' mature height.', min: 0.1, max: 2, step: 0.05 },
+  { key: 'scaleMax', label: 'Scale max', title: 'Largest tree (a veteran), as a multiple of its species\' mature height. 1 = fully grown.', min: 0.1, max: 2, step: 0.05 },
+  { key: 'sizeVariety', label: 'Size variety', title: 'How much trees differ in size. 0 = all the same. 1 = natural: young and old stands, stunted trees on exposed or steep ground, tall ones in sheltered hollows. Higher exaggerates it.', min: 0, max: 1.5, step: 0.05 },
+  { key: 'minSpacing', label: 'Spacing (m)', title: 'Minimum distance between any two trees, in real metres. It is enlarged exactly like the trees are, so spacing stays in proportion at either scale. Higher = a sparser, more orderly forest — it can cap how many trees fit.', min: 0, max: 70, step: 1 },
   { key: 'slopeLimit', label: 'Slope limit', title: 'Steepest ground a tree will grow on, in degrees. 90 = no limit; lower keeps trees off cliffs and banks.', min: 5, max: 90, step: 1 },
   { key: 'variants', label: 'Shapes', title: 'Distinct shapes grown per species (a single-species forest grows twice as many). More shapes = fewer lookalikes, but more instanced draw calls.', min: 1, max: 16, step: 1 },
 ]
@@ -141,6 +154,46 @@ const forestNoise = new ImprovedNoise()
 const DEG = Math.PI / 180
 
 /**
+ * TREE SIZE — how big a tree grows, as a fraction (0 = smallest allowed, 1 = largest).
+ *
+ * Real trees aren't random sizes between two limits. Three things set it:
+ *
+ *   STAND AGE   trees in one grove sprang up together, so they're about the
+ *               same age; neighbouring groves can be young or old. A slow noise
+ *               field gives each place an age, and each tree varies a little
+ *               around it.
+ *   SITE        sheltered, low, fertile ground grows taller trees. Trees with
+ *               open water around them are exposed to wind and stay stunted,
+ *               and trees on steep ground are poorer too.
+ *   CHANCE      every tree gets its own random nudge from its own seed.
+ *
+ * `variety` blends from "all identical" (0) to the full effect (1) and beyond.
+ */
+export interface SiteInfo {
+  /** 0 at the bottom of the grass band (low, near the river) → 1 at the top. */
+  height01: number
+  /** 0 = flat ground, 1 = at the slope limit. */
+  steep01: number
+  /** 0 = sheltered, 1 = open water on every side. */
+  exposed01: number
+  /** 0..1 — the stand's age from the slow noise field. */
+  stand01: number
+  /** 0..1 — this tree's own chance. */
+  chance01: number
+}
+
+export function treeSize01(site: SiteInfo, variety: number): number {
+  // age: mostly the stand's, partly the tree's own
+  const age = 0.75 * site.stand01 + 0.25 * site.chance01
+  // site quality: 1 = ideal, lower = stunted by height up the bank, wind and slope
+  const quality =
+    1 - 0.3 * site.height01 - 0.4 * site.exposed01 - 0.3 * site.steep01
+  const raw = 0.65 * age + 0.35 * quality
+  // variety 0 → everything collapses to the middle; 1 → the full spread
+  return Math.min(1, Math.max(0, 0.5 + (raw - 0.5) * 2 * variety))
+}
+
+/**
  * For a VoxelMap: snap each candidate to the exact grid VoxelTerrain samples,
  * so a tree can never land where no block was actually rendered underneath it.
  */
@@ -155,6 +208,7 @@ export function scatterTrees(
   mask: ScatterMask | null,
   scatterSeed: number,
   voxel?: VoxelSnap,
+  scaleMode: ScaleMode = 'readable',
 ): PlacedTree[] {
   const base = hash32(params.seed + 777, scatterSeed * 131 + 1)
   // only sample where land can actually be — in island mode most of the map is
@@ -166,7 +220,10 @@ export function scatterTrees(
 
   // spacing: a grid with cells the size of the spacing, so only the 3×3 cells
   // around a candidate can hold a neighbour that's too close
-  const spacing = s.minSpacing
+  // spacing is real metres × the same factor the trees are enlarged by, so a
+  // forest keeps its density whichever scale it's drawn at
+  const spacing = m(s.minSpacing) * EXAGGERATION[scaleMode].objects
+  const sizeRatio = ratios(scaleMode).objects // 1 readable, ~0.34 true to scale
   const grid = new Map<number, number[]>()
   const key = (cx: number, cz: number) => cx * 100003 + cz
   const tooClose = (x: number, z: number) => {
@@ -190,6 +247,8 @@ export function scatterTrees(
   const scaleLo = Math.min(s.scaleMin, s.scaleMax)
   const scaleHi = Math.max(s.scaleMin, s.scaleMax)
   const maskOn = s.maskEnabled && mask !== null
+  const sea = params.seaLevel
+  const EXPOSURE_RADIUS = 5 // world units: how far a tree "looks" for open water
 
   for (let cand = 0; out.length < MAX_TREES && cand < MAX_TREES * 40; cand++) {
     const seed = hash32(base, cand)
@@ -219,6 +278,27 @@ export function scatterTrees(
 
     const sNoise = forestNoise.noise(x * 0.03 + 100, z * 0.03 + 100, params.seed)
     const r = (salt: number) => hash01(seed, salt)
+
+    // --- how big does this tree grow? (see treeSize01) ---
+    // exposure: what share of the ground 5 units away, in 8 directions, is open water?
+    let wet = 0
+    for (let a = 0; a < 8; a++) {
+      const ang = a * (Math.PI / 4)
+      if (height(x + Math.cos(ang) * EXPOSURE_RADIUS, z + Math.sin(ang) * EXPOSURE_RADIUS, params) < sea) wet++
+    }
+    const gx2 = (height(x + STEP, z, params) - h) / STEP
+    const gz2 = (height(x, z + STEP, params) - h) / STEP
+    const site: SiteInfo = {
+      height01: (h - minY) / Math.max(maxY - minY, 1e-6),
+      steep01: Math.min(1, Math.hypot(gx2, gz2) / Math.max(maxGrad, 0.05)),
+      exposed01: wet / 8,
+      // Perlin noise rarely strays far from 0, so stretch it to use the full
+      // 0..1 range — otherwise every stand would come out the same middling age
+      stand01: Math.min(1, Math.max(0, 0.5 + 0.9 * forestNoise.noise(x * 0.06 + 300, z * 0.06 + 300, params.seed))),
+      chance01: r(11),
+    }
+    const size01 = treeSize01(site, s.sizeVariety)
+    const size = scaleLo + size01 * (scaleHi - scaleLo)
     out.push({
       i: out.length,
       seed,
@@ -227,8 +307,10 @@ export function scatterTrees(
       yaw: (r(10) - 0.5) * s.yaw * DEG,
       tiltX: (r(14) - 0.5) * 2 * s.tilt * DEG,
       tiltZ: (r(15) - 0.5) * 2 * s.tilt * DEG,
-      scale: scaleLo + r(11) * (scaleHi - scaleLo),
-      girth: 0.85 + r(12) * 0.3,
+      scale: size * sizeRatio,
+      // young trees are slimmer for their height, old ones sturdier (trunk
+      // thickness grows faster than height does)
+      girth: (0.85 + r(12) * 0.3) * Math.min(1.1, Math.max(0.7, Math.pow(Math.max(size, 0.05), 0.3))),
       tint: 0.85 + r(13) * 0.25,
       species: sNoise < -0.12 ? 0 : sNoise < 0.12 ? 1 : 2,
       variantRoll: r(16),

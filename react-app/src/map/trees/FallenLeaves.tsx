@@ -27,12 +27,15 @@ export function FallenLeaves({
   season,
   material,
   voxel,
+  sizeRatio = 1,
 }: {
   trees: PlacedTree[]
   params: TerrainParams
   season: Season
   material: Material
   voxel: boolean
+  /** 1 at the readable scale; smaller at true scale, so leaves shrink with the trees. */
+  sizeRatio?: number
 }) {
   const geometry = useMemo(() => {
     const g = new PlaneGeometry(0.2, 0.13).rotateX(-Math.PI / 2)
@@ -68,7 +71,7 @@ export function FallenLeaves({
         const z = t.pos[2] + Math.sin(a) * d
         const y = (voxel ? t.pos[1] : height(x, z, params)) + 0.03
         e.set((r(2) - 0.5) * 0.4, r(3) * Math.PI * 2, (r(4) - 0.5) * 0.4)
-        m.compose(p.set(x, y, z), q.setFromEuler(e), s.setScalar(0.7 + r(5) * 0.6))
+        m.compose(p.set(x, y, z), q.setFromEuler(e), s.setScalar((0.7 + r(5) * 0.6) * sizeRatio))
         matrices.set(m.elements, k * 16)
         const c = palette[Math.floor(r(6) * palette.length)]
         const shade = 0.8 + r(7) * 0.3
@@ -77,7 +80,7 @@ export function FallenLeaves({
       }
     }
     return { total, matrices, colors }
-  }, [trees, look, params, voxel])
+  }, [trees, look, params, voxel, sizeRatio])
 
   const ref = useRef<InstancedMesh>(null)
   useLayoutEffect(() => {

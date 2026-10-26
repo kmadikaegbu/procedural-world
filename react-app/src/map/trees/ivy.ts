@@ -71,8 +71,9 @@ interface Trunk {
   radius: number
 }
 
-const STEP = 0.12 // world units per growth step
-const REACH = 0.6 // a surface closer than this counts as "touching"
+// sizes at the readable scale (world units); growIvy multiplies them by sizeRatio
+const BASE_STEP = 0.12 // per growth step
+const BASE_REACH = 0.6 // a surface closer than this counts as "touching"
 const SEGMENT_EVERY = 2 // one drawn stem segment per this many steps
 const MAX_STEPS = 14000 // safety cap across all strands
 const MAX_STRANDS_PER_PLANT = 14
@@ -94,7 +95,12 @@ export function growIvy(
   s: IvySettings,
   trees: PlacedTree[],
   seed: number,
+  /** 1 at the readable scale; smaller at true scale, so ivy shrinks with the trees it climbs. */
+  sizeRatio = 1,
 ): IvyGrowth {
+  const k = sizeRatio
+  const STEP = BASE_STEP * k
+  const REACH = BASE_REACH * k
   const rng = makeRng(seed * 7919 + 4242)
   const out: IvyGrowth = { segments: [], leaves: [], leafNormals: [] }
   if (s.plants <= 0) return out
@@ -174,9 +180,9 @@ export function growIvy(
       const a = rng() * Math.PI * 2
       const p = tr.base
         .clone()
-        .add(new Vector3(Math.cos(a), 0, Math.sin(a)).multiplyScalar(tr.radius + 0.02))
-      p.y += 0.02
-      roots.push({ p, dir: new Vector3(Math.cos(a) * 0.2, 1, Math.sin(a) * 0.2).normalize(), steps: s.length, radius: 0.02 })
+        .add(new Vector3(Math.cos(a), 0, Math.sin(a)).multiplyScalar(tr.radius + 0.02 * k))
+      p.y += 0.02 * k
+      roots.push({ p, dir: new Vector3(Math.cos(a) * 0.2, 1, Math.sin(a) * 0.2).normalize(), steps: s.length, radius: 0.02 * k })
     } else {
       // look for a bank: somewhere above the water that slopes more than ~25°
       for (let tries = 0; tries < 60; tries++) {
@@ -185,9 +191,9 @@ export function growIvy(
         if (ground(x, z) < params.seaLevel + 0.05) continue
         const n = groundNormal(x, z)
         if (n.y > 0.9) continue
-        const p = new Vector3(x, ground(x, z) + 0.02, z)
+        const p = new Vector3(x, ground(x, z) + 0.02 * k, z)
         const dir = new Vector3(rng() - 0.5, 0, rng() - 0.5).normalize()
-        roots.push({ p, dir, steps: s.length, radius: 0.02 })
+        roots.push({ p, dir, steps: s.length, radius: 0.02 * k })
         break
       }
     }
@@ -229,13 +235,13 @@ export function growIvy(
 
         // never sink into the ground or a trunk
         const after = nearest(p)
-        if (after.dist < 0.015) p.copy(after.point).addScaledVector(after.normal, 0.015)
+        if (after.dist < 0.015 * k) p.copy(after.point).addScaledVector(after.normal, 0.015 * k)
         // lost: wandered far from anything — stop this strand
-        if (after.dist > 3) break
+        if (after.dist > 3 * k) break
 
         // a drawn stem segment every few steps, thinning toward the tip
         if ((i + 1) % SEGMENT_EVERY === 0) {
-          const r1 = Math.max(0.006, r0 * 0.985)
+          const r1 = Math.max(0.006 * k, r0 * 0.985)
           out.segments.push({
             start: [segStart.x, segStart.y, segStart.z],
             end: [p.x, p.y, p.z],
@@ -257,10 +263,10 @@ export function growIvy(
           const leafDir = tangent.clone().addScaledVector(n, 0.35).normalize()
           const side = n.clone().cross(leafDir).normalize()
           out.leaves.push({
-            pos: [p.x + n.x * 0.01, p.y + n.y * 0.01, p.z + n.z * 0.01],
+            pos: [p.x + n.x * 0.01 * k, p.y + n.y * 0.01 * k, p.z + n.z * 0.01 * k],
             dir: [leafDir.x, leafDir.y, leafDir.z],
             side: [side.x, side.y, side.z],
-            size: 0.2 + rng() * 0.12,
+            size: (0.2 + rng() * 0.12) * k,
             mix: rng(),
             rank: rng(),
           })

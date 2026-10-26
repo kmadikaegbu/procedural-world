@@ -93,7 +93,7 @@ Now the other direction: what the code actually draws, converted into metres.
 | Island width at Width = 0.45 | 8.1 | ~270 m | 244 m | ~1.1×, close to true |
 | Tallest hills (Amplitude = 4) | up to ~3–4 | 100–135 m | 7 m | **~15–19× taller** |
 | River bed | −4 below sea level | −134 m | much shallower in reality | very deep |
-| A tree (species height 2.0–2.3 × scale 0.6–1.4) | 1.2–3.2 | **40–108 m** | 20–30 m | **~2–3.5× taller** |
+| A tree (mature 0.4–0.8 u at true size, × the readable objects factor 2.9, × size 0.3–1.15) | 0.4–2.7 | **14–91 m** (real 5–32 m) | 5–30 m | **~2.9× taller** (the objects factor) |
 | Tree spacing (default) | 0.5 | 17 m | plausible for woodland | ≈ 1× |
 | Clouds | 24 above sea | ~800 m | low cloud base ~500–2,000 m | ≈ true |
 | Wave height (default) | 0.12 | ~4 m | river chop is usually under 1 m | **far taller** |
@@ -152,7 +152,7 @@ modelled" against "as real"), these settings get close:
 | --- | --- | --- | --- |
 | Width | Terrain → Island | **≈ 0.40** | 96 ÷ 0.40-width island ≈ the real 13:1 shape |
 | Amplitude | Terrain | **≈ 0.25** | Real highest ground 7 m ≈ 0.21 units, plus a little for the bank |
-| Scale min / max | Props → Scatter | **≈ 0.3 / 0.4** | A 2.15-unit tree × 0.35 ≈ 0.75 units ≈ 25 m |
+| Scale switch | View → True to scale | **on** | Sets every factor to 1 at once. Tree sizes, spacing, ivy and waves all follow. |
 | Wave height | Weather → Water | **≈ 0.01–0.02** | 0.3–0.7 m chop |
 
 > [!tip] Expect it to look underwhelming
@@ -179,9 +179,9 @@ the code, so every file uses the same ruler.
 | **1 unit = 1 m** | Walk-around scenes, physics, characters. Most game engines assume it. | Would make the map 3,350 units across. |
 | **1 unit = a larger chunk** (here ~33.5 m) | Whole-island or city views, where the map should be a convenient size like 100. | ✔ The choice made, by fitting the island into `MAP_SIZE = 100`. |
 
-Either works. The important part is to **choose once and name it**. A
-suggested pattern (these constants are **not in the code yet**; they'd make
-the scale explicit):
+Either works. The important part is to **choose once and name it**. This
+project now does it in `react-app/src/map/scale.ts` (see "Applied in this
+project" below). The pattern:
 
 ```ts
 // scale.ts — the one place the world's ruler is defined
@@ -227,7 +227,7 @@ With `OBJECT_EXAGGERATION = 2.5`:
 | Tram, high point | 76 m | 2.3 u | 5.7 u | ~43 |
 
 > [!example] Where today's trees fit
-> The model's average tree is ~2.15 units. That's a 25 m tree at about **×2.9**.
+> The model's trees average ~1.6 units (about 18 m real × 2.9). Every tree is its real height × **×2.9**.
 > So if buildings were added next to today's trees, they should use the same
 > ×2.9, making The House about 7 units tall, or the trees would tower over
 > 26-storey towers.
@@ -370,6 +370,53 @@ units (~67 km).
 If the scale or camera range changed, every one of these would need to move
 with it.
 
+## Applied in this project
+
+The rules above are now in the code. `react-app/src/map/scale.ts` is the one
+place the ruler is defined.
+
+| Rule | How it's applied |
+| --- | --- |
+| **Define the scale** | `METERS_PER_UNIT = 3,220 m ÷ (MAP_SIZE × ISLAND_LENGTH) ≈ 33.5`, plus `m()` and `toMeters()` converters. |
+| **One factor per category** | `EXAGGERATION.readable = { vertical: 15, objects: 2.9, islandWidth: 2.5 }`; `EXAGGERATION.true` is all 1s. |
+| **Objects from real metres** | Mature tree heights are `objectSize(28 / 19 / 14 m)` for open, dense and leaning (a full-crowned plane, a compact park tree, a stunted wind-bent waterfront tree). Each placed tree is then a fraction of that, 0.3 (sapling) to 1.15 (veteran), set by its stand's age and its site: see "Tree size" below. Tree **spacing** is set in metres (default 6 m) and enlarged by the same objects factor. Ivy and fallen leaves shrink with the trees. |
+| **Vertical sizes** | Wave height is set in metres (default 0.27 m) × the vertical factor, so waves stay in proportion to the hills. The river bed, erosion and sculpt offsets follow the same factor. |
+| **Resolution** | Real river chop (~5–30 m crest to crest) is finer than the 17 m wave mesh, so it stays as shader ripples; the geometric waves are long swell. |
+| **Camera** | The default camera distance comes from the framing formula: `96 ÷ (2 · tan 25°) × 1.08 ≈ 111 units`. |
+
+**The Scale switch** (View section): **Readable scale** draws everything with
+the factors above. **True to scale** sets them all to 1. The result matches
+the real island:
+
+| | Readable | True to scale | Real island |
+| --- | --- | --- | --- |
+| Highest ground | 107 m | **7.1 m** | 7 m |
+| Widest point | ~600 m | **242 m** | 244 m |
+| Trees (mean) | 52 m | **18 m** (range 5–32 m) | 10–30 m |
+| Waves | ~4 m | **0.27 m** | under 1 m |
+
+Sculpting is paused at true scale, because brush strokes are stored at the
+readable scale. The water shader measures depth in readable units (it divides
+by the vertical scale), so a true-scale river still looks as deep as it is.
+
+### Tree size
+
+A tree's size isn't a free random number. Real woodland has a mix of ages, and
+the land decides how big each tree gets. In `trees/scatter.ts`, `treeSize01()`
+combines three things (a fraction 0 to 1 between Scale min and Scale max):
+
+| Driver | Effect |
+| --- | --- |
+| **Stand age** | A slow noise field gives each patch of the island an age. Trees in a grove are alike (neighbouring trees differ about half as much as random pairs), and groves differ from each other. |
+| **Site** | Taller on low, sheltered ground; stunted where open water is within about 170 m (5 units); stunted on steep ground. |
+| **Chance** | A nudge from each tree's own seed. |
+
+The **Size variety** slider blends from all-identical (0) to natural (1) and
+beyond. With the defaults, 400 trees come out as 5–32 m, mostly 10–20 m with a
+tail of tall veterans, and size correlates with altitude at about −0.5.
+Before this change every tree was 13–36 m with a flat spread, all three
+species the same height, and no link to the land (correlation 0).
+
 ## A checklist for starting a scene
 
 1. **Pick the ruler.** One real thing, its real size, and `METERS_PER_UNIT`.
@@ -396,7 +443,7 @@ with it.
 1 m      ≈ 0.03 units
 person   ≈ 0.05 units
 house    ≈ 0.25 units
-real tree ≈ 0.6–0.9 units      model tree ≈ 1.2–3.2 units
+real tree ≈ 0.15–0.9 units     model tree ≈ 0.4–2.7 units
 10-storey ≈ 1 unit             The House (26 storeys) ≈ 2.45 units
 island   = 96 units long       true width ≈ 7.3 units
 

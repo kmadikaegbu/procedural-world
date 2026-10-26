@@ -106,7 +106,6 @@ The app has **three scenes**, switched from the control panel:
 | --- | --- |
 | **Map** | Smooth shaded terrain on the Roosevelt Island outline, with biomes, trees, water, and weather |
 | **Voxel** | The same terrain parameters drawn as instanced cubes, with trees snapped to the voxel grid |
-| **Orb** | A separate sphere displaced by fractal Perlin and cellular (Worley) noise |
 
 The Map and Voxel scenes share one parameter set, controlled from the panel:
 
@@ -198,11 +197,8 @@ react-app/src/
 │   ├── presets.ts      WeatherParams type, defaults, named presets
 │   ├── Sky.tsx, Clouds.tsx, Precipitation.tsx
 │
-├── noise/              noise shared by several scenes
-│   └── cellularNoise.ts  2D + 3D cellular / Worley noise
-│
-└── orb/                Orb scene
-    └── NoisyOrb.tsx    noise-displaced sphere
+└── noise/              noise used by the terrain
+    └── cellularNoise.ts  2D cellular / Worley noise
 ```
 
 Data flows one way. `App.tsx` owns all parameters in React state and passes

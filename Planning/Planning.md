@@ -11,7 +11,6 @@ procedural world — the working notes behind what ends up in `react-app/`.
 - Weather system: sky/sun, fog, cloud puffs, rain/snow with ground accumulation
 - Sea level control (floods/drains the coast, not just a floating plane)
 - A second "Voxel" scene — the same terrain params rendered as blocky cubes
-- A noise-displaced "Orb" scene (Perlin + cellular/Worley noise)
 - Firebase Hosting deploy
 
 ## Open questions / ideas

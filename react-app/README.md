@@ -37,8 +37,7 @@ src/
 │   ├── glsl/     shader snippets shared by water and grass (noise)
 │   └── scale.ts  the world's ruler: metres ↔ units, exaggeration per category
 ├── weather/      sky, fog, clouds, rain/snow (used by Map and Voxel)
-├── noise/        cellular (Worley) noise, shared by the terrain and the orb
-└── orb/          Orb scene (Perlin + cellular noise sphere)
+└── noise/        cellular (Worley) noise used by the terrain
 ```
 
 ### How it fits together

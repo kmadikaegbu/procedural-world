@@ -16,7 +16,7 @@ procedural world — real-world sources, prior art, and technique notes.
 
 - Fractal Brownian motion (layered Perlin noise) for the height field
 - [Red Blob Games — Making maps with noise functions](https://www.redblobgames.com/maps/terrain-from-noise/)
-- Worley/cellular noise for the orb scene's cracked/cellular surface
+- Worley/cellular noise, blended with Perlin per octave into the terrain's height field
 - Heightmap-voxelization (column-based, not true 3D volumetric) for the
   Voxel scene — no caves/overhangs needed since the real island is flat
 

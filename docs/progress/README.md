@@ -148,8 +148,8 @@ class session — more granular than the by-class summary above.
 - **Voxel** — the exact same terrain params (seed, sea level, island shape…)
   rendered as blocky instanced cubes instead of a shaded mesh; trees are
   snapped onto the voxel grid so they can't float over open water
-- **Orb** — a separate noise-displaced sphere (fractal Perlin + cellular/
-  Worley noise, adjustable gradient)
+- *(The separate noise-displaced Orb scene built in Class 01–03 was removed
+  on 2026-10-25. Its cellular noise lives on in the terrain.)*
 - A fixed-corner 2D top-down minimap, live-updating with the main scene;
   switchable to a grayscale view of the raw noise field
 

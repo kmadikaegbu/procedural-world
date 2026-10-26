@@ -36,7 +36,13 @@ export function VoxelMap({
   return (
     <group>
       <VoxelTerrain params={params} wireframe={wireframe} />
-      <Water params={params} settings={water} weather={weather} running={running} />
+      <Water
+        params={params}
+        settings={water}
+        weather={weather}
+        running={running}
+        scaleMode={forest.scaleMode}
+      />
       {forest.show && (
         <Props
           params={params}

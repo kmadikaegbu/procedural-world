@@ -34,7 +34,8 @@ src/
 │   ├── trees/    procedural trees: L-system, LOD, scatter, ivy, seasons, panel
 │   ├── water/    procedural water: waves, depth colour, foam, panel
 │   ├── grass/    procedural grass on the terrain: moisture, bare slopes, wind sheen
-│   └── glsl/     shader snippets shared by water and grass (noise)
+│   ├── glsl/     shader snippets shared by water and grass (noise)
+│   └── scale.ts  the world's ruler: metres ↔ units, exaggeration per category
 ├── weather/      sky, fog, clouds, rain/snow (used by Map and Voxel)
 ├── noise/        cellular (Worley) noise, shared by the terrain and the orb
 └── orb/          Orb scene (Perlin + cellular noise sphere)
@@ -122,7 +123,12 @@ seed always gives the same tree. The three species (`open`, `dense`,
 - **Count:** how many trees to draw, out of every spot that fits the rules below.
 - **Clustering:** 0 spreads trees evenly over the grass; 1 groups them into stands.
 - **Rotation / Tilt:** random spin range, and random lean off vertical.
-- **Scale min / max:** each tree's size is a random pick in this range.
+- **Scale min / max:** smallest (sapling) and largest (veteran) tree, as a
+  fraction of the species' mature height. Where each tree lands in the range
+  comes from its stand's age and its site (see Size variety), not a dice roll.
+- **Size variety:** 0 makes every tree the same size; 1 is natural woodland,
+  with young and old stands, stunted trees on exposed or steep ground and taller
+  ones in sheltered hollows.
 - **Spacing:** minimum distance between any two trees. This can cap how many fit.
 - **Slope limit:** the steepest ground a tree will grow on.
 - **Shapes:** distinct shapes grown per species. More shapes means fewer
@@ -274,6 +280,17 @@ Controls: **Grass** section at the bottom of the **Terrain** tab. Lushness,
 Patchiness, Grain, Wind sheen and Bare slopes, plus lush, dry and soil colours.
 The **Season** control (Props tab) and the weather (wind, rain, snow) also
 change it. The Voxel scene keeps its plain biome colours.
+
+## Real-world scale
+
+`src/map/scale.ts` defines the world's ruler: **1 unit ≈ 33.5 m**, taken from
+the island's real 3,220 m length. Sizes are written as real metres × one
+exaggeration factor per category (`vertical` ×15, `objects` ×2.9,
+`islandWidth` ×2.5 at the readable scale). The **Readable / True to scale**
+switch in the View section sets the factors to 1 for a true-to-life island
+(about 7 m of relief, 25 m trees, 240 m wide). Assets are authored at the
+readable scale; `applyScale()` and `ratios()` shrink the terrain and objects
+on top. See `Tutorials/Real-World Scale.md` for the rules.
 
 ## Deploying
 

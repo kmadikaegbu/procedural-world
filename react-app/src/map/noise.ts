@@ -1,6 +1,6 @@
 import { ImprovedNoise } from 'three/examples/jsm/math/ImprovedNoise.js'
 import { cellular2 } from '../noise/cellularNoise'
-import { MAP_SIZE } from './mapSize'
+import { ISLAND_LENGTH, MAP_SIZE } from './mapSize'
 import { sampleEdits, type TerrainEdits } from './terraform'
 import { erode } from './erosion'
 
@@ -27,6 +27,11 @@ export type TerrainParams = {
   erosion: number // hydraulic erosion strength, in thousands of raindrops (0 = off)
   erosionGrid: TerrainEdits | null // the simulated erosion offsets, derived from erosion + the params above (see erodeTerrain)
   edits: TerrainEdits | null // hand-sculpted height offsets from the terraform brush (null = none)
+  // Vertical scale applied to everything that isn't already scaled through
+  // amplitude/seaLevel: the river bed, erosion and sculpt offsets. 1 = as
+  // authored (the Readable scale); the True-to-scale switch sets it to 1/15.
+  // Set by applyScale() in scale.ts, not by a slider.
+  vScale: number
 }
 
 export const TERRAIN_DEFAULTS: TerrainParams = {
@@ -48,11 +53,11 @@ export const TERRAIN_DEFAULTS: TerrainParams = {
   erosion: 0,
   erosionGrid: null,
   edits: null,
+  vScale: 1,
 }
 
 // --- island shape -----------------------------------------------------------
 
-const ISLAND_LENGTH = 0.96 // fraction of the map the island spans (north→south)
 const ISLAND_HALF_WIDTH = 9 // world units at the widest point, before islandWidth
 const SEABED_DEPTH = 4 // how far below sea level the river bottom sits
 
@@ -226,12 +231,12 @@ function proceduralHeight(x: number, z: number, p: TerrainParams): number {
   // not from the noise happening to dip below zero
   const land = (0.12 + 0.88 * n01) * p.amplitude
   const m = islandMask(x, z, p)
-  return land * m - SEABED_DEPTH * (1 - m)
+  return land * m - SEABED_DEPTH * p.vScale * (1 - m)
 }
 
 /** Procedural height plus the erosion offsets — everything but hand edits. */
 export function baseHeight(x: number, z: number, p: TerrainParams): number {
-  return proceduralHeight(x, z, p) + sampleEdits(p.erosionGrid, x, z)
+  return proceduralHeight(x, z, p) + sampleEdits(p.erosionGrid, x, z) * p.vScale
 }
 
 /**
@@ -252,7 +257,7 @@ export function erodeTerrain(p: TerrainParams): TerrainEdits | null {
 
 /** Final terrain height: the procedural surface plus any terraform edits. */
 export function height(x: number, z: number, p: TerrainParams): number {
-  return baseHeight(x, z, p) + sampleEdits(p.edits, x, z)
+  return baseHeight(x, z, p) + sampleEdits(p.edits, x, z) * p.vScale
 }
 
 /** Half-extent the island can reach in x — lets prop scattering skip the river. */

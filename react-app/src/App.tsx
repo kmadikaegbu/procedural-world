@@ -18,6 +18,15 @@ import { GRASS_DEFAULTS, type GrassSettings } from './map/grass/settings'
 import { GrassPanel } from './map/grass/GrassPanel'
 import { useTreeControls } from './map/trees/useTreeControls'
 import { TERRAIN_DEFAULTS, erodeTerrain, type TerrainParams } from './map/noise'
+import { ISLAND_LENGTH, MAP_SIZE } from './map/mapSize'
+import {
+  EXAGGERATION,
+  METERS_PER_UNIT,
+  applyScale,
+  cameraAt,
+  framingDistance,
+  type ScaleMode,
+} from './map/scale'
 import { TerraformBrush } from './map/TerraformBrush'
 import type { BrushTool, TerrainEdits } from './map/terraform'
 import {
@@ -69,6 +78,14 @@ const BRUSH_TOOLS: { tool: BrushTool; label: string; hint: string }[] = [
 ]
 
 /** Camera + orbit framing differs wildly: the map is 100 units, the orb is ~1. */
+// Map and Voxel cameras: looking at the island from the south-east, pulled back
+// just far enough for its whole 96-unit (3.2 km) length to fit the 50° view,
+// plus 8% margin — the framing rule in scale.ts. Works out to ~111 units (3.7 km).
+const ISLAND_VIEW = cameraAt(
+  [46, 44, 92],
+  framingDistance(MAP_SIZE * ISLAND_LENGTH, 50) * 1.08,
+)
+
 const SCENES: Record<
   SceneMode,
   {
@@ -89,7 +106,7 @@ const SCENES: Record<
   map: {
     title: 'Roosevelt Island',
     subtitle: 'Noise terrain, biomes, trees & weather — all from a seed',
-    persp: [46, 44, 92],
+    persp: ISLAND_VIEW,
     ortho: [0, 90, 0],
     zoom: 6.5,
     far: 400,
@@ -103,7 +120,7 @@ const SCENES: Record<
   voxel: {
     title: 'Roosevelt Island — Voxel',
     subtitle: 'The same terrain, blocked out as cubes instead of a smooth mesh',
-    persp: [46, 44, 92],
+    persp: ISLAND_VIEW,
     ortho: [0, 90, 0],
     zoom: 6.5,
     far: 400,
@@ -154,6 +171,8 @@ function App() {
   const [showMinimap, setShowMinimap] = useState(true)
   const [insetMode, setInsetMode] = useState<InsetMode>('terrain')
   const [terrainState, setTerrain] = useState<TerrainParams>(TERRAIN_DEFAULTS)
+  // Readable (enlarged so everything stays visible) or true to scale — see map/scale.ts
+  const [scaleMode, setScaleMode] = useState<ScaleMode>('readable')
   // erosion is simulated, not a formula, so it's computed here and handed down
   // as a grid. It depends on the procedural params only — not sea level, edits
   // or resolution — so the climate timeline and sculpting don't re-run it.
@@ -181,6 +200,12 @@ function App() {
     () => ({ ...terrainState, erosionGrid }),
     [terrainState, erosionGrid],
   )
+  // What the scene draws: the sliders' values, scaled down to real proportions
+  // when the True-to-scale switch is on (identical at the readable scale).
+  const terrainView = useMemo(
+    () => applyScale(terrain, scaleMode),
+    [terrain, scaleMode],
+  )
   const [orbNoise, setOrbNoise] = useState<OrbNoiseParams>(ORB_NOISE_DEFAULTS)
   const [weather, setWeather] = useState<WeatherParams>(WEATHER_PRESETS.clear)
   const [kind, setKind] = useState<WeatherKind | 'custom'>('clear')
@@ -196,7 +221,7 @@ function App() {
   const [brushStrength, setBrushStrength] = useState(3)
   const [editHistory, setEditHistory] = useState<(TerrainEdits | null)[]>([])
   // everything about the trees: placement, shapes, LOD, look, season, ivy
-  const trees = useTreeControls()
+  const trees = useTreeControls(scaleMode)
   const { forest, onPlaced, onLodStats, scatter, mask, setMask, maskTool, maskRadius } = trees
   const [timelineYear, setTimelineYear] = useState(TIMELINE_DEFAULT)
   const [timelinePlaying, setTimelinePlaying] = useState(false)
@@ -205,7 +230,8 @@ function App() {
   const cfg = SCENES[scene]
   const isMapLike = scene === 'map' || scene === 'voxel'
   // the brush is live exactly while the Sculpt tab is open
-  const sculpting = isMapLike && mapTab === 'sculpt'
+  // (off at true scale: brush strokes are stored at the readable scale)
+  const sculpting = isMapLike && mapTab === 'sculpt' && scaleMode === 'readable'
   // likewise for painting the planting mask, on the Props tab
   const painting = isMapLike && mapTab === 'props' && maskTool !== 'off'
   const showingIsland = isMapLike && terrain.island
@@ -298,7 +324,7 @@ function App() {
     erase: maskTool === 'erase',
     radius: maskRadius,
     mask,
-    params: terrain,
+    params: terrainView,
     // shown while painting, and while the mask is limiting where trees grow
     showOverlay: painting || (scatter.maskEnabled && isMapLike && mapTab === 'props'),
     onChange: setMask,
@@ -365,7 +391,7 @@ function App() {
               <TerraformBrush {...brushProps}>
                 <ScatterMaskBrush {...maskBrushProps}>
                 <Map
-                  params={terrain}
+                  params={terrainView}
                   forest={forest}
                   water={water}
                   grass={grass}
@@ -387,7 +413,7 @@ function App() {
               <TerraformBrush {...brushProps}>
                 <ScatterMaskBrush {...maskBrushProps}>
                 <VoxelMap
-                  params={terrain}
+                  params={terrainView}
                   forest={forest}
                   water={water}
                   weather={weather}
@@ -431,7 +457,7 @@ function App() {
 
       {isMapLike && showMinimap && (
         <Minimap
-          params={terrain}
+          params={terrainView}
           mode={insetMode}
           forest={forest}
           water={water}
@@ -607,6 +633,24 @@ function App() {
                   Inset: noise
                 </button>
               </div>
+
+              <div className="segmented" title="Readable enlarges hills, trees and the island's width so they stay visible from far away. True to scale draws everything at its real size.">
+                {(['readable', 'true'] as const).map((sm) => (
+                  <button
+                    key={sm}
+                    className={scaleMode === sm ? 'active' : ''}
+                    onClick={() => setScaleMode(sm)}
+                  >
+                    {sm === 'readable' ? 'Readable scale' : 'True to scale'}
+                  </button>
+                ))}
+              </div>
+              <p className="hint-text">
+                1 unit = {METERS_PER_UNIT.toFixed(1)} m.{' '}
+                {scaleMode === 'readable'
+                  ? `Hills ×${EXAGGERATION.readable.vertical}, trees ×${EXAGGERATION.readable.objects}, island width ×${EXAGGERATION.readable.islandWidth} so they read from the air.`
+                  : 'Everything at real size: ~9 m of relief, ~25 m trees, a 240 m-wide island.'}
+              </p>
             </>
           ) : (
             <>
@@ -1248,6 +1292,12 @@ function App() {
                 </button>
               </div>
 
+              {scaleMode === 'true' && (
+                <p className="hint-text">
+                  Sculpting is paused while <strong>True to scale</strong> is
+                  on — switch back to Readable scale (View) to sculpt.
+                </p>
+              )}
               <p className="hint-text">
                 While this tab is open, <strong>left-drag</strong> on the
                 land or water to sculpt. <strong>Right-drag</strong> orbits

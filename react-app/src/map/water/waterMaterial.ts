@@ -36,6 +36,8 @@ export interface WaterUniforms {
   uTime: { value: number }
   uLevel: { value: number }
   uMapSize: { value: number }
+  /** Vertical scale (1 readable, 1/15 true to scale) — see scale.ts */
+  uVScale: { value: number }
   uDepthTex: { value: DataTexture | null }
   /** x = hMin, y = hRange (see depthMap.ts) */
   uDepthInfo: { value: Vector4 }
@@ -60,6 +62,7 @@ export function createWaterUniforms(): WaterUniforms {
     uTime: { value: 0 },
     uLevel: { value: 0 },
     uMapSize: { value: MAP_SIZE },
+    uVScale: { value: 1 },
     uDepthTex: { value: null },
     uDepthInfo: { value: new Vector4(0, 1, 0, 0) },
     uWaves: { value: Array.from({ length: WAVE_COUNT }, () => new Vector4()) },
@@ -83,15 +86,19 @@ const SHARED = /* glsl */ `
 uniform float uTime;
 uniform float uLevel;
 uniform float uMapSize;
+uniform float uVScale;
 uniform sampler2D uDepthTex;
 uniform vec4 uDepthInfo;
 
 // How deep is the water at this spot? Read the terrain height from the depth map
 // and subtract it from the sea level. Negative = dry land.
+// Divided by the vertical scale, so depth is always measured in the units the
+// shader's thresholds were tuned in (clarity, shore foam, wave damping): a river
+// drawn at true scale (15× shallower) still looks as deep as it really is.
 float waterDepth(vec2 xz) {
   vec2 uv = xz / uMapSize + 0.5;
   float h = texture2D(uDepthTex, uv).r * uDepthInfo.y + uDepthInfo.x;
-  return uLevel - h;
+  return (uLevel - h) / uVScale;
 }
 `
 

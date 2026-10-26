@@ -11,6 +11,7 @@ import { LodRings } from './trees/LodRings'
 import { applySeason, useTreeMaterials } from './trees/materials'
 import { scatterTrees, treeMatrix } from './trees/scatter'
 import { SEASONS } from './trees/seasons'
+import { ratios } from './scale'
 
 /**
  * The forest layer of the map. The work is done by the modules in ./trees:
@@ -41,7 +42,9 @@ export function Props({
   /** Called when the forest is re-scattered: trees drawn, and how many fit in all. */
   onPlaced?: (drawn: number, fit: number) => void
 }) {
-  const { treeSet, scatter, mask, count, scatterSeed, look, season, ivy } = forest
+  const { treeSet, scatter, mask, count, scatterSeed, look, season, ivy, scaleMode } = forest
+  // how much smaller objects are drawn than their readable size (1 = readable)
+  const sizeRatio = ratios(scaleMode).objects
   const lod = main ? forest.lod : LOD_OFF
 
   const materials = useTreeMaterials(look)
@@ -57,8 +60,9 @@ export function Props({
         maskInUse,
         scatterSeed,
         voxel ? { xz: snapToVoxelGrid, y: snapHeightToVoxelGrid } : undefined,
+        scaleMode,
       ),
-    [params, scatter, maskInUse, scatterSeed, voxel],
+    [params, scatter, maskInUse, scatterSeed, voxel, scaleMode],
   )
   const drawn = useMemo(() => trees.slice(0, count), [trees, count])
   useLayoutEffect(() => {
@@ -123,8 +127,16 @@ export function Props({
         season={season}
         material={materials.material}
         voxel={voxel}
+        sizeRatio={sizeRatio}
       />
-      <IvyMesh params={params} trees={drawn} settings={ivy} seed={scatterSeed} materials={materials} />
+      <IvyMesh
+        params={params}
+        trees={drawn}
+        settings={ivy}
+        seed={scatterSeed}
+        materials={materials}
+        sizeRatio={sizeRatio}
+      />
       {lod.enabled && lod.debug && <LodRings params={params} thresholds={lod.thresholds} />}
     </group>
   )

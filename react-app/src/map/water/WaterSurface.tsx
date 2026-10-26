@@ -7,6 +7,7 @@ import { buildDepthMap } from './depthMap'
 import { WATER_DEFAULTS, type WaterSettings } from './settings'
 import { createWaterMaterial } from './waterMaterial'
 import { makeWaves, WAVE_COUNT } from './waves'
+import { EXAGGERATION, m, ratios, type ScaleMode } from '../scale'
 
 // How finely the surface is cut up. Waves are made by moving these points, so
 // a finer mesh can show smaller waves. 192×192 ≈ 37,000 points; the minimap
@@ -24,6 +25,7 @@ export function Water({
   weather = WEATHER_DEFAULTS,
   running = true,
   detail = 'high',
+  scaleMode = 'readable',
 }: {
   params: TerrainParams
   settings?: WaterSettings
@@ -31,6 +33,8 @@ export function Water({
   /** Paused freezes the waves, like the clouds and rain. */
   running?: boolean
   detail?: 'high' | 'low'
+  /** Readable or true-to-scale — sets how much the wave height is enlarged. */
+  scaleMode?: ScaleMode
 }) {
   // the sheet itself: flat, lying in the x–z plane, centred on the map
   const geometry = useMemo(() => {
@@ -67,6 +71,7 @@ export function Water({
     if (running) time.current += Math.min(delta, 0.1) // a dropped frame shouldn't jump the waves
     u.uTime.value = time.current
     u.uLevel.value = params.seaLevel
+    u.uVScale.value = ratios(scaleMode).vertical
     if (mesh.current) mesh.current.position.y = params.seaLevel
 
     u.uDepthTex.value = depth.texture
@@ -74,7 +79,8 @@ export function Water({
 
     // wind (units/sec: ~1.5 calm … 6 storm) makes the sea taller and sharper-crested
     const roughness = Math.min(2, 0.5 + weather.wind * 0.25)
-    u.uWaveHeight.value = settings.waveHeight * roughness
+    // wave height: real metres × the vertical factor, the same one the hills use
+    u.uWaveHeight.value = m(settings.waveHeight) * EXAGGERATION[scaleMode].vertical * roughness
     u.uChop.value = Math.min(1, settings.choppiness * (0.7 + weather.wind * 0.08))
     for (let i = 0; i < WAVE_COUNT; i++) {
       const w = waves[i]

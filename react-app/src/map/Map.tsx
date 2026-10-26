@@ -72,6 +72,7 @@ export function Map({
         weather={weather}
         running={running}
         detail={main ? 'high' : 'low'}
+        scaleMode={forest.scaleMode}
       />
       {forest.show && (
         <Props

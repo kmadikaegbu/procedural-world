@@ -6,12 +6,13 @@ import type { TreeLook } from './materials'
 import { emptyMask, SCATTER_DEFAULTS, type ScatterMask, type ScatterSettings } from './scatter'
 import type { Season } from './seasons'
 import { paramsFromSpecies, useTreeSet, type TreeParams } from './treeSet'
+import type { ScaleMode } from '../scale'
 
 /**
  * All the state behind the tree panel, in one hook: App calls it once, hands
  * `forest` to the scene and the whole object to <TreePanel>.
  */
-export function useTreeControls() {
+export function useTreeControls(scaleMode: ScaleMode) {
   const [showTrees, setShowTrees] = useState(true)
   const [treeCount, setTreeCount] = useState(400)
   const [scatterSeed, setScatterSeed] = useState(0)
@@ -79,8 +80,9 @@ export function useTreeControls() {
       look,
       season,
       ivy,
+      scaleMode,
     }),
-    [showTrees, treeCount, scatterSeed, treeSet, scatter, mask, lod, look, season, ivy],
+    [showTrees, treeCount, scatterSeed, treeSet, scatter, mask, lod, look, season, ivy, scaleMode],
   )
 
   return {

@@ -7,7 +7,7 @@
  */
 
 export interface WaterSettings {
-  /** Tallest swell, in world units (the island's hills are ~4 units tall). */
+  /** Height of the waves in REAL METRES (scaled like the terrain's height — see scale.ts). */
   waveHeight: number
   /** 0 = rounded swells, 1 = sharp-crested, peaked waves. */
   choppiness: number
@@ -30,7 +30,8 @@ export interface WaterSettings {
 }
 
 export const WATER_DEFAULTS: WaterSettings = {
-  waveHeight: 0.12,
+  // 0.27 m of chop × the readable vertical factor (15) ≈ 0.12 world units
+  waveHeight: 0.27,
   choppiness: 0.55,
   waveScale: 1,
   speed: 1,
@@ -52,7 +53,7 @@ export const WATER_SLIDERS: {
   max: number
   step: number
 }[] = [
-  { key: 'waveHeight', label: 'Wave height', title: 'How tall the swells are, in world units. Wind from the weather adds to this.', min: 0, max: 0.5, step: 0.01 },
+  { key: 'waveHeight', label: 'Wave height', title: 'How tall the waves are, in real metres. Enlarged like the hills are (×15 at the readable scale), so waves stay in proportion to the land. Wind from the weather adds to this.', min: 0, max: 1.2, step: 0.01 },
   { key: 'choppiness', label: 'Choppiness', title: 'Rounded swells (0) versus sharp-crested, peaked waves (1).', min: 0, max: 1, step: 0.05 },
   { key: 'waveScale', label: 'Wave size', title: 'How far apart the wave crests are. Higher = long, lazy swells; lower = tight chop.', min: 0.4, max: 3, step: 0.05 },
   { key: 'speed', label: 'Wave speed', title: 'How fast the waves travel. 0 freezes them.', min: 0, max: 3, step: 0.1 },

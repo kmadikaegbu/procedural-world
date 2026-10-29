@@ -86,10 +86,6 @@
   text-shadow: 0 0 24px rgba(72, 202, 228, 0.35);
 }
 
-.site-title--procedural {
-  color: var(--accent-red);
-  text-shadow: 0 0 24px rgba(241, 101, 101, 0.35);
-}
 
 .site-subtitle {
   margin: 4px 0 0;

@@ -166,14 +166,14 @@ part from the answers. Same inputs give the same world.
 ```mermaid
 flowchart TD
     subgraph INPUTS["Shared inputs"]
-      TP["TerrainParams<br/>seed · amplitude · octaves · island mask<br/><b>seaLevel</b> · erosion · sculpt edits"]
+      TP["TerrainParams<br/>seed · amplitude · octaves · NYC coastline<br/><b>seaLevel</b> · erosion · sculpt edits"]
       WP["WeatherParams<br/>sun elevation · azimuth · <b>wind</b><br/>precip · intensity · cloudCover · fog"]
       YEAR["Climate timeline year"]
       SEASON["Season"]
     end
 
     YEAR -- "seaLevelForYear()" --> TP
-    TP --> H["height(x, z)<br/>fBm noise → shaping → island mask<br/>+ erosion + sculpt edits"]
+    TP --> H["height(x, z)<br/>fBm noise → shaping → distance to the real coast<br/>+ erosion + sculpt edits"]
 
     H --> TERRAIN["Terrain mesh"]
     H --> BIOME["Biome colour<br/>makeRamp(amplitude, seaLevel)"]

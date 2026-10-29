@@ -118,7 +118,9 @@ class session — more granular than the by-class summary above.
   deposits sediment, stored as an offset grid so it layers on the noise; Erosion
   slider in the Terrain tab (thousands of drops)
 - Masked into the real Roosevelt Island outline, with a width control and an
-  island on/off toggle (raw square noise field when off)
+  island on/off toggle (raw square noise field when off). *(Since 2026-10-28
+  this is the whole of New York City on its real coastline, with Roosevelt
+  Island inside it; one map, no toggle.)*
 - Biome coloring (water → sand → grass → rock → snow), thresholds scaled to
   amplitude and shifted by sea level
 - Sea level control — floods or drains the coast; biomes and tree placement

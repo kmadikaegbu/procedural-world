@@ -78,7 +78,7 @@ export interface LodReadout {
 export function updateLevels(
   levels: Uint8Array,
   positions: Float32Array, // x,y,z per tree
-  n: number,
+  chosen: Uint32Array, // which trees to update (indices into positions/levels)
   cam: { x: number; y: number; z: number },
   thresholds: readonly [number, number, number],
   hysteresis: number,
@@ -89,7 +89,9 @@ export function updateLevels(
   const farther = thresholds.map((t) => (t * (1 + hysteresis)) ** 2)
   const nearer = thresholds.map((t) => (t * (1 - hysteresis)) ** 2)
   let changed = false
-  for (let i = 0; i < n; i++) {
+  for (let c = 0; c < chosen.length; c++) {
+    const i = chosen[c]
+    if (i >= levels.length) continue // a selection from before the pool changed
     const dx = positions[i * 3] - cam.x
     const dy = positions[i * 3 + 1] - cam.y
     const dz = positions[i * 3 + 2] - cam.z
@@ -131,6 +133,8 @@ export function packForest(
 ): ForestPool {
   const n = trees.length
   const V = set.variantsPerSpecies
+  const shapeFor = (t: PlacedTree) =>
+    (set.mixed ? t.species * V : 0) + Math.floor(t.variantRoll * V)
   const pool: ForestPool = {
     n,
     shapeOf: new Uint16Array(n),
@@ -142,7 +146,7 @@ export function packForest(
   trees.forEach((t, i) => {
     // a mixed forest keeps each species in its own block of shapes;
     // a single-species one picks from all of them
-    const shape = (set.mixed ? t.species * V : 0) + Math.floor(t.variantRoll * V)
+    const shape = shapeFor(t)
     pool.shapeOf[i] = shape
     pool.capacity[shape]++
     pool.positions.set(t.pos, i * 3)
@@ -164,16 +168,16 @@ export class LodManager {
   private pool: ForestPool | null = null
   private set: TreeSet | null = null
   private settings: LodSettings = LOD_OFF
-  private count = 0
+  private chosen: Uint32Array = new Uint32Array(0)
   private levels = new Uint8Array(0)
   private refresh = true
+  private refill = true
 
   /** New trees, shapes or settings: forget every level and refill from scratch next frame. */
-  configure(pool: ForestPool, set: TreeSet, settings: LodSettings, count: number) {
+  configure(pool: ForestPool, set: TreeSet, settings: LodSettings) {
     this.pool = pool
     this.set = set
     this.settings = settings
-    this.count = count
     this.levels = new Uint8Array(pool.n)
     this.refresh = true
     for (const m of this.meshes) {
@@ -182,30 +186,41 @@ export class LodManager {
     }
   }
 
+  /**
+   * Which trees of the pool to draw (indices into it). Cheap: the pool and the
+   * meshes stay as they are, the meshes are just refilled next frame. This is
+   * how sea level and the Count slider change the forest without repacking it.
+   */
+  select(chosen: Uint32Array) {
+    this.chosen = chosen
+    this.refill = true
+  }
+
   /** Call once per frame. Returns true if the meshes were refilled. */
   update(camera: Camera): boolean {
     const p = this.pool
     const set = this.set
     if (!p || !set) return false
-    const n = Math.min(this.count, p.n)
+    const chosen = this.chosen
     const cfg = this.settings
     // an orthographic view (the 2D minimap) has no meaningful "distance" — draw it at full detail
     const active = cfg.enabled && !(camera as OrthographicCamera).isOrthographicCamera
     const fresh = this.refresh
     this.refresh = false
 
-    let changed = fresh
+    let changed = fresh || this.refill
+    this.refill = false
     if (active) {
       const moved = updateLevels(
         this.levels,
         p.positions,
-        n,
+        chosen,
         camera.position,
         cfg.thresholds,
         cfg.hysteresis,
         fresh,
       )
-      changed = moved || fresh
+      changed = moved || changed
     } else if (fresh) {
       this.levels.fill(0)
     }
@@ -217,7 +232,9 @@ export class LodManager {
     const byLevel = [0, 0, 0, 0]
     let treeTris = 0
     const debug = active && cfg.debug
-    for (let i = 0; i < n; i++) {
+    for (let c = 0; c < chosen.length; c++) {
+      const i = chosen[c]
+      if (i >= p.n) continue // a selection from before the pool changed
       const shape = p.shapeOf[i]
       const level = this.levels[i]
       const slot = shape * LOD_COUNT + level

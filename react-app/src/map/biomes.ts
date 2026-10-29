@@ -9,6 +9,8 @@ export const BIOME_COLORS = {
   grass: new THREE.Color('#81b29a'),
   rock: new THREE.Color('#8a7f76'),
   snow: new THREE.Color('#f4efe6'),
+  // the rest of the city: paved, built-up ground rather than parkland
+  urban: new THREE.Color('#9299a1'), // cool concrete grey
 }
 
 export type BiomeRamp = { max: number; color: THREE.Color }[]
@@ -43,3 +45,32 @@ export function biomeColor(
   }
   return out.copy(ramp[ramp.length - 1].color)
 }
+
+/**
+ * Ground colour with the city mixed in. `green` is 1 where there's parkland
+ * (Roosevelt Island, or everywhere in the plain noise world) and 0 on the
+ * built-up rest of the city, which gets a paved grey above the waterline.
+ */
+export function landColor(
+  y: number,
+  ramp: BiomeRamp,
+  green: number,
+  out: THREE.Color,
+): THREE.Color {
+  biomeColor(y, ramp, out)
+  if (green >= 1) return out
+  const sea = ramp[0].max
+  // sand's height (0.08 × the terrain amplitude): the yardstick for "just above the
+  // waterline", so this works the same at the readable and the true scale
+  const sandTop = Math.max(ramp[1].max - sea, 1e-4)
+  // paving fades in just above the waterline, so the river bed keeps its water colour
+  const above = THREE.MathUtils.clamp((y - sea) / (0.8 * sandTop), 0, 1)
+  const urban = BIOME_COLORS.urban
+  // a touch lighter on higher ground
+  const shade = 0.92 + THREE.MathUtils.clamp(((y - sea) / sandTop) * 0.2, 0, 0.16)
+  return out.lerp(
+    _urban.setRGB(urban.r * shade, urban.g * shade, urban.b * shade),
+    (1 - green) * above,
+  )
+}
+const _urban = new THREE.Color()

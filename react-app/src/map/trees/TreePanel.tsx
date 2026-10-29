@@ -51,14 +51,14 @@ export function TreePanel({
 
               <label
                 className="row"
-                title="How many trees are drawn, out of the pool of spots that fit the scatter rules below. Cheap to drag — it only changes how many of the already-computed positions are shown."
+                title="How many trees are drawn, out of every spot on grassy land across the city that fits the scatter rules below. Most are placed around Roosevelt Island, the rest more sparsely elsewhere. Cheap to drag — it only changes how many of the already-computed positions are shown."
               >
                 <span>Count</span>
                 <input
                   type="range"
                   min={0}
                   max={MAX_TREES}
-                  step={50}
+                  step={250}
                   value={treeCount}
                   disabled={!showTrees}
                   onChange={(e) => setTreeCount(Number(e.target.value))}

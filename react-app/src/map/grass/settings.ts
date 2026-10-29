@@ -21,6 +21,8 @@ export interface GrassSettings {
   windSheen: number
   /** How readily steep slopes thin out to bare soil. */
   bareSlopes: number
+  /** How much of the land is paved city instead of green. 0 = all parkland (the procedural world); 1 = a paved city with a street grid. Roosevelt Island stays green. */
+  paving: number
   lushColor: string
   dryColor: string
   soilColor: string
@@ -32,6 +34,7 @@ export const GRASS_DEFAULTS: GrassSettings = {
   detail: 0.5,
   windSheen: 0.5,
   bareSlopes: 0.5,
+  paving: 0,
   lushColor: '#4f8a3a',
   dryColor: '#b3a45e',
   soilColor: '#7a6248',
@@ -49,6 +52,7 @@ export const GRASS_SLIDERS: {
   { key: 'patchiness', label: 'Patchiness', title: 'How much the colour varies in patches across the island — dry spots, lush hollows.', min: 0, max: 1, step: 0.05 },
   { key: 'detail', label: 'Grain', title: 'Fine surface texture that catches the light when you zoom in close.', min: 0, max: 1, step: 0.05 },
   { key: 'windSheen', label: 'Wind sheen', title: 'Light and dark bands rolling across the grass as the wind blows. Stronger in stormy weather; none when calm.', min: 0, max: 1, step: 0.05 },
+  { key: 'paving', label: 'Paving', title: 'How much of the land is paved city instead of green. 0 = everything parkland, like the procedural world. 1 = a paved grey city with a faint street grid (Roosevelt Island stays green).', min: 0, max: 1, step: 0.05 },
   { key: 'bareSlopes', label: 'Bare slopes', title: 'How readily steep slopes thin out to bare soil. 0 = grass clings everywhere.', min: 0, max: 1, step: 0.05 },
 ]
 

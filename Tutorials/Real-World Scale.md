@@ -24,21 +24,20 @@ deliberately exaggerated so things stay visible.
 A 3D scene has no built-in size: "1" can mean anything. To give it a scale, pick
 one thing in the scene whose **real size you know**, and divide.
 
-The only part of this map that is built to match reality is the **island's
-length**:
+The coastline of this map is **New York City's real one**, so horizontal
+distances are true. Roosevelt Island is the easiest thing to measure:
 
-- In the code, the map is `MAP_SIZE = 100` units across, and the island spans
-  `ISLAND_LENGTH = 0.96` of it, so the island is **96 units long**.
-- In reality, Roosevelt Island is about **2 miles = 3,220 m** long.
+- In the shoreline data, the island's longest span is **94 units**.
+- In reality, Roosevelt Island is about **2 miles = 3,150–3,220 m** long.
 
 ```
 1 unit = real length ÷ model length
-       = 3,220 m ÷ 96 units
+       = 3,150 m ÷ 94 units
        ≈ 33.5 m per unit
 ```
 
 > [!info] Why the length and not the width or height?
-> The **width** has its own slider (Island → Width), and the **height** has
+> The **width** has its own slider (New York City → Island width), and the **height** has
 > its own (Amplitude). Both were chosen to look good, not to match reality, so
 > they can't be trusted as a ruler. Only the length is fixed to the real
 > island.
@@ -75,7 +74,7 @@ What real things would measure if you placed them on this map at true size:
 | A 10-storey apartment block | ~33 m tall | 1.0 | One world unit is about a 10-storey building. |
 | The Roosevelt Island Tram, highest point above the river | 76 m (250 ft) | 2.3 | |
 | The House at Cornell Tech, tallest building on campus, 26 storeys | ~82 m (270 ft) | **2.45** | |
-| Roosevelt Island, length | 3,220 m | 96 | The ruler. |
+| Roosevelt Island, length | 3,150–3,220 m | 94–96 | The ruler. |
 | Roosevelt Island, widest point | 244 m (800 ft) | 7.3 | |
 | Roosevelt Island, highest ground | 7 m (23 ft) | **0.21** | Nearly flat. |
 
@@ -87,8 +86,9 @@ Now the other direction: what the code actually draws, converted into metres.
 
 | Thing in the model | World units | In metres | Real-world equivalent | Exaggeration |
 | --- | --- | --- | --- | --- |
-| The whole map | 100 × 100 | 3.35 km square | | |
-| Island length | 96 | 3,220 m | 3,220 m | **1×, true to scale** |
+| The whole map | about 616 × 764 | about 20.6 × 25.6 km | Manhattan and its neighbours | |
+| The detail square (fine mesh only) | 100 × 100 | 3.35 km square | | |
+| Island length | 94 | 3,150 m | 3,150–3,220 m | **1×, true to scale** |
 | Island width at Width = 1 (default) | 18 | ~600 m | 244 m | **~2.5× wider** |
 | Island width at Width = 0.45 | 8.1 | ~270 m | 244 m | ~1.1×, close to true |
 | Tallest hills (Amplitude = 4) | up to ~3–4 | 100–135 m | 7 m | **~15–19× taller** |
@@ -150,7 +150,7 @@ modelled" against "as real"), these settings get close:
 
 | Setting | Where | True-to-scale value | Why |
 | --- | --- | --- | --- |
-| Width | Terrain → Island | **≈ 0.40** | 96 ÷ 0.40-width island ≈ the real 13:1 shape |
+| Width | Terrain → New York City → Island width | **≈ 0.40** | the island at its real width, about 13:1 |
 | Amplitude | Terrain | **≈ 0.25** | Real highest ground 7 m ≈ 0.21 units, plus a little for the bank |
 | Scale switch | View → True to scale | **on** | Sets every factor to 1 at once. Tree sizes, spacing, ivy and waves all follow. |
 | Wave height | Weather → Water | **≈ 0.01–0.02** | 0.3–0.7 m chop |
@@ -177,7 +177,7 @@ the code, so every file uses the same ruler.
 | Choice | Good for | This project |
 | --- | --- | --- |
 | **1 unit = 1 m** | Walk-around scenes, physics, characters. Most game engines assume it. | Would make the map 3,350 units across. |
-| **1 unit = a larger chunk** (here ~33.5 m) | Whole-island or city views, where the map should be a convenient size like 100. | ✔ The choice made, by fitting the island into `MAP_SIZE = 100`. |
+| **1 unit = a larger chunk** (here 33.5 m) | Whole-island or city views, where the map should be a convenient size. | ✔ The choice made: the whole city is about 616 × 764 units. |
 
 Either works. The important part is to **choose once and name it**. This
 project now does it in `react-app/src/map/scale.ts` (see "Applied in this
@@ -284,10 +284,13 @@ backwards.
 resolution needed = area ÷ (smallest feature ÷ 3)
 ```
 
-To show 6 m features (say, a building footprint) over the 3.35 km map, you'd
+To show 6 m features (say, a building footprint) over a 3.35 km square, you'd
 need 3,350 ÷ 2 ≈ **1,700 samples per side, about 2.9 million vertices**. One
-mesh that size is too heavy, which is why large worlds are split into chunks
-with their own LOD (the same idea as the tree LOD).
+mesh that size is too heavy, which is why large worlds use several resolutions.
+This project's city map does exactly that: the grid lines are packed finely
+(17 m) inside the 100-unit detail square around Roosevelt Island and spread out
+to ~100 m toward the edges, so the whole 20 × 26 km city is one mesh of about
+164,000 vertices (see [NYC World](<NYC World.md>)).
 
 > [!tip] The unit choice doesn't change the cost — the detail does
 > Switching to 1 unit = 1 m changes only the *numbers*: spacing becomes 17
@@ -365,7 +368,9 @@ units (~67 km).
 | LOD switch distances | 45 / 85 / 125 u | 1.5 / 2.8 / 4.2 km |
 | Fog (default weather) | density ≈ 0.0076 per unit | fully fogged by ~260 u ≈ 8.7 km, just past the farthest zoom |
 | Fog (heaviest preset) | density ≈ 0.0175 per unit | fully fogged by ~113 u ≈ 3.8 km |
-| Shadow camera | ±60 u | covers the 100-unit map; a bigger map would need wider bounds, which coarsens each shadow pixel |
+| Shadow camera | ±60 u | covers the detail square around the island. The rest of the city is lit but casts no shadows; wider bounds would coarsen each shadow pixel |
+| Fog | ×0.25 of the values above | the city is ~7× bigger, so fog is thinned to keep far shores visible |
+| Camera far limit | 4,000 u; zoom out to 1,100 u (37 km) | enough to see the whole map |
 
 If the scale or camera range changed, every one of these would need to move
 with it.
@@ -377,7 +382,7 @@ place the ruler is defined.
 
 | Rule | How it's applied |
 | --- | --- |
-| **Define the scale** | `METERS_PER_UNIT = 3,220 m ÷ (MAP_SIZE × ISLAND_LENGTH) ≈ 33.5`, plus `m()` and `toMeters()` converters. |
+| **Define the scale** | `METERS_PER_UNIT = 33.5` (also used by `scripts/build-nyc-shore.mjs` when it projects the shoreline), plus `m()` and `toMeters()` converters. |
 | **One factor per category** | `EXAGGERATION.readable = { vertical: 15, objects: 2.9, islandWidth: 2.5 }`; `EXAGGERATION.true` is all 1s. |
 | **Objects from real metres** | Mature tree heights are `objectSize(28 / 19 / 14 m)` for open, dense and leaning (a full-crowned plane, a compact park tree, a stunted wind-bent waterfront tree). Each placed tree is then a fraction of that, 0.3 (sapling) to 1.15 (veteran), set by its stand's age and its site: see "Tree size" below. Tree **spacing** is set in metres (default 6 m) and enlarged by the same objects factor. Ivy and fallen leaves shrink with the trees. |
 | **Vertical sizes** | Wave height is set in metres (default 0.27 m) × the vertical factor, so waves stay in proportion to the hills. The river bed, erosion and sculpt offsets follow the same factor. |
@@ -445,7 +450,7 @@ person   ≈ 0.05 units
 house    ≈ 0.25 units
 real tree ≈ 0.15–0.9 units     model tree ≈ 0.4–2.7 units
 10-storey ≈ 1 unit             The House (26 storeys) ≈ 2.45 units
-island   = 96 units long       true width ≈ 7.3 units
+island   = 94 units long       true width ≈ 7.3 units
 
 size     = m(real metres) × exaggeration      (one factor per category)
 feature  ≥ 2–4 × sample spacing               (spacing = area ÷ resolution)
@@ -453,8 +458,10 @@ framing  = subject ÷ (2 · tan(fov / 2))       (island: ~103 u)
 visible  ≥ 3–4 px = size × pixels per unit
 ```
 
-Where these numbers live in the code: `MAP_SIZE` in `react-app/src/map/mapSize.ts`;
-`ISLAND_LENGTH`, `ISLAND_HALF_WIDTH` and `SEABED_DEPTH` in `react-app/src/map/noise.ts`;
+Where these numbers live in the code: `MAP_SIZE` (the detail square) in
+`react-app/src/map/mapSize.ts`; the city's extent (`WORLD`) in
+`react-app/src/map/world/shore.ts`; `SEABED_DEPTH`, `BANK_UP` and the relief
+constants in `react-app/src/map/noise.ts`;
 tree `height` in `react-app/src/map/trees/species.ts`; tree scale in
 `react-app/src/map/trees/scatter.ts`; camera distances in `react-app/src/App.tsx`.
 

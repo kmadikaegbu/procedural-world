@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react'
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
-import { height, type TerrainParams } from '../noise'
+import { height, shapeKey, type TerrainParams } from '../noise'
 import { groundHit } from '../TerraformBrush'
-import { MASK_CELL, MASK_RES, paintMask, type ScatterMask } from './scatter'
+import { MASK_CELL, MASK_GRID, paintMask, type ScatterMask } from './scatter'
 
 // same cadence as the sculpt brush: a stroke is pushed into React state ~12×/s,
 // which re-scatters the forest, so every frame would stall the drag
@@ -55,7 +55,7 @@ export function ScatterMaskBrush({
   const commit = () => {
     if (!working.current) return
     lastCommit.current = performance.now()
-    onChangeRef.current({ res: MASK_RES, data: working.current.slice() })
+    onChangeRef.current({ data: working.current.slice() })
   }
 
   // end the stroke wherever the button is released — even off the canvas
@@ -78,7 +78,7 @@ export function ScatterMaskBrush({
 
   const dab = (p: THREE.Vector3) => {
     if (!working.current) return
-    paintMask(working.current, MASK_RES, p.x, p.z, radius, erase ? 0 : 1)
+    paintMask(working.current, p.x, p.z, radius, erase ? 0 : 1)
   }
 
   const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
@@ -160,13 +160,12 @@ function MaskOverlay({
     const mesh = ref.current
     if (!mesh) return
     const o = new THREE.Object3D()
-    const half = MASK_RES / 2
     let n = 0
-    for (let j = 0; j < MASK_RES; j++) {
-      for (let i = 0; i < MASK_RES; i++) {
-        if (!mask.data[j * MASK_RES + i]) continue
-        const x = (i + 0.5 - half) * MASK_CELL
-        const z = (j + 0.5 - half) * MASK_CELL
+    for (let j = 0; j < MASK_GRID.h; j++) {
+      for (let i = 0; i < MASK_GRID.w; i++) {
+        if (!mask.data[j * MASK_GRID.w + i]) continue
+        const x = MASK_GRID.x0 + i * MASK_CELL
+        const z = MASK_GRID.z0 + j * MASK_CELL
         o.position.set(x, height(x, z, params) + 0.3, z)
         o.scale.setScalar(MASK_CELL * 0.92)
         o.updateMatrix()
@@ -175,12 +174,12 @@ function MaskOverlay({
     }
     mesh.count = n
     mesh.instanceMatrix.needsUpdate = true
-  }, [mask, params])
+  }, [mask, ...shapeKey(params)])
 
   return (
     <instancedMesh
       ref={ref}
-      args={[geometry, undefined, MASK_RES * MASK_RES]}
+      args={[geometry, undefined, MASK_GRID.w * MASK_GRID.h]}
       frustumCulled={false}
       renderOrder={5}
       raycast={() => null} // never a brush target itself

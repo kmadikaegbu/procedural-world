@@ -6,10 +6,11 @@ procedural world — real-world sources, prior art, and technique notes.
 ## Site reference
 
 - Roosevelt Island, NYC — a ~3.2 km ribbon in the East River between
-  Manhattan and Queens. Landmarks modeled in the island outline: Lighthouse
-  Park, Coler Hospital (north & south campuses), The Octagon, Roosevelt
-  Island Bridge, Blackwell Park, the Tram/Sportspark, Four Freedoms Park.
-- [RIOC island map](https://rioc.ny.gov) — source traced for the coastline
+  Manhattan and Queens. Its outline now comes straight from the city's own
+  shoreline data rather than a hand-traced profile.
+- [NYC Department of City Planning — Borough Boundaries (Clipped to Shoreline)](https://www.nyc.gov/site/planning/data-maps/open-data/districts-download-metadata.page)
+  — the coastline of the whole map, including Roosevelt Island
+- [RIOC island map](https://rioc.ny.gov) — source originally traced for the island's coastline
   profile in `react-app/src/map/noise.ts`.
 
 ## Technique references

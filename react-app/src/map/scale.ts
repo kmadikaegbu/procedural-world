@@ -1,13 +1,13 @@
-import { ISLAND_LENGTH, MAP_SIZE } from './mapSize'
 import type { TerrainParams } from './noise'
 
 /**
  * SCALE — the one place the world's ruler is defined.
  *
- * Rule 1, define a working scale: the only thing in the scene built to match
- * reality is the island's LENGTH (Roosevelt Island is ~3,220 m long). So:
+ * Rule 1, define a working scale: the coastline is New York City's real one
+ * (world/shore.ts), so horizontal distances are true; Roosevelt Island is
+ * ~3,150 m long and measures ~94 units. So:
  *
- *   1 world unit = 3,220 m ÷ (MAP_SIZE × ISLAND_LENGTH) ≈ 33.5 m
+ *   1 world unit = 33.5 m
  *
  * Rule 2, keep objects proportional: every size is written as REAL METRES,
  * converted with m(), times ONE exaggeration factor for its category. Using
@@ -24,11 +24,14 @@ import type { TerrainParams } from './noise'
  * READABLE scale. True scale is applied on top as a ratio — see ratios().
  */
 
-/** Roosevelt Island's real length, north tip to south tip. */
-export const REAL_ISLAND_LENGTH_M = 3220
+/** Roosevelt Island's real length, north tip to south tip (the city's data gives ~3,150 m). */
+export const REAL_ISLAND_LENGTH_M = 3200
 
-/** How many real metres one world unit stands for (≈ 33.5). */
-export const METERS_PER_UNIT = REAL_ISLAND_LENGTH_M / (MAP_SIZE * ISLAND_LENGTH)
+/** How many real metres one world unit stands for. Matches scripts/build-nyc-shore.mjs. */
+export const METERS_PER_UNIT = 33.5
+
+/** Roosevelt Island's length in world units (≈ 96). */
+export const ISLAND_LENGTH_UNITS = REAL_ISLAND_LENGTH_M / METERS_PER_UNIT
 
 /** Real metres → world units. */
 export const m = (meters: number) => meters / METERS_PER_UNIT

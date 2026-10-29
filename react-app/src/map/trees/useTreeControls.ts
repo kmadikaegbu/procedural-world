@@ -14,7 +14,7 @@ import type { ScaleMode } from '../scale'
  */
 export function useTreeControls(scaleMode: ScaleMode) {
   const [showTrees, setShowTrees] = useState(true)
-  const [treeCount, setTreeCount] = useState(400)
+  const [treeCount, setTreeCount] = useState(6000)
   const [scatterSeed, setScatterSeed] = useState(0)
 
   // starts as the mixed preset forest; picking a species loads its recipe into the sliders

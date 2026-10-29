@@ -14,9 +14,9 @@ import { GRASS_DEFAULTS, type GrassSettings } from './map/grass/settings'
 import { GrassPanel } from './map/grass/GrassPanel'
 import { useTreeControls } from './map/trees/useTreeControls'
 import { TERRAIN_DEFAULTS, erodeTerrain, type TerrainParams } from './map/noise'
-import { ISLAND_LENGTH, MAP_SIZE } from './map/mapSize'
 import {
   EXAGGERATION,
+  ISLAND_LENGTH_UNITS,
   METERS_PER_UNIT,
   applyScale,
   cameraAt,
@@ -68,15 +68,17 @@ const BRUSH_TOOLS: { tool: BrushTool; label: string; hint: string }[] = [
   { tool: 'flatten', label: 'Flatten', hint: 'Level everything under the brush to the height where you started the stroke. Good for plateaus, roads, and building pads.' },
 ]
 
-// Map and Voxel share one camera: looking at the island from the south-east,
-// pulled back just far enough for its whole 96-unit (3.2 km) length to fit the
-// 50° view, plus 8% margin — the framing rule in scale.ts. Works out to ~111
-// units (3.7 km). Zoom limits are the closest (670 m) and farthest (8.7 km).
+// Map and Voxel share one camera, aimed at Roosevelt Island: from the
+// south-east, pulled back just far enough for the island's whole 96-unit
+// (3.2 km) length to fit the 50° view, plus 8% margin — the framing rule in
+// scale.ts. Works out to ~111 units (3.7 km). You can zoom in to 670 m, or out
+// to ~37 km to see all of Manhattan and its neighbours (the map is ~21 × 26 km).
 const CAMERA = {
-  position: cameraAt([46, 44, 92], framingDistance(MAP_SIZE * ISLAND_LENGTH, 50) * 1.08),
+  position: cameraAt([46, 44, 92], framingDistance(ISLAND_LENGTH_UNITS, 50) * 1.08),
   target: [0, 2, 0] as Vec3,
   minDistance: 20,
-  maxDistance: 260,
+  maxDistance: 1100,
+  far: 4000, // the default far plane (1,000) would cut the city off when zoomed out
 }
 
 const WEATHER_KINDS: WeatherKind[] = [
@@ -121,7 +123,6 @@ function App() {
       terrainState.noiseBlend,
       terrainState.redistribution,
       terrainState.terraces,
-      terrainState.island,
       terrainState.islandWidth,
       terrainState.offsetX,
       terrainState.offsetZ,
@@ -162,10 +163,7 @@ function App() {
   const sculpting = mapTab === 'sculpt' && scaleMode === 'readable'
   // likewise for painting the planting mask, on the Props tab
   const painting = mapTab === 'props' && maskTool !== 'off'
-  const showingIsland = terrain.island
-  const headerTitle =
-    (terrain.island ? 'Roosevelt Island' : 'Procedural World') +
-    (scene === 'voxel' ? ' — Voxel' : '')
+  const headerTitle = 'New York City' + (scene === 'voxel' ? ' — Voxel' : '')
 
   // Subtitle lists only what's actually present right now, not a fixed blurb.
   // terrain is always on (no toggle removes it); the rest track a real state:
@@ -283,6 +281,7 @@ function App() {
             key={`p-${scene}`}
             makeDefault
             position={CAMERA.position}
+            far={CAMERA.far}
             fov={50}
           />
 
@@ -317,6 +316,7 @@ function App() {
                   params={terrainView}
                   forest={forest}
                   water={water}
+                  grass={grass}
                   weather={weather}
                   running={running}
                   onPlaced={onPlaced}
@@ -358,15 +358,7 @@ function App() {
 
       <div className="ui-overlay">
         <header className="site-header">
-          <h1
-            className={
-              !showingIsland
-                ? 'site-title site-title--procedural'
-                : 'site-title'
-            }
-          >
-            {headerTitle}
-          </h1>
+          <h1 className="site-title">{headerTitle}</h1>
           <p className="site-subtitle">{headerSubtitle}</p>
         </header>
 
@@ -478,7 +470,7 @@ function App() {
               <button
                 className={showMinimap ? 'active' : ''}
                 onClick={() => setShowMinimap(true)}
-                title="Show a fixed top-down inset of the island in the bottom-left corner."
+                title="Show a fixed top-down inset of the whole city in the bottom-left corner."
               >
                 2D inset on
               </button>
@@ -495,7 +487,7 @@ function App() {
                 className={insetMode === 'terrain' ? 'active' : ''}
                 disabled={!showMinimap}
                 onClick={() => setInsetMode('terrain')}
-                title="The inset shows the rendered island from above — biomes, water, trees."
+                title="The inset shows the rendered city from above — biomes and water (trees are too small to see at that size)."
               >
                 Inset: terrain
               </button>
@@ -503,7 +495,7 @@ function App() {
                 className={insetMode === 'noise' ? 'active' : ''}
                 disabled={!showMinimap}
                 onClick={() => setInsetMode('noise')}
-                title="The inset shows the raw noise field as grayscale (black = low, white = high), after shaping but before the island mask. The red line is the coastline."
+                title="The inset shows the raw noise field as grayscale (black = low, white = high), after shaping but before the coastline is applied. The red line is the real shoreline."
               >
                 Inset: noise
               </button>
@@ -1038,40 +1030,33 @@ function App() {
               see these change the raw noise field directly.
             </p>
 
-            <div className="panel-title">Island</div>
+            <div className="panel-title">New York City</div>
+
+            <p className="hint-text">
+              The land follows New York City's real coastline. Every slider
+              below reshapes the whole city.
+            </p>
 
             <label
               className="row"
-              title="Mask the terrain into the Roosevelt Island outline. Turn off to see the raw square noise field with no coastline."
+              title="Scales Roosevelt Island's width. Lower = thinner and more true-to-life; higher = fatter, so terrain detail reads more easily. The rivers beside it stay open."
             >
-              <span>Roosevelt Is.</span>
-              <input
-                type="checkbox"
-                checked={terrain.island}
-                onChange={(e) => setT('island', e.target.checked)}
-              />
-            </label>
-
-            <label
-              className="row"
-              title="Scales the island's width. Lower = thinner and more true-to-life; higher = fatter, so terrain detail reads more easily."
-            >
-              <span>Width</span>
+              <span>Island width</span>
               <input
                 type="range"
                 min={0.4}
                 max={2}
                 step={0.05}
                 value={terrain.islandWidth}
-                disabled={!terrain.island}
                 onChange={(e) => setT('islandWidth', Number(e.target.value))}
               />
               <em>{terrain.islandWidth.toFixed(2)}</em>
             </label>
 
             <p className="hint-text">
-              0.45 ≈ the real 13:1 proportions; higher fattens it so the
-              terrain detail reads.
+              0.4 = Roosevelt Island's real width (about 13:1); higher fattens
+              just the island so its detail reads. The rest of the city is
+              always true to its real outline.
             </p>
               </>
             )}
@@ -1169,7 +1154,7 @@ function App() {
 
             <label
               className="row"
-              title="Grid density of the terrain mesh. Higher looks smoother but takes longer to regenerate on every change."
+              title="Grid density of the terrain mesh around Roosevelt Island (the rest of the city is always coarser). Higher looks smoother but takes longer to regenerate on every change."
             >
               <span>Resolution</span>
               <input

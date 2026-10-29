@@ -1,7 +1,9 @@
 import { Euler, Matrix4, Quaternion, Vector3 } from 'three'
 import { ImprovedNoise } from 'three/examples/jsm/math/ImprovedNoise.js'
 import { hash01, hash32 } from './grammar'
-import { grassRange, height, islandXReach, MAP_SIZE, type TerrainParams } from '../noise'
+import { BANDS, height, type TerrainParams } from '../noise'
+import { WORLD } from '../world/shore'
+import { makeSpec } from '../world/spec'
 import { EXAGGERATION, m, ratios, type ScaleMode } from '../scale'
 
 /**
@@ -16,8 +18,12 @@ import { EXAGGERATION, m, ratios, type ScaleMode } from '../scale'
  *     editing the terrain or a slider doesn't reshuffle the whole forest.
  */
 
-/** Size of the scatter pool. The Count control draws a prefix of it. */
-export const MAX_TREES = 5000
+/**
+ * Size of the scatter pool — the most trees that can exist. The Count control
+ * draws that many of the ones currently on suitable ground. (The map is ~470,000
+ * square units, so the pool is big; far trees are drawn as cheap blobs by the LOD.)
+ */
+export const MAX_TREES = 30000
 
 export interface ScatterSettings {
   /** 0 = trees anywhere on the grass; 1 = grouped into stands by a slow noise field. */
@@ -85,47 +91,45 @@ export const SCATTER_SLIDERS: {
 // The painted mask: a coarse grid over the whole map, 1 = plant here
 // ---------------------------------------------------------------------------
 
-export const MASK_RES = 64
+// One grid over the whole city, ~2.4 world units (80 m) per cell.
+export const MASK_GRID = makeSpec(WORLD, 2.4)
 
 export interface ScatterMask {
-  res: number
-  data: Uint8Array
+  data: Uint8Array // MASK_GRID.w × MASK_GRID.h
 }
 
 export const emptyMask = (): ScatterMask => ({
-  res: MASK_RES,
-  data: new Uint8Array(MASK_RES * MASK_RES),
+  data: new Uint8Array(MASK_GRID.w * MASK_GRID.h),
 })
 
 /** World size of one mask cell. */
-export const MASK_CELL = MAP_SIZE / MASK_RES
+export const MASK_CELL = MASK_GRID.cell
 
-const cellOf = (v: number, res: number) =>
-  Math.min(res - 1, Math.max(0, Math.floor(((v + MAP_SIZE / 2) / MAP_SIZE) * res)))
+// the mask node nearest to a world position
+const nodeX = (x: number) => Math.min(MASK_GRID.w - 1, Math.max(0, Math.round((x - MASK_GRID.x0) / MASK_GRID.cell)))
+const nodeZ = (z: number) => Math.min(MASK_GRID.h - 1, Math.max(0, Math.round((z - MASK_GRID.z0) / MASK_GRID.cell)))
 
 export function maskAt(m: ScatterMask, x: number, z: number): boolean {
-  return m.data[cellOf(z, m.res) * m.res + cellOf(x, m.res)] > 0
+  return m.data[nodeZ(z) * MASK_GRID.w + nodeX(x)] > 0
 }
 
 /** Paint (value 1) or erase (0) every cell whose centre is within `radius` of (x, z). */
 export function paintMask(
   data: Uint8Array,
-  res: number,
   x: number,
   z: number,
   radius: number,
   value: 0 | 1,
 ) {
-  const cell = MAP_SIZE / res
-  const i0 = cellOf(x - radius, res)
-  const i1 = cellOf(x + radius, res)
-  const j0 = cellOf(z - radius, res)
-  const j1 = cellOf(z + radius, res)
+  const i0 = nodeX(x - radius)
+  const i1 = nodeX(x + radius)
+  const j0 = nodeZ(z - radius)
+  const j1 = nodeZ(z + radius)
   for (let j = j0; j <= j1; j++) {
     for (let i = i0; i <= i1; i++) {
-      const cx = -MAP_SIZE / 2 + (i + 0.5) * cell
-      const cz = -MAP_SIZE / 2 + (j + 0.5) * cell
-      if ((cx - x) ** 2 + (cz - z) ** 2 <= radius * radius) data[j * res + i] = value
+      const cx = MASK_GRID.x0 + i * MASK_GRID.cell
+      const cz = MASK_GRID.z0 + j * MASK_GRID.cell
+      if ((cx - x) ** 2 + (cz - z) ** 2 <= radius * radius) data[j * MASK_GRID.w + i] = value
     }
   }
 }
@@ -135,8 +139,10 @@ export function paintMask(
 // ---------------------------------------------------------------------------
 
 export interface PlacedTree {
-  /** Position in the pool — the Count slider keeps the ones below it. */
+  /** Position in the pool — the Count slider keeps the first ones that are on suitable ground. */
   i: number
+  /** Height of the ground here — checked against the CURRENT sea level to decide if the tree is on grass. */
+  h: number
   /** This tree's own seed; every other field below is a hash of it. */
   seed: number
   pos: [number, number, number]
@@ -151,6 +157,13 @@ export interface PlacedTree {
 }
 
 const forestNoise = new ImprovedNoise()
+// the range of sea levels the climate timeline reaches (−1 … 2.4), with a margin
+// share of candidate spots clustered around the island, and how far they spread
+// (world units; about 63% fall within this distance of the island's centre)
+const FOCUS_SHARE = 0.55
+const FOCUS_SPREAD = 38
+const SEA_MIN = -1.2
+const SEA_MAX = 2.6
 const DEG = Math.PI / 180
 
 /**
@@ -198,7 +211,8 @@ export function treeSize01(site: SiteInfo, variety: number): number {
  * so a tree can never land where no block was actually rendered underneath it.
  */
 export interface VoxelSnap {
-  xz: (v: number) => number
+  x: (v: number) => number
+  z: (v: number) => number
   y: (h: number) => number
 }
 
@@ -211,11 +225,14 @@ export function scatterTrees(
   scaleMode: ScaleMode = 'readable',
 ): PlacedTree[] {
   const base = hash32(params.seed + 777, scatterSeed * 131 + 1)
-  // only sample where land can actually be — in island mode most of the map is
-  // river, so scattering across the full square wastes nearly every try
-  const xReach = islandXReach(params)
-  const zReach = MAP_SIZE * 0.48
-  const [minY, maxY] = grassRange(params)
+  // The pool must not depend on sea level (the climate timeline changes it every
+  // frame, and re-scattering 30,000 trees each time would stall it). So accept
+  // ground on grass at ANY sea level the timeline reaches; Props then hides the
+  // trees that are off the grass band at the current one.
+  const loY = SEA_MIN + BANDS.sand * params.amplitude
+  const hiY = SEA_MAX + BANDS.grass * params.amplitude
+  // for tree sizes, judge "how high up the bank" against the band at sea level 0
+  const [minY, maxY] = [BANDS.sand * params.amplitude, BANDS.grass * params.amplitude]
   const out: PlacedTree[] = []
 
   // spacing: a grid with cells the size of the spacing, so only the 3×3 cells
@@ -247,22 +264,38 @@ export function scatterTrees(
   const scaleLo = Math.min(s.scaleMin, s.scaleMax)
   const scaleHi = Math.max(s.scaleMin, s.scaleMax)
   const maskOn = s.maskEnabled && mask !== null
-  const sea = params.seaLevel
   const EXPOSURE_RADIUS = 5 // world units: how far a tree "looks" for open water
 
   for (let cand = 0; out.length < MAX_TREES && cand < MAX_TREES * 40; cand++) {
     const seed = hash32(base, cand)
-    let x = (hash01(seed, 1) - 0.5) * 2 * xReach
-    let z = (hash01(seed, 2) - 0.5) * 2 * zReach
+    // Most candidate spots cluster around Roosevelt Island, thinning smoothly
+    // with distance (a bell curve, so there's no visible edge); the rest are
+    // anywhere on the map. Spread evenly over a ~470,000-unit map, 30,000 trees
+    // would leave the island nearly bare; this keeps it lush while trees still
+    // grow, more sparsely, on suitable land everywhere.
+    const focused = hash01(seed, 4) < FOCUS_SHARE
+    let x: number
+    let z: number
+    if (focused) {
+      // Box–Muller: two uniform numbers → a point from a 2-D bell curve
+      const rad = FOCUS_SPREAD * Math.sqrt(-2 * Math.log(Math.max(hash01(seed, 5), 1e-9)))
+      const ang = hash01(seed, 6) * Math.PI * 2
+      x = rad * Math.cos(ang)
+      z = rad * Math.sin(ang)
+      if (x < WORLD.x0 || x > WORLD.x1 || z < WORLD.z0 || z > WORLD.z1) continue
+    } else {
+      x = WORLD.x0 + hash01(seed, 1) * (WORLD.x1 - WORLD.x0)
+      z = WORLD.z0 + hash01(seed, 2) * (WORLD.z1 - WORLD.z0)
+    }
     const keepRoll = hash01(seed, 3)
     if (voxel) {
-      x = voxel.xz(x)
-      z = voxel.xz(z)
+      x = voxel.x(x)
+      z = voxel.z(z)
     }
 
-    if (maskOn && !maskAt(mask, x, z)) continue // cheapest test first
+    if (maskOn && !maskAt(mask, x, z)) continue
     const h = height(x, z, params)
-    if (h < minY || h > maxY) continue // grass band only
+    if (h < loY || h > hiY) continue // grass band only
 
     // stands: a slow noise field decides how likely each spot is to keep a tree
     const density = forestNoise.noise(x * 0.05, z * 0.05, params.seed) // -1..1
@@ -284,7 +317,7 @@ export function scatterTrees(
     let wet = 0
     for (let a = 0; a < 8; a++) {
       const ang = a * (Math.PI / 4)
-      if (height(x + Math.cos(ang) * EXPOSURE_RADIUS, z + Math.sin(ang) * EXPOSURE_RADIUS, params) < sea) wet++
+      if (height(x + Math.cos(ang) * EXPOSURE_RADIUS, z + Math.sin(ang) * EXPOSURE_RADIUS, params) < 0) wet++
     }
     const gx2 = (height(x + STEP, z, params) - h) / STEP
     const gz2 = (height(x, z + STEP, params) - h) / STEP
@@ -301,6 +334,7 @@ export function scatterTrees(
     const size = scaleLo + size01 * (scaleHi - scaleLo)
     out.push({
       i: out.length,
+      h,
       seed,
       // sit on the block's actual top face, not the smooth in-between height
       pos: [x, voxel ? voxel.y(h) : h, z],

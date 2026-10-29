@@ -1,6 +1,8 @@
 import { ImprovedNoise } from 'three/examples/jsm/math/ImprovedNoise.js'
 import { cellular2 } from '../noise/cellularNoise'
-import { ISLAND_LENGTH, MAP_SIZE } from './mapSize'
+import { MAP_SIZE } from './mapSize'
+import { coastDistance, islandDistance, WORLD } from './world/shore'
+import { islandWiden } from './world/region'
 import { sampleEdits, type TerrainEdits } from './terraform'
 import { erode } from './erosion'
 
@@ -19,8 +21,7 @@ export type TerrainParams = {
   redistribution: number // shaping exponent: <1 lifts lowlands into plateaus, >1 flattens valleys + sharpens peaks
   terraces: number // shaping: quantize height into this many steps (0 = off)
   resolution: number // grid segments per side — calibrates topography detail vs. cost
-  island: boolean // mask the noise into the Roosevelt Island outline
-  islandWidth: number // width multiplier — 0.45 ≈ true scale, 1 = legible
+  islandWidth: number // Roosevelt Island's width multiplier — 0.4 = its real width at true scale, 1 = legible
   offsetX: number // pan through the noise field, in sampled (post-frequency) units
   offsetZ: number // — same coastline, different hills underneath; seed jumps, this slides
   seaLevel: number // world-Y height of the water surface — the land doesn't move, just what's submerged
@@ -45,7 +46,6 @@ export const TERRAIN_DEFAULTS: TerrainParams = {
   redistribution: 1,
   terraces: 0,
   resolution: 200,
-  island: true,
   islandWidth: 1,
   offsetX: 0,
   offsetZ: 0,
@@ -56,84 +56,31 @@ export const TERRAIN_DEFAULTS: TerrainParams = {
   vScale: 1,
 }
 
-// --- island shape -----------------------------------------------------------
+// --- city shape -------------------------------------------------------------
+//
+// The coastline is the real one (world/shore.ts gives the signed distance to
+// it: positive on land, negative in water). Height is built from that distance:
+//
+//   on land    noise relief × a bank that rises from the shore over BANK_UP
+//   in water   a river bed that deepens from the shore over SHELF, to SEABED_DEPTH
+//   at the map's edges  everything sinks to the river bed, so the map ends in sea
 
-const ISLAND_HALF_WIDTH = 9 // world units at the widest point, before islandWidth
 const SEABED_DEPTH = 4 // how far below sea level the river bottom sits
-
-/**
- * Roosevelt Island half-width, north tip (t=0) → south tip (t=1), as a fraction
- * of the widest point. Traced off the RIOC island map — the real thing is a
- * 3.2 km ribbon that swells at the north hospital campus, pinches below
- * Blackwell, swells again at the Tram, then tapers to a point.
- */
-const PROFILE = [
-  0.05, // 0.00  north tip — Lighthouse point
-  0.5, //  0.05  Lighthouse Park
-  0.88, // 0.10  Coler North Campus
-  1.0, //  0.15  widest point
-  0.92, // 0.20  Coler North Campus, lower
-  0.66, // 0.25  Tennis Courts — pinch
-  0.6, //  0.30  Community Garden
-  0.7, //  0.35  The Octagon
-  0.76, // 0.40  Motorgate
-  0.84, // 0.45  Roosevelt Island Bridge landing (bulges east)
-  0.7, //  0.50  Capobianco Field
-  0.6, //  0.55  Rivercross Lawn
-  0.66, // 0.60  Blackwell Park
-  0.52, // 0.65  pinch below Blackwell
-  0.56, // 0.70  Riverwalk Commons
-  0.62, // 0.75  Firefighters Field
-  0.7, //  0.80  Tram Station / Sportspark
-  0.72, // 0.85  Coler South Campus
-  0.58, // 0.90  Southpoint Openspace
-  0.34, // 0.95  Four Freedoms Park
-  0.04, // 1.00  south tip
-]
-
-/** Centreline drift, same sampling — keeps the island from being a sausage. */
-const DRIFT = [
-  -0.3, -0.18, -0.06, 0.0, -0.02, -0.1, -0.14, -0.1, -0.02, 0.1, 0.12, 0.08,
-  0.1, 0.04, 0.02, 0.04, 0.08, 0.06, 0.0, -0.06, -0.1,
-]
+const BANK_UP = 3.5 // units from the shore over which the land climbs to full height (~120 m)
+const SHELF = 6 // units from the shore over which the bed drops to full depth (~200 m)
+// Relief: Roosevelt Island is a low park (its highest ground is ~7 m). Manhattan
+// beside it is a little higher and hillier. In the real city the island sits
+// below the Manhattan shore; keep that relationship.
+const ISLAND_RELIEF = 0.7
+const URBAN_RELIEF = 0.55
+const URBAN_LIFT = 0.45 // units (~15 m) the rest of the city is raised above the island's base
+const EDGE_FADE = 40 // units: how far in from the map's edge the land sinks into the sea
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v)
 
 const smoothstep = (edge0: number, edge1: number, v: number) => {
   const t = clamp01((v - edge0) / (edge1 - edge0))
   return t * t * (3 - 2 * t)
-}
-
-/** Linearly interpolate a control-point table at t ∈ 0..1. */
-function sample(table: number[], t: number): number {
-  const f = clamp01(t) * (table.length - 1)
-  const i = Math.floor(f)
-  const j = Math.min(i + 1, table.length - 1)
-  const k = f - i
-  return table[i] * (1 - k) + table[j] * k
-}
-
-/**
- * 1 inland, 0 out in the East River, with a soft band at the waterline.
- * Multiplying the noise by this is what turns a square of hills into an island.
- */
-export function islandMask(x: number, z: number, p: TerrainParams): number {
-  const halfLen = (MAP_SIZE * ISLAND_LENGTH) / 2
-  const t = (z + halfLen) / (halfLen * 2) // 0 = north tip, 1 = south tip
-  if (t < 0 || t > 1) return 0
-
-  const scale = ISLAND_HALF_WIDTH * p.islandWidth
-  const halfWidth = sample(PROFILE, t) * scale
-  if (halfWidth < 0.05) return 0
-  const centre = sample(DRIFT, t) * scale * 2
-
-  // nibble the coastline with noise so the shore isn't a clean spline;
-  // sampling each bank separately keeps east and west shores different
-  const bank = x >= centre ? 4.7 : -4.7
-  const wobble = perlin.noise(z * 0.09 + p.seed, bank, p.seed * 0.7) * 0.1
-
-  const d = Math.abs(x - centre) / halfWidth + wobble
-  return smoothstep(1.0, 0.72, d) // 1 inland → 0 at the waterline
 }
 
 // --- height field -----------------------------------------------------------
@@ -209,29 +156,41 @@ function shape(n01: number, p: TerrainParams): number {
 }
 
 /**
- * The shaped noise field as 0..1, BEFORE the island mask — what the noise
+ * The shaped noise field as 0..1, BEFORE the coastline is applied — what the noise
  * equation itself produces. Drives the grayscale "Noise" inset view, and is
  * the same value height() builds the terrain from.
  */
 export function noise01(x: number, z: number, p: TerrainParams): number {
   const n = fbm(x, z, p)
-  // with the island on, fbm's normalised octaves rarely reach ±1, so stretch
-  // the usable range — otherwise everything bunches into one biome. With it
-  // off, keep the plain -1..1 → 0..1 map so the raw field reads as-is.
-  const n01 = p.island ? clamp01(0.5 + n * 1.15) : clamp01(0.5 + n * 0.5)
+  // fbm's normalised octaves rarely reach ±1, so stretch the usable range —
+  // otherwise everything bunches into one biome.
+  const n01 = clamp01(0.5 + n * 1.15)
   return shape(n01, p)
 }
 
-/** The procedural height alone — noise, shaping, and island mask, no edits. */
+/** The procedural height alone — noise, shaping and the real coastline, no edits. */
 function proceduralHeight(x: number, z: number, p: TerrainParams): number {
   const n01 = noise01(x, z, p)
-  if (!p.island) return (n01 * 2 - 1) * p.amplitude
+  const widen = islandWiden(p)
+  const d = coastDistance(x, z, widen) // + on land, − in water
+  const bed = SEABED_DEPTH * p.vScale
 
-  // lift the land clear of the waterline so the coast comes from the mask,
-  // not from the noise happening to dip below zero
-  const land = (0.12 + 0.88 * n01) * p.amplitude
-  const m = islandMask(x, z, p)
-  return land * m - SEABED_DEPTH * p.vScale * (1 - m)
+  let h: number
+  if (d >= 0) {
+    // lift the land clear of the waterline so the coast comes from the shoreline
+    // data, not from the noise happening to dip below zero
+    const onIsland = smoothstep(-0.5, 0.5, islandDistance(x, z, widen))
+    const relief = URBAN_RELIEF + (ISLAND_RELIEF - URBAN_RELIEF) * onIsland
+    const lift = URBAN_LIFT * (1 - onIsland) * (p.amplitude / 4)
+    h = ((0.12 + 0.88 * n01) * p.amplitude * relief + lift) * smoothstep(0, BANK_UP, d)
+  } else {
+    h = -bed * smoothstep(0, SHELF, -d)
+  }
+
+  // sink into the sea at the map's edges, so land never ends in a cliff
+  const edge = Math.min(x - WORLD.x0, WORLD.x1 - x, z - WORLD.z0, WORLD.z1 - z)
+  const keep = smoothstep(0, EDGE_FADE, edge)
+  return h * keep - bed * (1 - keep)
 }
 
 /** Procedural height plus the erosion offsets — everything but hand edits. */
@@ -248,7 +207,8 @@ export function erodeTerrain(p: TerrainParams): TerrainEdits | null {
   if (p.erosion <= 0) return null
   return erode(
     (x, z) => proceduralHeight(x, z, p),
-    (x, z) => (p.island ? smoothstep(0.3, 0.8, islandMask(x, z, p)) : 1),
+    // only land erodes — the river bed stays put
+    (x, z) => smoothstep(0.5, 3, coastDistance(x, z, islandWiden(p))),
     p.amplitude,
     p.erosion * 1000,
     p.seed,
@@ -258,11 +218,6 @@ export function erodeTerrain(p: TerrainParams): TerrainEdits | null {
 /** Final terrain height: the procedural surface plus any terraform edits. */
 export function height(x: number, z: number, p: TerrainParams): number {
   return baseHeight(x, z, p) + sampleEdits(p.edits, x, z) * p.vScale
-}
-
-/** Half-extent the island can reach in x — lets prop scattering skip the river. */
-export function islandXReach(p: TerrainParams): number {
-  return p.island ? ISLAND_HALF_WIDTH * p.islandWidth * 1.8 : MAP_SIZE * 0.48
 }
 
 // seeded PRNG (mulberry32) — Math.random() can't be seeded
@@ -276,3 +231,17 @@ export function makeRng(seed: number): () => number {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296 // 0..1
   }
 }
+
+/**
+ * Every setting that changes the SHAPE of the ground, i.e. what height()
+ * returns. Not sea level, which only changes where the water is drawn and what
+ * colour things are; not Resolution, which only changes how finely the smooth
+ * mesh samples it; not the erosion strength, which reaches height() through
+ * erosionGrid. Use as a React dependency list for anything expensive that
+ * shouldn't rebuild when the climate timeline moves the sea every frame.
+ */
+export const shapeKey = (p: TerrainParams): unknown[] => [
+  p.seed, p.amplitude, p.frequency, p.octaves, p.persistence, p.ridged,
+  p.noiseBlend, p.redistribution, p.terraces, p.islandWidth,
+  p.offsetX, p.offsetZ, p.vScale, p.edits, p.erosionGrid,
+]

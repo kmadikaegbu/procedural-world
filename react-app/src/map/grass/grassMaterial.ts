@@ -17,6 +17,8 @@ import { BANDS } from '../noise'
  * This shader works per PIXEL instead, but only where the ground is grass. For
  * each pixel it:
  *
+ *   0. only on parkland: land is green except where the Paving setting turns it
+ *      into paved city (Roosevelt Island always stays green)
  *   1. decides "is this grass?" from the height, with noise added so the edges
  *      with sand and rock wander like a real meadow's
  *   2. works out MOISTURE: wetter low down near the river, drier up high, with
@@ -46,6 +48,7 @@ export interface GrassUniforms {
   uWind: { value: number }
   uWet: { value: number }
   uSnow: { value: number }
+  uPaving: { value: number }
   uLushColor: { value: Color }
   uDryColor: { value: Color }
   uSoilColor: { value: Color }
@@ -68,6 +71,7 @@ function createUniforms(): GrassUniforms {
     uWind: { value: 1.5 },
     uWet: { value: 0 },
     uSnow: { value: 0 },
+    uPaving: { value: 0 },
     uLushColor: { value: new Color('#4f8a3a') },
     uDryColor: { value: new Color('#b3a45e') },
     uSoilColor: { value: new Color('#7a6248') },
@@ -80,6 +84,9 @@ function createUniforms(): GrassUniforms {
 // --- vertex stage: hand the fragment stage the world position and normal ------
 
 const VERT_HEADER = /* glsl */ `
+attribute float aIsland;   // 1 on Roosevelt Island (always parkland), 0 elsewhere
+uniform float uPaving;     // 0 = all land is parkland … 1 = paved city
+varying float vGreen;
 varying vec3 vGPos;
 varying vec3 vGNormal;
 `
@@ -90,6 +97,7 @@ vGNormal = normalize(mat3(modelMatrix) * objectNormal);
 const VERT_POS = /* glsl */ `
 #include <begin_vertex>
 vGPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+vGreen = max(1.0 - uPaving, aIsland);
 `
 
 // --- fragment stage -----------------------------------------------------------
@@ -113,6 +121,7 @@ uniform vec3 uSoilColor;
 uniform vec3 uSeasonTint;
 uniform float uSeasonMix;
 uniform float uSeasonDry;
+varying float vGreen;
 varying vec3 vGPos;
 varying vec3 vGNormal;
 ${NOISE_GLSL}
@@ -135,6 +144,7 @@ float gLo = uSea + uBands.x * gA;      // top of the sand
 float gHi = uSea + (uBands.y + 0.75 * (uBands.z - uBands.y)) * gA;
 float gW = smoothstep(gLo - 0.02 * gA, gLo + 0.06 * gA, gH)
          * (1.0 - smoothstep(gHi - 0.04 * gA, gHi + 0.03 * gA, gH));
+gW *= vGreen;                           // only parkland — the rest of the city is paved
 
 // 2. moisture: 1 = lush, 0 = parched. Low ground near the river holds water,
 //    high ground drains and dries; patches at two sizes break it up
@@ -172,6 +182,28 @@ gCol *= 1.0 - 0.2 * uWet;
 // 8. apply only on grass, and not under snow
 float gMix = gW * (1.0 - uSnow);
 diffuseColor.rgb = mix(diffuseColor.rgb, gCol, gMix);
+
+// 9. the built-up city: a faint street grid, turned 29° like Manhattan's real
+//    one (avenues run north-north-east), with each block a slightly different
+//    tone. It only shows on built ground above the waterline, and fades out with
+//    distance — a pattern this fine would just shimmer from far away.
+float gAbove = smoothstep(uSea + 0.005 * gA, uSea + 0.075 * gA, vGPos.y);   // relative to the terrain height, so it holds at any scale
+float gUrban = (1.0 - vGreen) * gAbove * (1.0 - uSnow);
+if (gUrban > 0.0) {
+  vec2 aveDir = vec2(0.4848, -0.8746);          // along the avenues (x east, z south)
+  vec2 stDir = vec2(0.8746, 0.4848);            // along the cross streets
+  float a = dot(gp, aveDir) / 2.4;              // cross streets are ~80 m apart
+  float b = dot(gp, stDir) / 5.8;               // avenues are ~190 m apart
+  vec2 cell = floor(vec2(a, b));
+  float block = wHash(cell + 17.0);             // tone for this block
+  float la = abs(fract(a) - 0.5);
+  float lb = abs(fract(b) - 0.5);
+  float street = max(smoothstep(0.43, 0.5, la), smoothstep(0.455, 0.5, lb));
+  float near = 1.0 - smoothstep(60.0, 260.0, length(vViewPosition));
+  float tone = 1.0 + (block - 0.5) * 0.16 * (0.4 + 0.6 * near) - street * 0.26 * near;
+  tone *= 0.96 + 0.08 * fbm2(gp * 0.8);         // broad drifting of tone, so it isn't a flat sheet
+  diffuseColor.rgb *= mix(1.0, tone, gUrban);
+}
 `
 
 // wet grass is shinier

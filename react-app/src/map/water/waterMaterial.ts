@@ -38,9 +38,18 @@ export interface WaterUniforms {
   uMapSize: { value: number }
   /** Vertical scale (1 readable, 1/15 true to scale) — see scale.ts */
   uVScale: { value: number }
+  /** Fine depth map over the detail square (see depthMap.ts). */
   uDepthTex: { value: DataTexture | null }
-  /** x = hMin, y = hRange (see depthMap.ts) */
+  /** x = hMin, y = hRange */
   uDepthInfo: { value: Vector4 }
+  /** Coarse depth map over the whole city. */
+  uWideTex: { value: DataTexture | null }
+  /** x = hMin, y = hRange, z = world x of the image's left edge, w = world z of its top edge */
+  uWideInfo: { value: Vector4 }
+  /** x, y = world size of the coarse image */
+  uWideSize: { value: Vector4 }
+  /** 1 when the mesh spans the whole city (so the coarse map is used beyond the detail square) */
+  uUseWide: { value: number }
   /** per wave: x,y = direction, z = k, w = height weight */
   uWaves: { value: Vector4[] }
   /** per wave: crest speed */
@@ -65,6 +74,10 @@ export function createWaterUniforms(): WaterUniforms {
     uVScale: { value: 1 },
     uDepthTex: { value: null },
     uDepthInfo: { value: new Vector4(0, 1, 0, 0) },
+    uWideTex: { value: null },
+    uWideInfo: { value: new Vector4(0, 1, 0, 0) },
+    uWideSize: { value: new Vector4(1, 1, 0, 0) },
+    uUseWide: { value: 0 },
     uWaves: { value: Array.from({ length: WAVE_COUNT }, () => new Vector4()) },
     uWaveSpeed: { value: Array<number>(WAVE_COUNT).fill(0) },
     uWaveHeight: { value: 0.1 },
@@ -89,16 +102,40 @@ uniform float uMapSize;
 uniform float uVScale;
 uniform sampler2D uDepthTex;
 uniform vec4 uDepthInfo;
+uniform sampler2D uWideTex;
+uniform vec4 uWideInfo;
+uniform vec4 uWideSize;
+uniform float uUseWide;
 
-// How deep is the water at this spot? Read the terrain height from the depth map
-// and subtract it from the sea level. Negative = dry land.
+// Depth from the fine map (detail square) and from the coarse map (whole city):
+// the sea level minus the terrain height stored in the image.
+float depthFine(vec2 xz) {
+  vec2 uv = xz / uMapSize + 0.5;
+  return uLevel - (texture2D(uDepthTex, uv).r * uDepthInfo.y + uDepthInfo.x);
+}
+float depthWide(vec2 xz) {
+  vec2 uv = (xz - uWideInfo.zw) / uWideSize.xy;
+  return uLevel - (texture2D(uWideTex, uv).r * uWideInfo.y + uWideInfo.x);
+}
+
+// How deep is the water at this spot? Negative = dry land.
+// Inside the detail square the fine map is used, outside it the coarse one, with
+// a soft hand-over across the square's last 10 units so there is no visible seam.
 // Divided by the vertical scale, so depth is always measured in the units the
 // shader's thresholds were tuned in (clarity, shore foam, wave damping): a river
 // drawn at true scale (15× shallower) still looks as deep as it really is.
 float waterDepth(vec2 xz) {
-  vec2 uv = xz / uMapSize + 0.5;
-  float h = texture2D(uDepthTex, uv).r * uDepthInfo.y + uDepthInfo.x;
-  return (uLevel - h) / uVScale;
+  float d;
+  if (uUseWide > 0.5) {
+    float edge = max(abs(xz.x), abs(xz.y));
+    float fineW = 1.0 - smoothstep(uMapSize * 0.5 - 10.0, uMapSize * 0.5, edge);
+    float a = fineW > 0.0 ? depthFine(xz) : 0.0;
+    float b = fineW < 1.0 ? depthWide(xz) : 0.0;
+    d = mix(b, a, fineW);
+  } else {
+    d = depthFine(xz);
+  }
+  return d / uVScale;
 }
 `
 

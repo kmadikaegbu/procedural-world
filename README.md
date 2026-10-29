@@ -1,9 +1,11 @@
-# Procedural World Building — Roosevelt Island
+# Procedural World Building — New York City
 
-A procedurally generated **Roosevelt Island, NYC**, built in the browser with
-React and three.js. Seeded fractal noise becomes a height-field terrain that's
-masked to the real island outline. On top of that terrain sit biomes,
-scattered trees, a full weather system, a voxel rendering mode, and a climate
+A procedurally generated **New York City**, built in the browser with React and
+three.js, with **Roosevelt Island** as its detailed centrepiece. The coastline
+is the real one (the city's own shoreline data: Manhattan, the Hudson, East and
+Harlem rivers, Queens, Brooklyn and Roosevelt Island in its true place). Seeded
+fractal noise supplies the land's relief; on top sit biomes, procedural trees,
+grass and water, a full weather system, a voxel rendering mode, and a climate
 timeline that floods the coast between 1950 and 2100.
 
 **▶ Live demo:** https://procedural-world-design-app.web.app
@@ -100,12 +102,12 @@ procedural-world/
 
 ## The app at a glance
 
-The app has **three scenes**, switched from the control panel:
+The app has **two scenes**, switched from the control panel:
 
 | Scene | What it shows |
 | --- | --- |
-| **Map** | Smooth shaded terrain on the Roosevelt Island outline, with biomes, trees, water, and weather |
-| **Voxel** | The same terrain parameters drawn as instanced cubes, with trees snapped to the voxel grid |
+| **Map** | All of New York City (about 21 × 26 km) as smooth shaded terrain: fine detail around Roosevelt Island, coarser toward the edges. Trees, grass, ivy and parkland are on the island; the rest of the city is paved, with a faint street grid. |
+| **Voxel** | The whole city drawn as instanced cubes, with trees snapped to the voxel grid |
 
 The Map and Voxel scenes share one parameter set, controlled from the panel:
 
@@ -176,11 +178,13 @@ react-app/src/
 ├── App.css, index.css  panel styling and theme tokens
 │
 ├── map/                Map and Voxel scenes
-│   ├── noise.ts        seeded fractal noise heightfield, shaping ops,
-│   │                   island mask; TerrainParams and its defaults
+│   ├── noise.ts        seeded fractal noise heightfield, shaping ops, and
+│   │                   the coastline-driven height model; TerrainParams
+│   ├── world/          the real NYC shoreline: signed-distance fields,
+│   │                   variable-density grids, where trees may grow
 │   ├── terraform.ts    terraform edit grid: sampling + brush math
 │   ├── TerraformBrush.tsx  pointer handling + brush cursor for sculpting
-│   ├── mapSize.ts      MAP_SIZE, shared by noise.ts and terraform.ts
+│   ├── mapSize.ts      MAP_SIZE: the 100-unit detail square around the island
 │   ├── biomes.ts       height → biome color ramp (shared by both scenes)
 │   ├── Terrain.tsx     smooth terrain mesh
 │   ├── VoxelTerrain.tsx  instanced-cube terrain + grid-snapping helpers

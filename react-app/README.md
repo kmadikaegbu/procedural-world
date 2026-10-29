@@ -35,6 +35,7 @@ src/
 │   ├── water/    procedural water: waves, depth colour, foam, panel
 │   ├── grass/    procedural grass on the terrain: moisture, bare slopes, wind sheen
 │   ├── glsl/     shader snippets shared by water and grass (noise)
+│   ├── world/    the real NYC shoreline: signed-distance fields, variable-density grids
 │   └── scale.ts  the world's ruler: metres ↔ units, exaggeration per category
 ├── weather/      sky, fog, clouds, rain/snow (used by Map and Voxel)
 └── noise/        cellular (Worley) noise used by the terrain
@@ -49,8 +50,9 @@ src/
 - **Deterministic generation.** `map/noise.ts` builds the heightfield from
   seeded fractal noise: Perlin and/or cellular, blended per octave, with
   optional ridging. It then applies the shaping ops (redistribute, terraces)
-  and multiplies the result by a Roosevelt Island outline mask. The same
-  seed and params always give the same island.
+  and builds the land from it: height depends on the distance to New
+  York City's real coastline (see Real coastline below). The same seed and
+  params always give the same city.
 - **Shared terrain, two renderers.** `Terrain.tsx` (smooth mesh) and
   `VoxelTerrain.tsx` (instanced cubes) both sample the same height function
   and color it through `biomes.ts`, so the two scenes always match.
@@ -78,6 +80,35 @@ src/
 2. Read it where it's used (the noise function, a scene component, …).
 3. Add a slider or checkbox in the matching tab in `App.tsx`, with a
    `title="…"` tooltip explaining what it does, like every other control.
+
+## Real coastline (New York City)
+
+The land and water come from New York City's own shoreline data, not a hand-drawn
+outline. `scripts/build-nyc-shore.mjs` downloads the Department of City
+Planning's *Borough Boundaries (Clipped to Shoreline)*, projects it into the
+project's coordinates (**1 unit = 33.5 m**, Roosevelt Island's centre at the
+origin, +x east, +z south), clips and simplifies it, and writes
+`src/map/world/nycShore.json` (about 70 KB). Re-run it with
+`node scripts/build-nyc-shore.mjs` to rebuild.
+
+- **Distance to the coast.** `world/sdf.ts` paints the shoreline polygons into
+  a grid and computes, for every cell, the signed distance to the coast
+  (positive on land, negative in water). `world/shore.ts` samples it
+  smoothly. Height is built from that distance: land climbs from the shore
+  over a gentle bank, the river bed deepens offshore, and everything sinks
+  into the sea at the map's edges. Roosevelt Island is a separate field, so
+  the readable scale can fatten just the island (capped, so the West Channel
+  stays open).
+- **Variable-density meshes.** `world/grid.ts` spaces grid lines finely inside
+  the 100-unit *detail square* around the island and wider toward the edges,
+  so the whole city (about 164,000 vertices) is one seamless surface.
+  Every control (sculpting, erosion, tree painting, Voxel, minimap) works on
+  the whole city.
+- **Parkland vs. city.** Trees and grass grow everywhere on suitable land;
+  Roosevelt Island is always parkland. The Paving slider turns the rest of the
+  city paved grey with a faint street grid turned 29° like
+  Manhattan's, which fades with distance.
+- Not in the data: New Jersey (the map ends mid-Hudson), buildings and parks.
 
 ## Procedural trees
 

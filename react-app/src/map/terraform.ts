@@ -3,29 +3,39 @@
 // in TerrainParams, everything that reads height() — smooth mesh, voxels,
 // biomes, tree placement, minimap — picks up an edit with no extra wiring.
 
-import { MAP_SIZE } from './mapSize'
+import { WORLD } from './world/shore'
+import { makeSpec } from './world/spec'
 
-// cells per side; ~0.8 world units per cell is finer than the voxels (1.5)
-// and plenty for brush strokes several units across
-export const EDIT_RES = 128
+// One grid over the WHOLE city. ~1.2 world units (40 m) per cell is finer than
+// the voxels (2.5) and plenty for brush strokes several units across.
+export const EDIT_GRID = makeSpec(WORLD, 1.2)
 
 // how far a stroke can push the land up or down, in world units
 const MAX_OFFSET = 24
 
 export type TerrainEdits = {
-  res: number
-  data: Float32Array // res × res height offsets, row-major by z then x
+  data: Float32Array // EDIT_GRID.w × EDIT_GRID.h height offsets, row-major by z then x
 }
 
 export type BrushTool = 'raise' | 'lower' | 'flatten'
 
 export function emptyEdits(): TerrainEdits {
-  return { res: EDIT_RES, data: new Float32Array(EDIT_RES * EDIT_RES) }
+  return { data: new Float32Array(EDIT_GRID.w * EDIT_GRID.h) }
 }
 
-const half = MAP_SIZE / 2
-const toGrid = (v: number, res: number) => ((v + half) / MAP_SIZE) * (res - 1)
-const fromGrid = (g: number, res: number) => (g / (res - 1)) * MAP_SIZE - half
+const toGridX = (x: number) => (x - EDIT_GRID.x0) / EDIT_GRID.cell
+const toGridZ = (z: number) => (z - EDIT_GRID.z0) / EDIT_GRID.cell
+const fromGridX = (g: number) => EDIT_GRID.x0 + g * EDIT_GRID.cell
+const fromGridZ = (g: number) => EDIT_GRID.z0 + g * EDIT_GRID.cell
+
+// Edits fade to nothing over the last few units of the map, so a stroke near
+// the edge never leaves a step against the sea beyond it.
+const EDGE_FADE = 4
+const edgeFade = (x: number, z: number) => {
+  const d = Math.min(x - WORLD.x0, WORLD.x1 - x, z - WORLD.z0, WORLD.z1 - z)
+  const t = Math.min(1, Math.max(0, d / EDGE_FADE))
+  return t * t * (3 - 2 * t)
+}
 
 /** Bilinear height offset at world (x, z); 0 outside the map or with no edits. */
 export function sampleEdits(
@@ -34,20 +44,21 @@ export function sampleEdits(
   z: number,
 ): number {
   if (!edits) return 0
-  const { res, data } = edits
-  const gx = toGrid(x, res)
-  const gz = toGrid(z, res)
-  if (gx < 0 || gz < 0 || gx > res - 1 || gz > res - 1) return 0
+  const { w, h } = EDIT_GRID
+  const gx = toGridX(x)
+  const gz = toGridZ(z)
+  if (gx < 0 || gz < 0 || gx > w - 1 || gz > h - 1) return 0
 
-  const i = Math.min(Math.floor(gx), res - 2)
-  const j = Math.min(Math.floor(gz), res - 2)
+  const i = Math.min(Math.floor(gx), w - 2)
+  const j = Math.min(Math.floor(gz), h - 2)
   const fx = gx - i
   const fz = gz - j
-  const a = data[j * res + i]
-  const b = data[j * res + i + 1]
-  const c = data[(j + 1) * res + i]
-  const d = data[(j + 1) * res + i + 1]
-  return (a * (1 - fx) + b * fx) * (1 - fz) + (c * (1 - fx) + d * fx) * fz
+  const data = edits.data
+  const a = data[j * w + i]
+  const b = data[j * w + i + 1]
+  const c = data[(j + 1) * w + i]
+  const d = data[(j + 1) * w + i + 1]
+  return ((a * (1 - fx) + b * fx) * (1 - fz) + (c * (1 - fx) + d * fx) * fz) * edgeFade(x, z)
 }
 
 /**
@@ -62,7 +73,6 @@ export function sampleEdits(
  */
 export function applyBrush(
   data: Float32Array,
-  res: number,
   tool: BrushTool,
   cx: number,
   cz: number,
@@ -72,21 +82,22 @@ export function applyBrush(
   target: number,
   baseHeight: (x: number, z: number) => number,
 ): void {
-  const r = (radius / MAP_SIZE) * (res - 1) // radius in cells
-  const gi0 = Math.max(0, Math.floor(toGrid(cx, res) - r))
-  const gi1 = Math.min(res - 1, Math.ceil(toGrid(cx, res) + r))
-  const gj0 = Math.max(0, Math.floor(toGrid(cz, res) - r))
-  const gj1 = Math.min(res - 1, Math.ceil(toGrid(cz, res) + r))
+  const { w, h } = EDIT_GRID
+  const r = radius / EDIT_GRID.cell // radius in cells
+  const gi0 = Math.max(0, Math.floor(toGridX(cx) - r))
+  const gi1 = Math.min(w - 1, Math.ceil(toGridX(cx) + r))
+  const gj0 = Math.max(0, Math.floor(toGridZ(cz) - r))
+  const gj1 = Math.min(h - 1, Math.ceil(toGridZ(cz) + r))
 
   for (let j = gj0; j <= gj1; j++) {
-    const z = fromGrid(j, res)
+    const z = fromGridZ(j)
     for (let i = gi0; i <= gi1; i++) {
-      const x = fromGrid(i, res)
+      const x = fromGridX(i)
       const d2 = ((x - cx) ** 2 + (z - cz) ** 2) / (radius * radius)
       if (d2 >= 1) continue
       const falloff = (1 - d2) * (1 - d2) // smooth dome, 1 at centre → 0 at rim
 
-      const k = j * res + i
+      const k = j * w + i
       let v = data[k]
       if (tool === 'flatten') {
         const want = target - baseHeight(x, z)

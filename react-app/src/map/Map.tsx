@@ -24,6 +24,7 @@ export function Map({
   grass,
   weather,
   main = false,
+  quality = 'high',
   onLodStats,
   onPlaced,
   wireframe = false,
@@ -41,6 +42,8 @@ export function Map({
   weather?: WeatherParams
   /** The main 3D view rather than the minimap — LOD and stats only apply here. */
   main?: boolean
+  /** 'low' builds much lighter ground and water meshes — for the minimap. */
+  quality?: 'high' | 'low'
   onLodStats?: (r: LodReadout) => void
   onPlaced?: (drawn: number, fit: number) => void
   wireframe?: boolean
@@ -55,6 +58,7 @@ export function Map({
     <group>
       <Terrain
         params={params}
+        quality={quality}
         wireframe={wireframe}
         snowing={snowing}
         snowIntensity={snowIntensity}

@@ -21,6 +21,9 @@ import { SEASONS, type Season } from './seasons'
  * Positions come from each tree's own seed, so they don't jump around when
  * the season changes, only appear or disappear.
  */
+// the most fallen leaves drawn at once, however many trees there are
+const MAX_FALLEN = 60000
+
 export function FallenLeaves({
   trees,
   params,
@@ -50,7 +53,8 @@ export function FallenLeaves({
 
   const look = SEASONS[season]
   const data = useMemo(() => {
-    const per = look.fallenPerTree
+    // cap the total, so a city-sized forest doesn't mean hundreds of thousands of leaves
+    const per = Math.min(look.fallenPerTree, Math.floor(MAX_FALLEN / Math.max(trees.length, 1)))
     const total = trees.length * per
     const matrices = new Float32Array(total * 16)
     const colors = new Float32Array(total * 3)

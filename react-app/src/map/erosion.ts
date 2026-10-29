@@ -4,10 +4,10 @@
 // the terraform edits), so it layers on top of the noise without touching it:
 // valleys deepen, sediment fans out below them, and ridges sharpen.
 
-import { MAP_SIZE } from './mapSize'
-import type { TerrainEdits } from './terraform'
+import { EDIT_GRID, type TerrainEdits } from './terraform'
 
-export const EROSION_RES = 256
+// The simulation runs on the same grid as the sculpt edits (the whole city,
+// ~1.2 units per cell), so its result is simply stored as a TerrainEdits.
 
 // droplet tuning, in grid-cell units on heights normalised by amplitude
 const INERTIA = 0.05 // how much a droplet keeps its heading vs. following the slope
@@ -20,6 +20,8 @@ const GRAVITY = 4
 const MAX_STEPS = 48
 const RADIUS = 2 // erosion brush radius, in cells — smooths out pitting
 const MAX_DEPTH = 0.3 // cap on |offset| as a fraction of amplitude
+const FOCUS_SHARE = 0.5 // share of drops clustered around Roosevelt Island
+const FOCUS_SPREAD = 32 // …and how far they spread, in cells (~38 world units)
 
 /** mulberry32, local copy so this module doesn't import noise.ts (cycle). */
 function rng(seed: number): () => number {
@@ -46,21 +48,19 @@ export function erode(
   drops: number,
   seed: number,
 ): TerrainEdits {
-  const n = EROSION_RES
-  const half = MAP_SIZE / 2
-  const toWorld = (g: number) => (g / (n - 1)) * MAP_SIZE - half
+  const { w, h } = EDIT_GRID
   const amp = Math.max(amplitude, 0.001)
 
-  const base = new Float32Array(n * n)
-  const land = new Float32Array(n * n)
-  for (let j = 0; j < n; j++) {
-    for (let i = 0; i < n; i++) {
-      const x = toWorld(i)
-      const z = toWorld(j)
+  const base = new Float32Array(w * h)
+  const land = new Float32Array(w * h)
+  for (let j = 0; j < h; j++) {
+    const z = EDIT_GRID.z0 + j * EDIT_GRID.cell
+    for (let i = 0; i < w; i++) {
+      const x = EDIT_GRID.x0 + i * EDIT_GRID.cell
       // the river bed is flattened for the sim so droplets stop at the shore
       // instead of carving the cliff down to the seabed
-      base[j * n + i] = Math.max(heightAt(x, z), 0) / amp
-      land[j * n + i] = landAt(x, z)
+      base[j * w + i] = Math.max(heightAt(x, z), 0) / amp
+      land[j * w + i] = landAt(x, z)
     }
   }
   const map = Float32Array.from(base)
@@ -73,16 +73,20 @@ export function erode(
     for (let di = -RADIUS; di <= RADIUS; di++) {
       const d = Math.hypot(di, dj)
       if (d > RADIUS) continue
-      const w = 1 - d / (RADIUS + 1)
-      offsets.push(dj * n + di)
-      weights.push(w)
-      wsum += w
+      const wt = 1 - d / (RADIUS + 1) // not `w`: that's the grid width, the row stride below
+      offsets.push(dj * w + di)
+      weights.push(wt)
+      wsum += wt
     }
   }
   for (let k = 0; k < weights.length; k++) weights[k] /= wsum
 
   const rand = rng(seed * 9973 + 17)
-  const last = n - 1
+  const lastX = w - 1
+  const lastY = h - 1
+  // where the map's origin (Roosevelt Island's centre) sits on the grid, in cells
+  const originX = -EDIT_GRID.x0 / EDIT_GRID.cell
+  const originZ = -EDIT_GRID.z0 / EDIT_GRID.cell
 
   // height + gradient at a fractional grid position (bilinear)
   const sampleAt = (px: number, py: number) => {
@@ -90,11 +94,11 @@ export function erode(
     const j = Math.floor(py)
     const fx = px - i
     const fy = py - j
-    const k = j * n + i
+    const k = j * w + i
     const a = map[k]
     const b = map[k + 1]
-    const c = map[k + n]
-    const d = map[k + n + 1]
+    const c = map[k + w]
+    const d = map[k + w + 1]
     return {
       h: (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy,
       gx: (b - a) * (1 - fy) + (d - c) * fy,
@@ -104,21 +108,34 @@ export function erode(
 
   // add `amount` (normalised height) around cell (ci, cj), weighted by the brush
   const spread = (ci: number, cj: number, amount: number) => {
-    const centre = cj * n + ci
+    const centre = cj * w + ci
     for (let k = 0; k < offsets.length; k++) {
       const idx = centre + offsets[k]
-      if (idx < 0 || idx >= n * n) continue
-      const ii = idx % n
+      if (idx < 0 || idx >= w * h) continue
+      const ii = idx % w
       if (Math.abs(ii - ci) > RADIUS) continue // wrapped across a row edge
       map[idx] += amount * weights[k] * land[idx]
     }
   }
 
   for (let drop = 0; drop < drops; drop++) {
-    let px = RADIUS + rand() * (last - 2 * RADIUS - 1)
-    let py = RADIUS + rand() * (last - 2 * RADIUS - 1)
+    // Half the rain falls in a bell-shaped cluster around Roosevelt Island (the
+    // map's origin), thinning smoothly outward; the rest anywhere. Spread evenly
+    // over the whole city, a given drop count would barely mark the island.
+    let px: number
+    let py: number
+    if (rand() < FOCUS_SHARE) {
+      const rad = FOCUS_SPREAD * Math.sqrt(-2 * Math.log(Math.max(rand(), 1e-9)))
+      const ang = rand() * Math.PI * 2
+      px = originX + rad * Math.cos(ang)
+      py = originZ + rad * Math.sin(ang)
+      if (px < RADIUS || py < RADIUS || px > lastX - RADIUS - 1 || py > lastY - RADIUS - 1) continue
+    } else {
+      px = RADIUS + rand() * (lastX - 2 * RADIUS - 1)
+      py = RADIUS + rand() * (lastY - 2 * RADIUS - 1)
+    }
     // only rain on land: a droplet in the river has nothing to carve
-    if (land[Math.floor(py) * n + Math.floor(px)] < 0.5) continue
+    if (land[Math.floor(py) * w + Math.floor(px)] < 0.5) continue
 
     let dx = 0
     let dy = 0
@@ -141,7 +158,7 @@ export function erode(
 
       const nx = px + dx
       const ny = py + dy
-      if (nx < RADIUS || ny < RADIUS || nx >= last - RADIUS || ny >= last - RADIUS) break
+      if (nx < RADIUS || ny < RADIUS || nx >= lastX - RADIUS || ny >= lastY - RADIUS) break
 
       const dh = sampleAt(nx, ny).h - h // negative = downhill
       const capacity =
@@ -169,11 +186,11 @@ export function erode(
     }
   }
 
-  const data = new Float32Array(n * n)
+  const data = new Float32Array(w * h)
   const cap = MAX_DEPTH * amp
   for (let k = 0; k < data.length; k++) {
     const d = (map[k] - base[k]) * amp
     data[k] = d > cap ? cap : d < -cap ? -cap : d
   }
-  return { res: n, data }
+  return { data }
 }

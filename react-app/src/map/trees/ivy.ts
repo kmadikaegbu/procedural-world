@@ -1,5 +1,6 @@
 import { Color, Vector3, type BufferGeometry } from 'three'
-import { height, islandXReach, makeRng, MAP_SIZE, type TerrainParams } from '../noise'
+import { height, makeRng, type TerrainParams } from '../noise'
+import { WORLD } from '../world/shore'
 import { MeshBuilder } from './geometry'
 import type { Leaf, Segment } from './turtle'
 import type { PlacedTree } from './scatter'
@@ -172,10 +173,9 @@ export function growIvy(
   // --- roots: half at the foot of a tree, half on steep ground
   type Tip = { p: Vector3; dir: Vector3; steps: number; radius: number }
   const roots: Tip[] = []
-  const xReach = islandXReach(params)
-  const zReach = MAP_SIZE * 0.48
-  for (let k = 0; k < s.plants; k++) {
-    if (k % 2 === 0 && trees.length) {
+  // (`k` below is the size ratio from the top of this function — the loop counter must not shadow it)
+  for (let plant = 0; plant < s.plants; plant++) {
+    if (plant % 2 === 0 && trees.length) {
       const tr = trunks[Math.floor(rng() * trunks.length)]
       const a = rng() * Math.PI * 2
       const p = tr.base
@@ -186,8 +186,9 @@ export function growIvy(
     } else {
       // look for a bank: somewhere above the water that slopes more than ~25°
       for (let tries = 0; tries < 60; tries++) {
-        const x = (rng() - 0.5) * 2 * xReach
-        const z = (rng() - 0.5) * 2 * zReach
+        // anywhere on the map: the height checks below decide which spots are banks
+        const x = WORLD.x0 + rng() * (WORLD.x1 - WORLD.x0)
+        const z = WORLD.z0 + rng() * (WORLD.z1 - WORLD.z0)
         if (ground(x, z) < params.seaLevel + 0.05) continue
         const n = groundNormal(x, z)
         if (n.y > 0.9) continue

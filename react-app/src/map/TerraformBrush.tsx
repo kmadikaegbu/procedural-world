@@ -4,15 +4,15 @@ import * as THREE from 'three'
 import { baseHeight, height, type TerrainParams } from './noise'
 import {
   applyBrush,
-  EDIT_RES,
+  EDIT_GRID,
   type BrushTool,
   type TerrainEdits,
 } from './terraform'
 
 // how often a stroke in progress is pushed into React state (and so how often
 // the terrain, voxels, trees, and minimap regenerate) — every frame would
-// stall the drag; ~12×/s keeps it feeling live
-const COMMIT_INTERVAL_MS = 80
+// stall the drag; ~7×/s keeps it feeling live on a city-sized map
+const COMMIT_INTERVAL_MS = 130
 
 // ring color per tool, from the app's palette (index.css)
 const TOOL_COLORS: Record<BrushTool, string> = {
@@ -81,7 +81,7 @@ export function TerraformBrush({
   const commit = () => {
     if (!working.current) return
     lastCommit.current = performance.now()
-    onChangeRef.current({ res: EDIT_RES, data: working.current.slice() })
+    onChangeRef.current({ data: working.current.slice() })
   }
 
   // end the stroke wherever the button is released — even off the canvas
@@ -122,7 +122,7 @@ export function TerraformBrush({
     onStrokeStart()
     working.current = p.edits
       ? p.edits.data.slice()
-      : new Float32Array(EDIT_RES * EDIT_RES)
+      : new Float32Array(EDIT_GRID.w * EDIT_GRID.h)
     flattenTarget.current = height(hit.point.x, hit.point.z, p)
     lastCommit.current = performance.now()
   }
@@ -139,7 +139,6 @@ export function TerraformBrush({
     const p = paramsRef.current
     applyBrush(
       working.current,
-      EDIT_RES,
       tool,
       h.x,
       h.z,

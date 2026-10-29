@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import type { TerrainParams } from './noise'
-import { snapToVoxelGrid, snapHeightToVoxelGrid } from './VoxelTerrain'
+import { grassRange, shapeKey, type TerrainParams } from './noise'
+import { snapVoxelX, snapVoxelZ, snapHeightToVoxelGrid } from './VoxelTerrain'
 import type { Forest } from './trees/forest'
 import { FallenLeaves } from './trees/FallenLeaves'
 import { LOD_COUNT } from './trees/geometry'
@@ -9,7 +9,7 @@ import { IvyMesh } from './trees/IvyMesh'
 import { LOD_OFF, LodManager, packForest, type LodReadout } from './trees/lod'
 import { LodRings } from './trees/LodRings'
 import { applySeason, useTreeMaterials } from './trees/materials'
-import { scatterTrees, treeMatrix } from './trees/scatter'
+import { scatterTrees, treeMatrix, type PlacedTree } from './trees/scatter'
 import { SEASONS } from './trees/seasons'
 import { ratios } from './scale'
 
@@ -50,7 +50,9 @@ export function Props({
   const materials = useTreeMaterials(look)
   useEffect(() => applySeason(SEASONS[season]), [season])
 
-  // WHERE: every spot that fits the rules, up to MAX_TREES; Count draws a prefix
+  // WHERE: every spot on grass at any sea level the timeline reaches, up to
+  // MAX_TREES. This depends on the SHAPE of the ground but not on sea level, so
+  // the climate timeline can move the sea without re-scattering the forest.
   const maskInUse = scatter.maskEnabled ? mask : null
   const trees = useMemo(
     () =>
@@ -59,24 +61,49 @@ export function Props({
         scatter,
         maskInUse,
         scatterSeed,
-        voxel ? { xz: snapToVoxelGrid, y: snapHeightToVoxelGrid } : undefined,
+        voxel
+          ? { x: snapVoxelX, z: snapVoxelZ, y: snapHeightToVoxelGrid }
+          : undefined,
         scaleMode,
       ),
-    [params, scatter, maskInUse, scatterSeed, voxel, scaleMode],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [...shapeKey(params), scatter, maskInUse, scatterSeed, voxel, scaleMode],
   )
-  const drawn = useMemo(() => trees.slice(0, count), [trees, count])
+  // which of them are on grass at the CURRENT sea level, then the first `count`
+  const [grassLo, grassHi] = grassRange(params)
+  const visible = useMemo(
+    () => trees.filter((t) => t.h >= grassLo && t.h <= grassHi),
+    [trees, grassLo, grassHi],
+  )
+  // The sea level moves every frame on the climate timeline, but the trees it
+  // picks only change when one crosses the grass band. Keep the same array until
+  // then, so the leaves, ivy and LOD selection below don't rebuild for nothing.
+  const lastDrawn = useRef<PlacedTree[]>([])
+  const drawn = useMemo(() => {
+    const next = visible.slice(0, count)
+    const prev = lastDrawn.current
+    if (next.length === prev.length && next.every((t, k) => t === prev[k])) return prev
+    lastDrawn.current = next
+    return next
+  }, [visible, count])
   useLayoutEffect(() => {
-    onPlaced?.(drawn.length, trees.length)
-  }, [onPlaced, drawn, trees])
+    onPlaced?.(drawn.length, visible.length)
+  }, [onPlaced, drawn, visible])
 
-  // HOW MUCH detail: the manager owns the per-frame level picking
+  // HOW MUCH detail: the manager owns the per-frame level picking. The pool
+  // (and the meshes sized from it) is the WHOLE scatter, so sea level and Count
+  // only change which of its trees are drawn, never the pool itself.
   const pool = useMemo(() => packForest(trees, treeSet, treeMatrix), [trees, treeSet])
   const manager = useMemo(() => new LodManager(), [])
   const acc = useRef({ frames: 0, time: 0 })
   useLayoutEffect(() => {
-    manager.configure(pool, treeSet, lod, count)
+    manager.configure(pool, treeSet, lod)
     acc.current = { frames: 0, time: 0 } // don't average FPS across a settings change
-  }, [manager, pool, treeSet, lod, count])
+  }, [manager, pool, treeSet, lod])
+  // after configure, so a new pool always gets this selection too
+  useLayoutEffect(() => {
+    manager.select(Uint32Array.from(drawn, (t) => t.i))
+  }, [manager, pool, drawn])
 
   useFrame((state, delta) => {
     manager.update(state.camera)

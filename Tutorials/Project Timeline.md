@@ -33,7 +33,10 @@ screenshots.
 | 12 | Oct 13 | Seasons, toon and flat looks, ivy |
 | 13 | Oct 21 | Procedural water |
 | 14 | Oct 21 | Readable header |
-| 15 | Now | Procedural grass (not yet committed) |
+| 15 | Oct 25 | Procedural grass |
+| 16 | Oct 25–27 | Real-world scale (Readable / True to scale) and natural tree sizes |
+| 17 | Oct 27 | The noise orb removed |
+| 18 | Now | **New York City**: the procedural world and Roosevelt Island combined |
 
 ---
 
@@ -230,7 +233,7 @@ The title now sits on a **dark glass card** so it reads on any sky, and turned
 
 ---
 
-## 15 — Procedural grass · now (not yet committed)
+## 15 — Procedural grass · Oct 25 · `956c9dc`
 
 The grass became a **per-pixel meadow**: ragged edges, lush and dry patches,
 bare slopes, fine grain, wind sheen, wetness after rain, and the same seasons
@@ -244,14 +247,62 @@ as the trees.
 
 ---
 
+## 16 — Real-world scale and natural trees · Oct 25–27 · `64a577c`
+
+A single ruler (**1 unit = 33.5 m**) and a **Readable / True to scale** switch.
+Tree sizes now come from stand age, shelter and slope instead of a dice roll,
+so a woodland has saplings, mature trees and veterans.
+
+![Readable scale](<timeline/16-scale-trees.jpg>)
+
+**Feature: True to scale.** Roosevelt Island at its real width, the hills ~15×
+lower.
+
+![True to scale](<timeline/16-scale-true.jpg>)
+
+---
+
+## 17 — The orb removed · Oct 27 · `475801e`
+
+The noise orb scene was taken out; the Scene switch is Map and Voxel. No
+screenshot: nothing new to see.
+
+---
+
+## 18 — New York City · now
+
+The procedural world and Roosevelt Island became one map: the **whole city on
+its real coastline** (about 21 × 26 km), with the island in its true place and
+all its detail. It is one map with every control working city-wide; the rest
+of the city is paved ground with a faint street grid.
+See [NYC World](<NYC World.md>).
+
+![Default view](<timeline/18-nyc.jpg>)
+
+**Feature: the whole city.** Zoomed out: Manhattan, the Hudson, the East and
+Harlem rivers, Queens, Brooklyn and Staten Island.
+
+![The whole city](<timeline/18-nyc-city.jpg>)
+
+**Feature: the island up close.** Gentle banks, trees along its length, and the
+street grid of the city behind it.
+
+![Roosevelt Island](<timeline/18-nyc-island.jpg>)
+
+**Feature: the Voxel scene** now shows the whole city as blocks.
+
+![Voxel](<timeline/18-nyc-voxel.jpg>)
+
+---
+
 ## First vs. now
 
 | Sep 16 | Today |
 | --- | --- |
-| ![First](<timeline/01-034ffb5.jpg>) | ![Now](<timeline/15-now.jpg>) |
+| ![First](<timeline/01-034ffb5.jpg>) | ![Now](<timeline/18-nyc.jpg>) |
 
-Same island, same seed, same camera. In between: L-system trees with LOD,
-scatter and seasons, procedural water and grass, a voxel scene, sculpting,
-erosion, a climate timeline and the noise orb.
+Same seed, same camera. In between: L-system trees with LOD, scatter and
+seasons, procedural water and grass, a voxel scene, sculpting, erosion, a
+climate timeline, real-world scale, and the whole of New York City.
 
 Index: [Tutorials](<README.md>)

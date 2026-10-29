@@ -5,7 +5,7 @@ procedural world — the working notes behind what ends up in `react-app/`.
 
 ## Current feature set
 
-- Height-field terrain, masked to the real Roosevelt Island outline
+- Height-field terrain on New York City's real coastline (Manhattan, the rivers, Queens, Brooklyn), with Roosevelt Island in its true place
 - Biome coloring (water → sand → grass → rock → snow), tied to sea level
 - Seeded tree scattering, density-noise clustering
 - Weather system: sky/sun, fog, cloud puffs, rain/snow with ground accumulation

@@ -23,8 +23,10 @@ export function Sky({ params }: { params: WeatherParams }) {
   const ambient = 0.15 + day * 0.35
   const tint = skyTint(sunElevation)
 
-  // fogDensity 0..1 → exp2 fog density (tuned for a ~100-unit map)
-  const fogAmount = 0.004 + fogDensity * 0.03
+  // fogDensity 0..1 → exp2 fog density. Tuned for looking at the island from
+  // ~110 units away; the factor keeps the rest of the city (up to ~400 units)
+  // from vanishing into haze while still fading the far shores.
+  const fogAmount = (0.004 + fogDensity * 0.03) * 0.25
 
   return (
     <>

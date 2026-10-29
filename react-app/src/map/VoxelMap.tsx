@@ -1,6 +1,7 @@
 import { VoxelTerrain } from './VoxelTerrain'
 import { Water } from './water/WaterSurface'
 import type { WaterSettings } from './water/settings'
+import type { GrassSettings } from './grass/settings'
 import type { WeatherParams } from '../weather/presets'
 import { Props } from './Props'
 import { TERRAIN_DEFAULTS, type TerrainParams } from './noise'
@@ -18,6 +19,7 @@ export function VoxelMap({
   params = TERRAIN_DEFAULTS,
   forest,
   water,
+  grass,
   weather,
   running = true,
   onLodStats,
@@ -27,6 +29,7 @@ export function VoxelMap({
   params?: TerrainParams
   forest: Forest
   water?: WaterSettings
+  grass?: GrassSettings
   weather?: WeatherParams
   running?: boolean
   onLodStats?: (r: LodReadout) => void
@@ -35,7 +38,7 @@ export function VoxelMap({
 }) {
   return (
     <group>
-      <VoxelTerrain params={params} wireframe={wireframe} />
+      <VoxelTerrain params={params} grass={grass} wireframe={wireframe} />
       <Water
         params={params}
         settings={water}

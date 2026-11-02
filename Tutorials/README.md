@@ -14,6 +14,7 @@ zero.
 | 6 | [How the World Fits Together](<How the World Fits Together.md>) | How land, water, biomes, trees, sun, wind, rain, snow, clouds and seasons affect each other |
 | 7 | [Real-World Scale](<Real-World Scale.md>) | What a world unit is in metres; people, trees, houses and buildings at true scale; what's exaggerated and why |
 | 8 | [NYC World](<NYC World.md>) | How Roosevelt Island and the procedural world became one New York City: real shoreline data, distance fields, one continuous mesh |
+| 9 | [History and Design Position](<History and Design Position.md>) | What the project is about: New York's made ground and Roosevelt Island's history, the design position, precedents, and how the History Timeline shows it |
 | — | [Project Timeline](<Project Timeline.md>) | Screenshots of every version of the app, from the first commit to now |
 
 The finished result of these guides is the app in

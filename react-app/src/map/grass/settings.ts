@@ -1,4 +1,5 @@
 import type { Season } from '../trees/seasons'
+import { CITY_REACH_ALL } from '../timeline'
 
 /**
  * GRASS SETTINGS — the Grass section of the Terrain tab.
@@ -23,6 +24,13 @@ export interface GrassSettings {
   bareSlopes: number
   /** How much of the land is paved city instead of green. 0 = all parkland (the procedural world); 1 = a paved city with a street grid. Roosevelt Island stays green. */
   paving: number
+  /**
+   * How far the built-up city reaches from the Battery, in world units; beyond
+   * it the land is still green. Set by the history timeline, not a slider.
+   */
+  cityReach: number
+  /** 0 before the 1811 street grid, 1 once it exists. Set by the history timeline. */
+  streetGrid: number
   lushColor: string
   dryColor: string
   soilColor: string
@@ -34,14 +42,17 @@ export const GRASS_DEFAULTS: GrassSettings = {
   detail: 0.5,
   windSheen: 0.5,
   bareSlopes: 0.5,
-  paving: 0,
+  // today's city is paved; the history timeline rolls it back
+  paving: 1,
+  cityReach: CITY_REACH_ALL,
+  streetGrid: 1,
   lushColor: '#4f8a3a',
   dryColor: '#b3a45e',
   soilColor: '#7a6248',
 }
 
 export const GRASS_SLIDERS: {
-  key: Exclude<keyof GrassSettings, 'lushColor' | 'dryColor' | 'soilColor'>
+  key: Exclude<keyof GrassSettings, 'lushColor' | 'dryColor' | 'soilColor' | 'cityReach' | 'streetGrid'>
   label: string
   title: string
   min: number
@@ -52,7 +63,7 @@ export const GRASS_SLIDERS: {
   { key: 'patchiness', label: 'Patchiness', title: 'How much the colour varies in patches across the island — dry spots, lush hollows.', min: 0, max: 1, step: 0.05 },
   { key: 'detail', label: 'Grain', title: 'Fine surface texture that catches the light when you zoom in close.', min: 0, max: 1, step: 0.05 },
   { key: 'windSheen', label: 'Wind sheen', title: 'Light and dark bands rolling across the grass as the wind blows. Stronger in stormy weather; none when calm.', min: 0, max: 1, step: 0.05 },
-  { key: 'paving', label: 'Paving', title: 'How much of the land is paved city instead of green. 0 = everything parkland, like the procedural world. 1 = a paved grey city with a faint street grid (Roosevelt Island stays green).', min: 0, max: 1, step: 0.05 },
+  { key: 'paving', label: 'Paving', title: 'How strongly the built-up city is paved instead of green. 0 = everything parkland; 1 = a paved grey city with a faint street grid. Only where the city has grown by the History Timeline\'s year; Roosevelt Island stays green.', min: 0, max: 1, step: 0.05 },
   { key: 'bareSlopes', label: 'Bare slopes', title: 'How readily steep slopes thin out to bare soil. 0 = grass clings everywhere.', min: 0, max: 1, step: 0.05 },
 ]
 

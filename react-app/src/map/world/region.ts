@@ -1,5 +1,6 @@
 import { EXAGGERATION } from '../scale'
 import { ISLAND_MEAN_HALF_WIDTH, islandDistance } from './shore'
+import { BATTERY } from '../timeline'
 
 /**
  * Roosevelt Island's outline is the real one, but at the readable scale it is
@@ -24,4 +25,31 @@ export function islandWiden(p: { islandWidth: number }): number {
 export function islandWeight(x: number, z: number, widen: number): number {
   const t = Math.min(1, Math.max(0, (islandDistance(x, z, widen) + 0.5) / 1))
   return t * t * (3 - 2 * t)
+}
+
+/** Width of the city's edge, in world units (~1 km): built-up fades to green across it. */
+export const CITY_EDGE = 30
+
+/**
+ * How built-up a spot is, 0..1: 1 within `reach` of the Battery (where the city
+ * grew from), fading to 0 across the city's edge. See timeline.ts.
+ */
+export function urbanWeight(x: number, z: number, reach: number): number {
+  const d = Math.hypot(x - BATTERY.x, z - BATTERY.z)
+  const t = Math.min(1, Math.max(0, (reach - d) / CITY_EDGE))
+  return t * t * (3 - 2 * t)
+}
+
+/**
+ * How green (parkland rather than paved) a spot is, 0..1: paved only where the
+ * city has reached, as strongly as the Paving setting says, and never on
+ * Roosevelt Island (`island` is its islandWeight).
+ */
+export function greenAt(
+  x: number,
+  z: number,
+  island: number,
+  g: { paving: number; cityReach: number },
+): number {
+  return Math.max(1 - g.paving * urbanWeight(x, z, g.cityReach), island)
 }

@@ -82,6 +82,7 @@ export function Map({
         <Props
           params={params}
           forest={forest}
+          grass={grass}
           main={main}
           onLodStats={onLodStats}
           onPlaced={onPlaced}

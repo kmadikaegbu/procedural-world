@@ -7,7 +7,7 @@ import { createTerrainMaterial } from './grass/grassMaterial'
 import { GRASS_DEFAULTS, GRASS_SEASONS, type GrassSettings } from './grass/settings'
 import type { Season } from './trees/seasons'
 import { WEATHER_DEFAULTS, type WeatherParams } from '../weather/presets'
-import { islandWeight, islandWiden } from './world/region'
+import { greenAt, islandWeight, islandWiden } from './world/region'
 import { axisLines } from './world/grid'
 import { GroundCollider } from './GroundCollider'
 import { DETAIL_HALF, WORLD } from './world/shore'
@@ -138,16 +138,17 @@ export function Terrain({
     const c = new THREE.Color()
     const baseColors = new Float32Array(ys.length * 3)
     const snowable = new Uint8Array(ys.length)
+    const pos = geometry.attributes.position.array
     for (let k = 0; k < ys.length; k++) {
-      // parkland where there's no paving; Roosevelt Island is always parkland
-      landColor(ys[k], ramp, Math.max(1 - grass.paving, island[k]), c)
+      // paved where the city has reached by the timeline's year; Roosevelt Island is always parkland
+      landColor(ys[k], ramp, greenAt(pos[k * 3], pos[k * 3 + 2], island[k], grass), c)
       baseColors[k * 3] = c.r
       baseColors[k * 3 + 1] = c.g
       baseColors[k * 3 + 2] = c.b
       snowable[k] = ys[k] > params.seaLevel ? 1 : 0
     }
     return { baseColors, snowable }
-  }, [ys, island, params.amplitude, params.seaLevel, grass.paving])
+  }, [geometry, ys, island, params.amplitude, params.seaLevel, grass.paving, grass.cityReach])
 
   const snowAmountRef = useRef(0)
   const appliedRef = useRef(-1)
@@ -177,6 +178,8 @@ export function Terrain({
     u.uWind.value = weather.wind
     u.uSea.value = params.seaLevel
     u.uPaving.value = grass.paving
+    u.uReach.value = grass.cityReach
+    u.uGrid.value = grass.streetGrid
     u.uAmp.value = params.amplitude
     u.uLush.value = grass.lushness
     u.uPatch.value = grass.patchiness

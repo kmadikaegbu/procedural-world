@@ -27,7 +27,7 @@ procedurally, in terms of the values that flow between them in the code.
 - **Waves feel the bottom.** Out in the channel the waves are full height. As
   they reach the island they shrink, like waves running up a beach.
 - **Foam forms where water meets land.** A white line laps against the banks.
-- **Raise the sea and the land floods.** The climate timeline (1950–2100) raises
+- **Raise the sea and the land floods.** The History Timeline (1609–2100) raises
   the water. The coast is swallowed and the water's colour, foam and waves all
   shift to the new shoreline.
 - **Change the land and the water follows.** Sculpt a sandbar into the river

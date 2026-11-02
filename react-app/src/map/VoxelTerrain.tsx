@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { height, shapeKey, type TerrainParams } from './noise'
 import { makeRamp, landColor } from './biomes'
-import { islandWeight, islandWiden } from './world/region'
+import { greenAt, islandWeight, islandWiden } from './world/region'
 import { WORLD } from './world/shore'
 import { GroundCollider } from './GroundCollider'
 import { GRASS_DEFAULTS, type GrassSettings } from './grass/settings'
@@ -96,8 +96,8 @@ export function VoxelTerrain({
       // fully submerged and not even near the shore — skip it, the water plane
       // covers it and it would otherwise be most of the grid
       if (column.surface < keep) continue
-      // parkland on the island (and everywhere while Paving is 0), paved grey elsewhere
-      const green = Math.max(1 - grass.paving, column.green)
+      // paved grey where the city has reached by the timeline's year; parkland elsewhere and on the island
+      const green = greenAt(column.x, column.z, column.green, grass)
       for (let k = 0; k < FILL_DEPTH; k++) {
         const y = column.surface - k * VOXEL_SIZE
         landColor(y, ramp, green, c)
@@ -106,7 +106,7 @@ export function VoxelTerrain({
       }
     }
     return { pos, col, count: pos.length / 3 }
-  }, [columns, params.amplitude, params.seaLevel, grass.paving])
+  }, [columns, params.amplitude, params.seaLevel, grass.paving, grass.cityReach])
 
   const ref = useRef<THREE.InstancedMesh>(null)
   useLayoutEffect(() => {

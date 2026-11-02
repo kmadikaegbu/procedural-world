@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import {
   CircleGeometry,
@@ -17,7 +17,18 @@ import {
 import { shapeKey, type TerrainParams } from '../noise'
 import { EXAGGERATION, m, type ScaleMode } from '../scale'
 import { BODIES, STATE_COLOR, visionCone } from './shapes'
-import { envFrom, FOX, REAL_LENGTH, SPECIES, TRACK_LIFE, WildlifeSim, type Species, type WildlifeStats } from './sim'
+import { loadAnimalModels, modelMaterials, type AnimalModel, type Clip, type ModelKey } from './models'
+import {
+  envFrom,
+  FOX,
+  REAL_LENGTH,
+  SPECIES,
+  TRACK_LIFE,
+  WildlifeSim,
+  type Agent,
+  type Species,
+  type WildlifeStats,
+} from './sim'
 import type { Season } from '../trees/seasons'
 import { WEATHER_DEFAULTS, type WeatherParams } from '../../weather/presets'
 import type { WildlifeSettings } from './settings'
@@ -197,6 +208,31 @@ const LEG_LENGTH: Record<Species, number> = { bird: 0.1, deer: 0.49, fox: 0.26 }
 
 const DROP: Record<Species, number> = { bird: 0, deer: 0.33, fox: 0.19 }
 
+const MODEL_KEYS: ModelKey[] = ['doe', 'stag', 'fox']
+const MODEL_SPECIES: Record<ModelKey, Species> = { doe: 'deer', stag: 'deer', fox: 'fox' }
+/** Seconds to cross-fade from one clip to the next, so a deer doesn't snap from grazing to running. */
+const CLIP_FADE = 0.3
+
+/** Only grown bucks carry antlers. */
+const antlered = (a: Agent) => a.species === 'deer' && a.id % 3 === 0 && a.age > 0.9
+
+/** Which of the model's clips fits what the animal is doing. */
+function clipFor(a: Agent): Clip {
+  if (a.head > 0.5) return 'eat' // grazing, drinking, or a fox at its catch
+  if (a.speed > 0.05) return gaitFor(a.speed) >= 1 ? 'gallop' : 'walk'
+  if (a.lie > 0.5 || a.state === 'rest') return 'rest'
+  return 'idle'
+}
+
+/** Each animal's place in its animation: the clip it's in, and the one it's fading out of. */
+interface ClipState {
+  clip: Clip
+  t: number
+  prev: Clip
+  prevT: number
+  fade: number
+}
+
 /** 0 walk … 1 trot … 2 gallop, from how fast it is moving. */
 function gaitFor(speed: number): number {
   if (speed < 1.4) return 0
@@ -300,6 +336,36 @@ export function Wildlife({
     }
     return out
   }, [])
+  // the real deer and fox models (models.ts); until they've loaded, or if they can't
+  // be, the deer and foxes are drawn with the built-in bodies instead
+  const [models, setModels] = useState<Record<ModelKey, AnimalModel> | null>(null)
+  useEffect(() => {
+    let live = true
+    loadAnimalModels()
+      .then((m) => live && setModels(m))
+      .catch((err) => console.warn('Animal models failed to load; using the built-in bodies.', err))
+    return () => {
+      live = false
+    }
+  }, [])
+  const modelMats = useMemo(() => {
+    if (!models) return null
+    const out = {} as Record<ModelKey, ReturnType<typeof modelMaterials>>
+    for (const key of MODEL_KEYS) out[key] = modelMaterials(models[key], materials.states)
+    return out
+  }, [models, materials])
+  useEffect(
+    () => () => {
+      if (modelMats) for (const key of MODEL_KEYS) {
+        modelMats[key].body.dispose()
+        modelMats[key].depth.dispose()
+      }
+    },
+    [modelMats],
+  )
+  const modelMeshes = useRef<Partial<Record<ModelKey, InstancedMesh | null>>>({})
+  const clipStates = useMemo(() => new WeakMap<object, ClipState>(), [])
+
   // each animal's stride/flap phase, kept as it moves so a change of speed doesn't jerk the legs
   const phases = useMemo(() => new WeakMap<object, number>(), [])
   const flashes = useMemo(() => new WeakMap<object, number>(), [])
@@ -336,17 +402,91 @@ export function Wildlife({
     materials.states.value = settings.showStates ? 1 : 0
     const sizeOf = (sp: Species) => m(REAL_LENGTH[sp]) * EXAGGERATION[scaleMode].objects * settings.size
     const filled: Record<Species, number> = { bird: 0, deer: 0, fox: 0 }
+    const modelFilled: Record<ModelKey, number> = { doe: 0, stag: 0, fox: 0 }
     let coneCount = 0
     const coneMesh = cones.current
 
+    // fawns are smaller than grown deer
+    const drawnSize = (a: Agent) =>
+      sizeOf(a.species) * Math.max(0, a.grow) * (a.species === 'deer' ? 0.55 + 0.45 * a.age : 1)
+    // lean with the ground: nose up going uphill, down going downhill
+    const lean = (a: Agent) => {
+      const dx = Math.sin(a.heading) * 0.9
+      const dz = Math.cos(a.heading) * 0.9
+      const rise = sim.habitat.groundAt(a.x + dx, a.z + dz) - sim.habitat.groundAt(a.x - dx, a.z - dz)
+      rot.multiply(pitch.setFromAxisAngle(right, Math.max(-0.5, Math.min(0.5, Math.atan2(rise, 1.8)))))
+    }
+    // a little variation in coat tone; in "Show states" mode the state's colour instead
+    const colour = (mesh: InstancedMesh, k: number, a: Agent) => {
+      const tone = 0.88 + 0.2 * ((a.id * 0.618) % 1)
+      const coat = COAT[a.species][season]
+      mesh.setColorAt(
+        k,
+        settings.showStates ? col.set(STATE_COLOR[a.state]) : col.setRGB(tone * coat[0], tone * coat[1], tone * coat[2]),
+      )
+    }
+    const aimCone = (a: Agent) => {
+      if (coneMesh && settings.showStates && a.species === 'fox' && a.state !== 'leaving') {
+        mat.compose(pos.set(a.x, a.y + 0.15, a.z), rot, scl.set(FOX.sight, 1, FOX.sight))
+        coneMesh.setMatrixAt(coneCount++, mat)
+      }
+    }
+
+    // a deer or fox drawn with its real model: pick the clip for what it's doing, and
+    // play it at the pace that keeps its hooves planted
+    const drawModel = (a: Agent, key: ModelKey, model: AnimalModel) => {
+      const mesh = modelMeshes.current[key]
+      const k = modelFilled[key]
+      if (!mesh || k >= ROOM[a.species]) return
+      modelFilled[key]++
+      const s = drawnSize(a)
+      const rateOf = (clip: Clip) => {
+        const c = model.clips[clip]
+        return clip === 'walk' || clip === 'gallop' ? a.speed / (c.stride * Math.max(s, 0.01)) : 1 / c.duration
+      }
+      const want = clipFor(a)
+      let c = clipStates.get(a)
+      if (!c) {
+        // start each animal at its own point in the clip, so a herd doesn't move in step
+        c = { clip: want, t: (a.id * 0.37) % 1, prev: want, prevT: 0, fade: 1 }
+        clipStates.set(a, c)
+      }
+      if (want !== c.clip) {
+        const gaits = (x: Clip) => x === 'walk' || x === 'gallop'
+        c.prev = c.clip
+        c.prevT = c.t
+        c.t = gaits(want) && gaits(c.clip) ? c.t : 0 // walk ↔ gallop keeps the legs' timing
+        c.clip = want
+        c.fade = 0
+      }
+      c.t = (c.t + rateOf(c.clip) * dt) % 1
+      c.prevT = (c.prevT + rateOf(c.prev) * dt) % 1
+      c.fade = Math.min(1, c.fade + dt / CLIP_FADE)
+      const from = model.clips[c.prev]
+      const to = model.clips[c.clip]
+      model.clipFrom.setXYZW(k, from.start, from.frames, c.prevT, c.fade)
+      model.clipTo.setXYZW(k, to.start, to.frames, c.t, 0)
+
+      rot.setFromAxisAngle(up, a.heading)
+      lean(a)
+      mat.compose(pos.set(a.x, a.y, a.z), rot, scl.set(s, s, s))
+      mesh.setMatrixAt(k, mat)
+      colour(mesh, k, a)
+      aimCone(a)
+    }
+
     for (const a of sim.agents) {
+      if (models && a.species !== 'bird') {
+        const key: ModelKey = a.species === 'fox' ? 'fox' : antlered(a) ? 'stag' : 'doe'
+        drawModel(a, key, models[key])
+        continue
+      }
       const mesh = meshes.current[a.species]
       const k = filled[a.species]
       if (!mesh || k >= ROOM[a.species]) continue
       filled[a.species]++
 
-      // fawns are smaller than grown deer
-      const s = sizeOf(a.species) * Math.max(0, a.grow) * (a.species === 'deer' ? 0.55 + 0.45 * a.age : 1)
+      const s = drawnSize(a)
       const anim = anims[a.species]
       let moving = 0
       let third = 0 // aAnim.z: how far the head is down (ground animals) or the wings folded (birds)
@@ -374,16 +514,11 @@ export function Wildlife({
         rate = walking ? (2 * Math.PI * a.speed) / (strideLen * Math.max(s, 0.01)) : 0
         moving = walking ? Math.min(1, 0.4 + a.speed / (a.species === 'deer' ? 5 : 4)) : 0
         third = a.head
-        // lean with the ground: nose up going uphill, down going downhill
-        const dx = Math.sin(a.heading) * 0.9
-        const dz = Math.cos(a.heading) * 0.9
-        const rise = sim.habitat.groundAt(a.x + dx, a.z + dz) - sim.habitat.groundAt(a.x - dx, a.z - dz)
-        rot.multiply(pitch.setFromAxisAngle(right, Math.max(-0.5, Math.min(0.5, Math.atan2(rise, 1.8)))))
+        lean(a)
       }
       const phase = (phases.get(a) ?? a.id * 1.7) + rate * dt
       phases.set(a, phase % (Math.PI * 200))
-      // only grown bucks carry antlers
-      anim.setXYZW(k, phase, moving, third, a.species === 'deer' && a.id % 3 === 0 && a.age > 0.9 ? 1 : 0)
+      anim.setXYZW(k, phase, moving, third, antlered(a) ? 1 : 0)
       // pose: tail flash (deer), how far it is lying down, a seed so no two idle alike
       const flashTarget = a.species === 'deer' && (a.state === 'flee' || a.alert > 0.5) ? 1 : 0
       const flashed = (flashes.get(a) ?? 0) + (flashTarget - (flashes.get(a) ?? 0)) * Math.min(1, dt * 6)
@@ -398,18 +533,8 @@ export function Wildlife({
 
       mat.compose(pos.set(a.x, a.y, a.z), rot, scl.set(s, s, s))
       mesh.setMatrixAt(k, mat)
-      // a little variation in coat tone; in "Show states" mode the state's colour instead
-      const tone = 0.88 + 0.2 * ((a.id * 0.618) % 1)
-      const coat = COAT[a.species][season]
-      mesh.setColorAt(
-        k,
-        settings.showStates ? col.set(STATE_COLOR[a.state]) : col.setRGB(tone * coat[0], tone * coat[1], tone * coat[2]),
-      )
-
-      if (coneMesh && settings.showStates && a.species === 'fox' && a.state !== 'leaving') {
-        mat.compose(pos.set(a.x, a.y + 0.15, a.z), rot, scl.set(FOX.sight, 1, FOX.sight))
-        coneMesh.setMatrixAt(coneCount++, mat)
-      }
+      colour(mesh, k, a)
+      aimCone(a)
     }
 
     // footprints, shrinking away as they age
@@ -440,6 +565,17 @@ export function Wildlife({
       mesh.instanceMatrix.needsUpdate = true
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
     }
+    if (models) {
+      for (const key of MODEL_KEYS) {
+        const mesh = modelMeshes.current[key]
+        if (!mesh) continue
+        mesh.count = modelFilled[key]
+        models[key].clipFrom.needsUpdate = true
+        models[key].clipTo.needsUpdate = true
+        mesh.instanceMatrix.needsUpdate = true
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
+      }
+    }
     if (coneMesh) {
       coneMesh.count = coneCount
       coneMesh.instanceMatrix.needsUpdate = true
@@ -460,6 +596,21 @@ export function Wildlife({
           raycast={() => null} // the brushes paint the ground, not the deer
         />
       ))}
+      {models &&
+        modelMats &&
+        MODEL_KEYS.map((key) => (
+          <instancedMesh
+            key={key}
+            ref={(mesh) => {
+              modelMeshes.current[key] = mesh
+            }}
+            args={[models[key].geometry, modelMats[key].body, ROOM[MODEL_SPECIES[key]]]}
+            customDepthMaterial={modelMats[key].depth}
+            castShadow
+            frustumCulled={false}
+            raycast={() => null}
+          />
+        ))}
       <instancedMesh
         ref={prints}
         args={[printGeometry, materials.print, 1600]}

@@ -110,8 +110,9 @@ estimates, and which are design choices.
 
 ## How it's built
 
-A browser app written in **React** and **three.js**. Everything is generated as
-it runs: there are no 3D models or texture images.
+A browser app written in **React** and **three.js**. Almost everything is
+generated as it runs. The only 3D models are the deer and foxes, and there are
+no texture images.
 
 - **Terrain:** seeded fractal noise, shaped by the real coastline. The mesh is
   fine around Roosevelt Island and coarser toward the edges of the city.
@@ -121,6 +122,10 @@ it runs: there are no 3D models or texture images.
   driven by the year.
 - **Water:** procedural water with a shoreline that follows the sea level.
 - **Weather:** sky, fog, clouds, and rain or snow.
+- **Animals:** the deer and foxes are Quaternius's rigged low-poly models (CC0,
+  from [Poly Pizza](https://poly.pizza/u/Quaternius)). Their animations are
+  baked into textures when the page loads, so hundreds of animals can each play
+  their own clip with one draw call per model. The birds are built in code.
 
 ### Run it yourself
 

@@ -157,6 +157,14 @@ around Roosevelt Island ([`map/wildlife/`](../../react-app/src/map/wildlife/)):
   down to Roosevelt Island.
 - **Show states** tints every animal by its state and draws the foxes'
   cones of vision; the panel counts each species by state.
+- **Real animal models.** The deer and foxes use Quaternius's rigged,
+  hand-animated low-poly Deer, Stag and Fox (CC0, from
+  [Poly Pizza](https://poly.pizza/u/Quaternius)). The models' animations are
+  baked into textures when the page loads, so the whole herd still draws in one
+  call per model. Each animal plays the clip that fits its state (walk, gallop,
+  graze or drink, idle, rest), at the pace that keeps its hooves planted.
+  Grown bucks use the Stag, with antlers. The birds are still built in code,
+  because no free bird model has a flying animation.
 
 Scale was already done: [Real-World Scale](<../../Tutorials/Real-World Scale.md>)
 defines 1 unit = 33.5 m, keeps every object in proportion through one

@@ -21,7 +21,7 @@ import type { AgentState, Species } from './sim'
  * moves, so the GPU can animate the animal with no per-frame work on the CPU:
  *
  *   leg    0 at the hip … 1 at the hoof: how far the vertex swings in a stride
- *   phase  which diagonal pair of legs it belongs to (0 or π)
+ *   phase  which leg it is (0–3): the gait decides when each one steps
  *   head   how much the vertex follows the head when it dips to graze
  *   wing   0 at the shoulder … 1 at the wingtip: how far it flaps
  *   flag   1 for antlers, which only some deer have
@@ -36,11 +36,25 @@ interface Paint {
   color: V3 | ((x: number, y: number, z: number) => V3)
   /** [hip height, foot height]: the part is a leg, swinging more toward the foot. */
   leg?: [number, number]
+  /** Which leg: 0 front left, 1 front right, 2 back left, 3 back right (the gait sets each one's timing). */
   phase?: number
   head?: (x: number, y: number, z: number) => number
   wing?: boolean
   flag?: number
+  /**
+   * 0 for the body, 1 upper leg, 2 lower leg, 3 foot. The shader swings each leg
+   * segment about its joint, so a leg bends at the knee and ankle like a real one.
+   */
+  seg?: number
+  /**
+   * Joints, as [height, z]: a leg's hip (`a`), knee (`b`) and ankle (`c`); for the
+   * head and neck, the base of the neck; for the tail, where it joins the body.
+   */
+  pivot?: { a: [number, number]; b?: [number, number]; c?: [number, number] }
 }
+
+/** The leg's number, from its side and whether it is a front leg. */
+const legIndex = (sx: number, front: boolean) => (front ? 0 : 2) + (sx < 0 ? 0 : 1)
 
 const hex = (c: string): V3 => [
   parseInt(c.slice(1, 3), 16) / 255,
@@ -67,6 +81,9 @@ function paint(g: BufferGeometry, p: Paint): BufferGeometry {
   const color = new Float32Array(n * 3)
   const part = new Float32Array(n * 4)
   const flag = new Float32Array(n)
+  const piv = new Float32Array(n * 4)
+  const piv2 = new Float32Array(n * 3)
+  const pv = p.pivot
   for (let i = 0; i < n; i++) {
     const x = pos.getX(i)
     const y = pos.getY(i)
@@ -78,10 +95,16 @@ function paint(g: BufferGeometry, p: Paint): BufferGeometry {
     if (p.head) part[i * 4 + 2] = clamp01(p.head(x, y, z))
     if (p.wing) part[i * 4 + 3] = clamp01(Math.abs(x) / 0.5)
     flag[i] = p.flag ?? 0
+    if (pv) {
+      piv.set([pv.a[0], pv.a[1], pv.b?.[0] ?? 0, pv.b?.[1] ?? 0], i * 4)
+      piv2.set([p.seg ?? 0, pv.c?.[0] ?? 0, pv.c?.[1] ?? 0], i * 3)
+    }
   }
   out.setAttribute('color', new Float32BufferAttribute(color, 3))
   out.setAttribute('aPart', new Float32BufferAttribute(part, 4))
   out.setAttribute('aFlag', new Float32BufferAttribute(flag, 1))
+  out.setAttribute('aPiv', new Float32BufferAttribute(piv, 4))
+  out.setAttribute('aPiv2', new Float32BufferAttribute(piv2, 3))
   return out
 }
 
@@ -91,6 +114,37 @@ function blob(rx: number, ry: number, rz: number, x: number, y: number, z: numbe
 }
 
 const UP = new Vector3(0, 1, 0)
+/**
+ * A smooth body lofted through cross-sections: each station is [z, half-width,
+ * half-height, centre height]. Joining ellipses this way gives one continuous
+ * barrel from chest to haunch instead of a string of balls.
+ */
+function loft(stations: [number, number, number, number][], p: Paint, sides = 16): BufferGeometry {
+  const pos: number[] = []
+  const idx: number[] = []
+  for (const [z, rx, ry, cy] of stations) {
+    for (let k = 0; k < sides; k++) {
+      const a = (k / sides) * Math.PI * 2
+      pos.push(Math.cos(a) * rx, cy + Math.sin(a) * ry, z)
+    }
+  }
+  const n = stations.length
+  for (let i = 0; i < n - 1; i++) {
+    for (let k = 0; k < sides; k++) {
+      const a = i * sides + k
+      const b = i * sides + ((k + 1) % sides)
+      const c = (i + 1) * sides + k
+      const d = (i + 1) * sides + ((k + 1) % sides)
+      idx.push(a, c, b, b, c, d)
+    }
+  }
+  const g = new BufferGeometry()
+  g.setAttribute('position', new Float32BufferAttribute(pos, 3))
+  g.setIndex(idx)
+  g.computeVertexNormals()
+  return paint(g, p)
+}
+
 /** A tapered limb from `a` to `b`, radius r0 at a and r1 at b. */
 function limb(a: V3, b: V3, r0: number, r1: number, p: Paint): BufferGeometry {
   const from = new Vector3(...a)
@@ -120,32 +174,61 @@ function deer(): BufferGeometry {
   const hoof = hex('#1d1712')
   // the head and neck dip together when it grazes
   const headW = (_x: number, y: number) => (y - 0.72) / 0.2
+  // the whole deer is squashed to this height at the end (a real deer's legs are about as long as its body is deep)
+  const SY = 0.82
+  const P = (y: number, z: number): [number, number] => [y * SY, z]
+  const neck = P(0.74, 0.27) // the withers, where the neck joins the body
+  const tailBase = P(0.66, -0.37)
 
   const parts: BufferGeometry[] = [
-    blob(0.15, 0.18, 0.27, 0, 0.63, 0.0, { color: coat }), // barrel
-    blob(0.145, 0.19, 0.17, 0, 0.64, 0.17, { color: coat }), // chest
-    blob(0.14, 0.18, 0.17, 0, 0.64, -0.2, { color: coat }), // haunch
-    blob(0.03, 0.06, 0.03, 0, 0.7, -0.4, { color: [0.95, 0.93, 0.9] }), // white tail
-    limb([0, 0.74, 0.27], [0, 0.93, 0.42], 0.08, 0.05, { color: coat, head: headW }), // neck
-    blob(0.055, 0.058, 0.1, 0, 0.95, 0.47, { color: mix(back, belly, 0.15), head: headW }), // head
-    blob(0.036, 0.036, 0.07, 0, 0.925, 0.57, { color: mix(back, belly, 0.4), head: headW }), // muzzle
-    blob(0.022, 0.02, 0.02, 0, 0.925, 0.635, { color: dark, head: headW }), // nose
-    spike([0.04, 1.0, 0.43], [0.9, 1, -0.1], 0.026, 0.1, { color: coat, head: headW }), // ears
-    spike([-0.04, 1.0, 0.43], [-0.9, 1, -0.1], 0.026, 0.1, { color: coat, head: headW }),
+    // one continuous body: rounded haunch, deep barrel, chest, narrowing to the shoulders
+    loft(
+      [
+        [-0.4, 0.02, 0.03, 0.66],
+        [-0.37, 0.09, 0.12, 0.66],
+        [-0.3, 0.135, 0.17, 0.66],
+        [-0.18, 0.14, 0.18, 0.64],
+        [-0.02, 0.145, 0.18, 0.62],
+        [0.12, 0.15, 0.19, 0.625],
+        [0.23, 0.14, 0.19, 0.64],
+        [0.3, 0.1, 0.15, 0.67],
+        [0.34, 0.04, 0.07, 0.7],
+      ],
+      { color: coat },
+    ),
+    // the tail: brown above, white beneath; raised when the deer is alarmed, to flash the white
+    blob(0.032, 0.055, 0.03, 0, 0.7, -0.4, { color: mix(back, dark, 0.2), flag: 2, pivot: { a: tailBase } }),
+    blob(0.026, 0.05, 0.026, 0, 0.665, -0.405, { color: [0.97, 0.96, 0.94], flag: 2, pivot: { a: tailBase } }),
+    blob(0.05, 0.05, 0.03, 0, 0.62, -0.37, { color: [0.95, 0.93, 0.9] }), // white rump patch under it
+    limb([0, 0.74, 0.27], [0, 0.93, 0.42], 0.1, 0.06, { color: coat, head: headW, pivot: { a: neck } }), // neck
+    blob(0.055, 0.058, 0.1, 0, 0.95, 0.47, { color: mix(back, belly, 0.15), head: headW, pivot: { a: neck } }), // head
+    blob(0.036, 0.036, 0.07, 0, 0.925, 0.57, { color: mix(back, belly, 0.55), head: headW, pivot: { a: neck } }), // muzzle
+    blob(0.022, 0.02, 0.02, 0, 0.925, 0.635, { color: dark, head: headW, pivot: { a: neck } }), // nose
+    blob(0.04, 0.012, 0.028, 0, 0.9, 0.55, { color: [0.96, 0.95, 0.92], head: headW, pivot: { a: neck } }), // white chin and throat
+    blob(0.052, 0.018, 0.03, 0, 0.88, 0.42, { color: [0.96, 0.95, 0.92], head: headW, pivot: { a: neck } }), // white throat patch
+    // eyes, each with a pale ring round it, as on a white-tailed deer
+    ...[-1, 1].flatMap((sx) => [
+      blob(0.017, 0.017, 0.017, sx * 0.05, 0.968, 0.5, { color: [0.93, 0.9, 0.84], head: headW, pivot: { a: neck } }),
+      blob(0.011, 0.011, 0.011, sx * 0.058, 0.968, 0.505, { color: [0.05, 0.04, 0.03], head: headW, pivot: { a: neck } }),
+    ]),
+    spike([0.04, 1.0, 0.43], [0.9, 1, -0.1], 0.026, 0.1, { color: coat, head: headW, pivot: { a: neck } }), // ears
+    spike([-0.04, 1.0, 0.43], [-0.9, 1, -0.1], 0.026, 0.1, { color: coat, head: headW, pivot: { a: neck } }),
   ]
-  // legs: front pair at the chest, rear pair at the haunch, with a bend (knee or hock)
+  // legs: front pair at the chest, rear pair at the haunch, each in three jointed pieces
   for (const sx of [-1, 1]) {
     for (const front of [true, false]) {
       const z = front ? 0.2 : -0.24
       const x = sx * 0.085
       const knee: V3 = front ? [x, 0.3, z + 0.01] : [x, 0.33, z - 0.07]
       const foot: V3 = front ? [x, 0.02, z + 0.01] : [x, 0.02, z - 0.02]
-      const phase = sx * (front ? 1 : -1) > 0 ? 0 : Math.PI
-      const leg = [0.6, 0.0] as [number, number]
+      const phase = legIndex(sx, front)
+      const pivot = { a: P(0.6, z), b: P(knee[1], knee[2]), c: P(0.07, foot[2]) }
       parts.push(
-        limb([x, 0.6, z], knee, 0.055, 0.032, { color: coat, leg, phase }),
-        limb(knee, foot, 0.03, 0.022, { color: mix(back, dark, 0.35), leg, phase }),
-        blob(0.026, 0.02, 0.034, foot[0], 0.015, foot[2] + 0.005, { color: hoof, leg, phase }),
+        limb([x, 0.6, z], knee, 0.055, 0.032, { color: coat, phase, seg: 1, pivot }),
+        blob(0.034, 0.034, 0.034, x, knee[1], knee[2], { color: coat, phase, seg: 1, pivot }), // the knee, hiding the gap
+        limb(knee, [foot[0], 0.07, foot[2]], 0.03, 0.022, { color: mix(back, dark, 0.35), phase, seg: 2, pivot }),
+        limb([foot[0], 0.07, foot[2]], foot, 0.022, 0.02, { color: mix(back, dark, 0.5), phase, seg: 3, pivot }),
+        blob(0.026, 0.02, 0.034, foot[0], 0.015, foot[2] + 0.005, { color: hoof, phase, seg: 3, pivot }),
       )
     }
   }
@@ -155,7 +238,7 @@ function deer(): BufferGeometry {
     const base: V3 = [sx * 0.04, 1.0, 0.45]
     const mid: V3 = [sx * 0.11, 1.16, 0.4]
     const tip: V3 = [sx * 0.15, 1.34, 0.3]
-    const paintA: Paint = { color: antler, head: headW, flag: 1 }
+    const paintA: Paint = { color: antler, head: headW, pivot: { a: neck }, flag: 1 }
     parts.push(
       limb(base, mid, 0.014, 0.01, paintA),
       limb(mid, tip, 0.01, 0.005, paintA),
@@ -173,21 +256,36 @@ function fox(): BufferGeometry {
   const coat = shaded(cream, red, 0.2, 0.38)
   const black = hex('#1c1512')
   const headW = (_x: number, y: number) => (y - 0.3) / 0.15
+  const neck: [number, number] = [0.33, 0.17]
   const parts: BufferGeometry[] = [
-    blob(0.085, 0.1, 0.2, 0, 0.31, -0.02, { color: coat }), // body
-    blob(0.075, 0.09, 0.1, 0, 0.32, 0.12, { color: coat }), // chest
-    blob(0.065, 0.065, 0.09, 0, 0.35, 0.22, { color: coat, head: headW }), // neck
-    blob(0.058, 0.055, 0.075, 0, 0.375, 0.3, { color: red, head: headW }), // skull
-    blob(0.035, 0.03, 0.075, 0, 0.35, 0.385, { color: mix(red, cream, 0.5), head: headW }), // snout
-    blob(0.016, 0.014, 0.014, 0, 0.352, 0.455, { color: black, head: headW }), // nose
+    loft(
+      [
+        [-0.24, 0.02, 0.03, 0.31],
+        [-0.2, 0.06, 0.08, 0.31],
+        [-0.12, 0.085, 0.1, 0.31],
+        [0.02, 0.085, 0.1, 0.31],
+        [0.12, 0.08, 0.1, 0.32],
+        [0.2, 0.05, 0.075, 0.33],
+        [0.24, 0.02, 0.04, 0.34],
+      ],
+      { color: coat },
+    ), // one smooth body
+    blob(0.065, 0.065, 0.09, 0, 0.35, 0.22, { color: coat, head: headW, pivot: { a: neck } }), // neck
+    blob(0.058, 0.055, 0.075, 0, 0.375, 0.3, { color: red, head: headW, pivot: { a: neck } }), // skull
+    blob(0.035, 0.03, 0.075, 0, 0.35, 0.385, { color: mix(red, cream, 0.5), head: headW, pivot: { a: neck } }), // snout
+    blob(0.016, 0.014, 0.014, 0, 0.352, 0.455, { color: black, head: headW, pivot: { a: neck } }), // nose
+    blob(0.05, 0.03, 0.04, 0, 0.345, 0.34, { color: cream, head: headW, pivot: { a: neck } }), // white cheeks and throat
+    blob(0.04, 0.06, 0.05, 0, 0.3, 0.19, { color: cream }), // white chest
+    ...[-1, 1].map((sx) => blob(0.01, 0.01, 0.01, sx * 0.047, 0.388, 0.345, { color: black, head: headW, pivot: { a: neck } })), // eyes
+    blob(0.022, 0.006, 0.05, 0, 0.375, 0.42, { color: black, head: headW, pivot: { a: neck } }), // dark stripe down the muzzle
     // tall pointed ears, black at the tips
     spike([0.035, 0.41, 0.28], [0.25, 1, -0.2], 0.026, 0.1, {
       color: (_x, y) => mix(red, black, clamp01((y - 0.44) / 0.06)),
-      head: headW,
+      head: headW, pivot: { a: neck },
     }),
     spike([-0.035, 0.41, 0.28], [-0.25, 1, -0.2], 0.026, 0.1, {
       color: (_x, y) => mix(red, black, clamp01((y - 0.44) / 0.06)),
-      head: headW,
+      head: headW, pivot: { a: neck },
     }),
     // the brush: thick, drooping, with a white tip
     blob(0.055, 0.055, 0.15, 0, 0.28, -0.3, { color: mix(red, cream, 0.1) }),
@@ -197,15 +295,15 @@ function fox(): BufferGeometry {
     for (const front of [true, false]) {
       const z = front ? 0.12 : -0.15
       const x = sx * 0.048
-      const phase = sx * (front ? 1 : -1) > 0 ? 0 : Math.PI
-      const leg = [0.26, 0.0] as [number, number]
+      const phase = legIndex(sx, front)
+      const pivot = { a: [0.26, z] as [number, number], b: [0.14, z] as [number, number], c: [0.05, z] as [number, number] }
       // red above, black "stockings" below
+      const stocking = (_x: number, y: number) => mix(black, red, clamp01((y - 0.07) / 0.1))
       parts.push(
-        limb([x, 0.26, z], [x, 0.02, z + (front ? 0.005 : -0.01)], 0.035, 0.018, {
-          color: (_x, y) => mix(black, red, clamp01((y - 0.07) / 0.1)),
-          leg,
-          phase,
-        }),
+        limb([x, 0.26, z], [x, 0.14, z], 0.035, 0.026, { color: stocking, phase, seg: 1, pivot }),
+        blob(0.026, 0.026, 0.026, x, 0.14, z, { color: stocking, phase, seg: 1, pivot }),
+        limb([x, 0.14, z], [x, 0.05, z], 0.024, 0.019, { color: black, phase, seg: 2, pivot }),
+        limb([x, 0.05, z], [x, 0.01, z], 0.019, 0.017, { color: black, phase, seg: 3, pivot }),
       )
     }
   }
@@ -223,9 +321,11 @@ function bird(): BufferGeometry {
   const ink = hex('#25272b')
   const beak = hex('#e8b324')
   const parts: BufferGeometry[] = [
-    blob(0.045, 0.042, 0.15, 0, 0, 0, { color: shaded(white, [0.93, 0.93, 0.92], -0.04, 0.04) }),
+    blob(0.045, 0.042, 0.15, 0, 0, 0, { color: shaded(white, grey, 0.0, 0.04) }), // white below, grey mantle above
     blob(0.034, 0.033, 0.04, 0, 0.012, 0.16, { color: white }),
     spike([0, 0.005, 0.185], [0, -0.05, 1], 0.014, 0.065, { color: beak }),
+    blob(0.006, 0.006, 0.006, 0, -0.012, 0.236, { color: [0.85, 0.15, 0.1] }), // the red spot on a gull's bill
+    ...[-1, 1].map((sx) => blob(0.007, 0.007, 0.007, sx * 0.028, 0.02, 0.172, { color: [0.05, 0.05, 0.05] })), // eyes
   ]
 
   // tail: a short fan
@@ -256,7 +356,8 @@ function bird(): BufferGeometry {
     parts.push(
       paint(w, {
         // pale grey above, black wingtips
-        color: (x) => mix(grey, ink, clamp01((Math.abs(x) - 0.36) / 0.08)),
+        // pale grey above, black wingtips with a white spot at the very end
+        color: (x) => (Math.abs(x) > 0.47 ? white : mix(grey, ink, clamp01((Math.abs(x) - 0.34) / 0.06))),
         wing: true,
       }),
     )

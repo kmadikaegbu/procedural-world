@@ -24,6 +24,8 @@ export interface WildlifeSettings {
   size: number
   /** Tint every animal by its current state, and draw the foxes' cones of vision. */
   showStates: boolean
+  /** Leave fading footprints on the ground. */
+  tracks: boolean
 }
 
 export const WILDLIFE_DEFAULTS: WildlifeSettings = {
@@ -33,6 +35,7 @@ export const WILDLIFE_DEFAULTS: WildlifeSettings = {
   foxes: 8,
   size: 12,
   showStates: false,
+  tracks: true,
 }
 
 export const WILDLIFE_SLIDERS: {

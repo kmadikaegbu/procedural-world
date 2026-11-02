@@ -6,9 +6,9 @@ const NAMES: Record<Species, string> = { bird: 'Birds', deer: 'Deer', fox: 'Foxe
 
 /** What each species can be doing, in the order the readout lists them. */
 const STATES: Record<Species, AgentState[]> = {
-  bird: ['flock', 'displaced', 'leaving'],
-  deer: ['graze', 'flee', 'displaced', 'leaving'],
-  fox: ['wander', 'hunt', 'eat', 'rest', 'displaced', 'leaving'],
+  bird: ['flock', 'drink', 'perch', 'displaced', 'leaving'],
+  deer: ['graze', 'drink', 'alert', 'flee', 'rest', 'displaced', 'leaving'],
+  fox: ['wander', 'drink', 'stalk', 'hunt', 'eat', 'rest', 'displaced', 'leaving'],
 }
 
 /**
@@ -77,6 +77,18 @@ export function WildlifePanel({
         />
       </label>
 
+      <label
+        className="row"
+        title="Deer and foxes leave footprints that fade after a while. Follow them to see where the animals have been."
+      >
+        <span>Tracks</span>
+        <input
+          type="checkbox"
+          checked={settings.tracks}
+          onChange={(e) => setSettings((s) => ({ ...s, tracks: e.target.checked }))}
+        />
+      </label>
+
       <div className="panel-actions">
         <button onClick={onRestart} title="Start the population over, filled to what the wild land holds now.">
           Restart
@@ -106,11 +118,19 @@ export function WildlifePanel({
       )}
 
       <p className="hint-text">
-        Birds flock by three local rules (Reynolds' boids). Deer graze and flee
-        from foxes. Foxes wander, hunt deer they can see, eat, rest, and starve
-        if they catch nothing. All of them retreat from paved land, so drag the
-        History Timeline to watch the wild shrink to Roosevelt Island. Time is
-        sped up, and the animals are drawn {settings.size}× bigger than real.
+        Inspired by the wildlife of theHunter: Call of the Wild. Birds flock by
+        three local rules (Reynolds' boids). Deer live in herds with a leader
+        and notice foxes by sight, by smell (a plume drifting downwind) and by
+        sound; as they grow more aware they freeze, then bolt. Foxes wander,
+        stalk (coming in from downwind) and hunt, eat, rest, and starve if they
+        catch nothing. All of them get thirsty and go to the shore to drink,
+        and deer bed down at night, in rain and in the midday heat, and leave
+        tracks. They also follow the world: they
+        can't cross water, climb cliffs or enter paved land; at night the deer
+        bed down and the birds roost; rain and storms send the birds to the
+        ground; the birds migrate away in autumn and winter. Drag the History
+        Timeline to watch the wild shrink to Roosevelt Island. Time is sped
+        up, and the animals are drawn {settings.size}× bigger than real.
       </p>
     </>
   )

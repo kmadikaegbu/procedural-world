@@ -55,6 +55,25 @@ Shader studies are done; the strategy note and the swap section are not.
 - [ ] **Fill in topics and assignment** once the deck content is available
       (see the Class 06 entry in the [progress log](README.md)).
 
+## Class 08: Agents (Assignment 1) and Scale (Assignment 2)
+
+- [x] **Inhabitants and how they behave.** Birds, deer and foxes in the
+      Wildlife tab, retreating from the paved city over the timeline.
+- [x] **State machine.** Deer (graze, flee) and foxes (wander, hunt, eat,
+      rest), plus displaced and leaving for every species.
+- [x] **Simple rules, complex behaviour.** The birds flock (boids).
+- [x] **Species forming an ecosystem.** Foxes hunt deer and starve without
+      them; every species depends on the wild land left.
+- [ ] **(Optional) A behaviour tree or a schedule.** Not used; the state
+      machines cover the behaviour so far. Inhabitants on Roosevelt Island
+      with daily schedules (hospital staff, residents, the Tram) would be
+      the natural next step.
+- [x] **Define a scale and keep objects proportional.** See
+      [Real-World Scale](<../../Tutorials/Real-World Scale.md>).
+- [x] **Resolution and camera tied to scale.** The terrain mesh is finest
+      around the island, and the camera is framed from the island's real
+      length.
+
 ## Housekeeping
 
 - [ ] Add screenshots for each class under `docs/progress/class-NN/`.

@@ -113,7 +113,58 @@ the water (see the [checklist](CHECKLIST.md#class-05-shaders-assignment-2)).
 
 **This repo's progress:** _TBD_
 
-*(Class 07 onward: add an entry here as each happens — deck link + class
+### Class 08 — Agents and Scale
+
+**Deck:** [PWB — Class 08](https://www.figma.com/deck/ZXPEZJjOz4JqAmhYm8KHW5/PWB---Class-08)
+
+**Class topics:** Agent-based systems: flocking (Craig Reynolds' alignment,
+cohesion and separation), social insects and stigmergy (ant pheromone
+trails), crowd simulation, finite state machines, perception (cones of
+vision with obstructions), predator–prey steering, stealth-game AI, the
+Sims' affordances and hierarchy of needs, and behaviour trees. Then PCG 06:
+Scale, how architectural drawings set a scale and keep objects in
+proportion to it.
+
+**Assignment 1 (agents):**
+- Consider whether your world has inhabitants, and how they behave.
+- Consider a state machine, a scheduling system or a behaviour tree, based
+  on your needs.
+- Consider how simple rules can give complex behaviour, as in flocking and
+  termites' stigmergy.
+- Consider how different species of agents can form an ecosystem that
+  interacts.
+
+**Assignment 2 (scale):**
+- Define a scale to work at.
+- Make objects proportional to that scale.
+- Consider how resolution is connected to scale, and to the camera's
+  position.
+
+**This repo's progress:** A **Wildlife** tab with three species in the land
+around Roosevelt Island ([`map/wildlife/`](../../react-app/src/map/wildlife/)):
+
+- **Birds** flock with Reynolds' three rules, each looking only at its
+  neighbours.
+- **Deer** are a state machine: graze, flee when a fox comes close.
+- **Foxes** are a state machine with perception: wander, hunt a deer they
+  see inside their cone of vision, eat, rest. Hunger rises all the time, so
+  a fox that catches nothing starves, and a fed fox may raise a kit.
+- **Habitat ties them to the history.** The animals only live on land the
+  city hasn't paved (the same rule that clears the trees). As the History
+  Timeline paves the city, animals on paved ground follow a flow field back
+  to the nearest wild land, or leave when there's none. How many of each the
+  land holds falls with the share that's still wild, so by today they're
+  down to Roosevelt Island.
+- **Show states** tints every animal by its state and draws the foxes'
+  cones of vision; the panel counts each species by state.
+
+Scale was already done: [Real-World Scale](<../../Tutorials/Real-World Scale.md>)
+defines 1 unit = 33.5 m, keeps every object in proportion through one
+factor per category, and offers a Readable / True to scale switch. The
+animals use the same rule, with a Size slider on top because a real deer
+is a twentieth of a unit.
+
+*(Class 09 onward: add an entry here as each happens — deck link + class
 topics + what this repo actually did, same format as above.)*
 
 <details>

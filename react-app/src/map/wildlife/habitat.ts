@@ -10,6 +10,11 @@ import { coastDistance } from '../world/shore'
  * it's land the city hasn't paved. "Paved" uses the same rule that clears the
  * trees in Props.tsx, so the animals live exactly where the forest is drawn.
  *
+ * Cells also know about WATER and SLOPE, so animals can drink and can respect
+ * the lie of the land: a wild cell with water beside it is a SHORE, where
+ * animals go to drink, and a flow field leads thirsty animals there. Slope
+ * (from the terrain's height) slows animals on hills and stops them on cliffs.
+ *
  * Each cell also stores a step toward the nearest wild cell (a breadth-first
  * search outward from every wild cell at once). An animal stranded on paved
  * ground follows those steps back to the wild. If there are none, its whole
@@ -41,6 +46,18 @@ export class Habitat {
   next = new Int32Array(NX * NZ)
   /** The same, over land and water, for birds. */
   nextAir = new Int32Array(NX * NZ)
+  /** Terrain steepness at each cell (rise over run). */
+  slope = new Float32Array(NX * NZ)
+  /** Wild land with water beside it: where animals drink. */
+  shore = new Uint8Array(NX * NZ)
+  /** Any land with water beside it (birds can drink from paved shores too). */
+  shoreAny = new Uint8Array(NX * NZ)
+  /** One step toward the nearest wild shore, over wild land. */
+  nextWater = new Int32Array(NX * NZ)
+  /** The same for birds: toward the nearest shore of any kind, over anything. */
+  nextWaterAir = new Int32Array(NX * NZ)
+  /** Sheltered, level spots away from the water, where deer bed down. */
+  beds: number[] = []
   /** Every wild cell, for picking one at random. */
   wildCells: number[] = []
   /** Share of the land that is still wild, 0..1: how many animals it can hold. */
@@ -57,6 +74,17 @@ export class Habitat {
         this.ground[k] = height(x, z, params)
         this.coast[k] = coastDistance(x, z, widen)
         this.island[k] = islandWeight(x, z, widen)
+      }
+    }
+    // steepness, from the neighbours' heights
+    for (let j = 0; j < NZ; j++) {
+      for (let i = 0; i < NX; i++) {
+        const g = this.ground
+        const l = g[j * NX + Math.max(0, i - 1)]
+        const r = g[j * NX + Math.min(NX - 1, i + 1)]
+        const u = g[Math.max(0, j - 1) * NX + i]
+        const d = g[Math.min(NZ - 1, j + 1) * NX + i]
+        this.slope[j * NX + i] = Math.hypot((r - l) / (2 * CELL), (d - u) / (2 * CELL))
       }
     }
   }
@@ -81,6 +109,78 @@ export class Habitat {
     this.wildShare = landCount > 0 ? this.wildCells.length / landCount : 0
     this.flow(this.next, true)
     this.flow(this.nextAir, false)
+
+    // shores: land with a water cell (not just the edge of the area) beside it
+    for (let j = 0; j < NZ; j++) {
+      for (let i = 0; i < NX; i++) {
+        const k = j * NX + i
+        let wet = false
+        if (this.land[k]) {
+          for (const [di, dj] of STRAIGHT) {
+            const ni = i + di
+            const nj = j + dj
+            if (ni >= 0 && nj >= 0 && ni < NX && nj < NZ && !this.land[nj * NX + ni]) wet = true
+          }
+        }
+        this.shoreAny[k] = wet ? 1 : 0
+        this.shore[k] = wet && this.wild[k] ? 1 : 0
+      }
+    }
+    // bedding spots: level wild ground a few cells from any water, spread across the land
+    this.beds = []
+    for (let n = 0; n < this.wildCells.length; n += 9) {
+      const k = this.wildCells[n]
+      if (this.slope[k] > 0.15) continue
+      const i = k % NX
+      const j = (k - i) / NX
+      let nearWater = false
+      for (let dj = -3; dj <= 3 && !nearWater; dj++) {
+        for (let di = -3; di <= 3; di++) {
+          const ni = i + di
+          const nj = j + dj
+          if (ni >= 0 && nj >= 0 && ni < NX && nj < NZ && !this.land[nj * NX + ni]) {
+            nearWater = true
+            break
+          }
+        }
+      }
+      if (!nearWater) this.beds.push(k)
+    }
+    this.flowFrom(this.nextWater, this.shore, STRAIGHT, this.wild)
+    this.flowFrom(this.nextWaterAir, this.shoreAny, NEIGHBOURS, null)
+  }
+
+  /** Breadth-first search out from every `source` cell, moving only through `through` cells (any if null). */
+  private flowFrom(
+    next: Int32Array,
+    source: Uint8Array,
+    steps: readonly (readonly [number, number])[],
+    through: Uint8Array | null,
+  ) {
+    next.fill(-1)
+    const queue = new Int32Array(NX * NZ)
+    let head = 0
+    let tail = 0
+    for (let k = 0; k < next.length; k++) {
+      if (source[k]) {
+        next[k] = k
+        queue[tail++] = k
+      }
+    }
+    while (head < tail) {
+      const k = queue[head++]
+      const i = k % NX
+      const j = (k - i) / NX
+      for (const [di, dj] of steps) {
+        const ni = i + di
+        const nj = j + dj
+        if (ni < 0 || nj < 0 || ni >= NX || nj >= NZ) continue
+        const n = nj * NX + ni
+        if (next[n] !== -1 || (through && !through[n])) continue
+        next[n] = k
+        queue[tail++] = n
+      }
+    }
   }
 
   /** Breadth-first search out from every wild cell; each cell records the neighbour it was reached from. */
@@ -139,6 +239,61 @@ export class Habitat {
     // line there can't cut across water
     for (let s = 0; s < (air ? 6 : 2) && next[k] !== k; s++) k = next[k]
     return this.centre(k)
+  }
+
+  /** Where a thirsty animal should head to drink (a few steps along the flow), or null if there is no water it can reach. */
+  wayToWater(x: number, z: number, air: boolean): { x: number; z: number } | null {
+    const next = air ? this.nextWaterAir : this.nextWater
+    let k = this.cellAt(x, z)
+    if (next[k] === -1) return null
+    for (let s = 0; s < (air ? 5 : 2) && next[k] !== k; s++) k = next[k]
+    return this.centre(k)
+  }
+
+  /** The heading from a shore cell toward the water beside it (so a drinker faces the water). */
+  waterFacing(k: number): number {
+    const i = k % NX
+    const j = (k - i) / NX
+    let dx = 0
+    let dz = 0
+    for (const [di, dj] of STRAIGHT) {
+      const ni = i + di
+      const nj = j + dj
+      if (ni >= 0 && nj >= 0 && ni < NX && nj < NZ && !this.land[nj * NX + ni]) {
+        dx += di
+        dz += dj
+      }
+    }
+    return Math.atan2(dx, dz)
+  }
+
+  /** Smooth terrain height at (x, z), from the grid (for tilting an animal to the slope). */
+  groundAt(x: number, z: number): number {
+    const fx = Math.min(NX - 1.001, Math.max(0, (x - AREA.x0) / CELL - 0.5))
+    const fz = Math.min(NZ - 1.001, Math.max(0, (z - AREA.z0) / CELL - 0.5))
+    const i = Math.floor(fx)
+    const j = Math.floor(fz)
+    const tx = fx - i
+    const tz = fz - j
+    const g = this.ground
+    const a = g[j * NX + i] * (1 - tx) + g[j * NX + i + 1] * tx
+    const b = g[(j + 1) * NX + i] * (1 - tx) + g[(j + 1) * NX + i + 1] * tx
+    return a * (1 - tz) + b * tz
+  }
+
+  /** The nearest bedding spot to (x, z): a cell index, or -1 if there are none. */
+  nearestBed(x: number, z: number): number {
+    let best = -1
+    let bd = Infinity
+    for (const k of this.beds) {
+      const c = this.centre(k)
+      const d = (c.x - x) ** 2 + (c.z - z) ** 2
+      if (d < bd) {
+        bd = d
+        best = k
+      }
+    }
+    return best
   }
 
   /** A random wild cell's centre, or null when nothing is wild. */

@@ -102,6 +102,8 @@ export function Map({
           paving={grass?.paving ?? 1}
           running={running}
           scaleMode={forest.scaleMode}
+          weather={weather}
+          season={forest.season}
         />
       )}
       {forest.show && (

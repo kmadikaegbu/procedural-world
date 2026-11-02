@@ -4,7 +4,7 @@ What's still outstanding from each class's assignments, checked against the
 code in `react-app/`. Tick items off (`- [x]`) as they land, and add a line
 to the [progress log](README.md) when a class's work is done.
 
-_Last reviewed: 2026-10-07_
+_Last reviewed: 2026-11-02_
 
 ## Class 03: Noise Field + Simulations (Assignment 1)
 
@@ -33,17 +33,22 @@ Required items complete.
 
 ## Class 05: Shaders (Assignment 2)
 
-Not started. Everything uses stock three.js materials.
+Shader studies are done; the strategy note and the swap section are not.
 
-- [ ] **Shader studies.** Write at least one custom GLSL shader
-      (`ShaderMaterial` or `onBeforeCompile`), e.g. animated water,
-      height-based biome blending, or snow coverage on the GPU.
-- [ ] **Pick a simulation strategy.** Decide what the shader drives
-      (water, terrain coloring, weather, …) and note why in
-      [`Planning/Planning.md`](../../Planning/Planning.md).
-- [ ] **In-app shader section.** Add a panel section or scene that lets you
-      switch between shader approaches (e.g. stock material ↔ custom
-      shader A ↔ custom shader B).
+- [x] **Shader studies.** Custom shaders for the water (waves, depth colour,
+      shore foam), the ground (grass, paving, street grid) and the trees
+      (season colours), all via `onBeforeCompile`.
+- [ ] **Pick a simulation strategy.** Write down what the shaders drive and
+      why, in [`Planning/Planning.md`](../../Planning/Planning.md). The
+      History Timeline driving paving and the grid is the strongest case.
+- [ ] **In-app shader section.** The Tree panel's Look & season switch (realistic /
+      flat / toon) already swaps strategies for the trees. Still needed: one
+      panel section that swaps approaches across the scene, e.g. stock
+      material ↔ custom shader.
+- [ ] **(Optional) Contact foam on objects.** From the class's contact-shader
+      examples: foam where the water meets anything standing in it, not just
+      the terrain. This needs the scene's depth buffer instead of the
+      terrain depth map.
 
 ## Class 06
 

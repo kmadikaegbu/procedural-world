@@ -71,13 +71,39 @@ changes.
 
 **Deck:** [PWB — Class 05](https://www.figma.com/deck/XP1cVSq9wjUzFZuUn0ury1/PWB---Class-05)
 
-**Class topics / Assignment 2:** Shader studies; what shaders can do for
-simulations; choosing a strategy; a dedicated in-app section to swap shader
-approaches.
+**Class topics:** What shaders are and how they run on the GPU, then a tour
+of shader examples: contact shaders (water marked where it touches the shore
+and floating objects), vertex displacement (objects popping in, surface
+ripples), contact shaders combined with vertex deformation, and the looks of
+*Sable* and *Manifold Garden*.
 
-**This repo's progress:** Not started yet — the app currently uses stock
-three.js materials (`MeshStandardMaterial`, etc.) throughout; no custom
-GLSL has been written.
+**Assignment 2:**
+- Create your own shader studies.
+- Show an understanding of what shaders can do for your simulations.
+- Consider which shaders you could use or would like to develop, and why.
+- Build a section of the app dedicated to shaders that lets you swap between
+  strategies.
+
+**This repo's progress:** Three custom shaders, all written by patching
+three.js materials with `onBeforeCompile`:
+
+- **Water** ([`waterMaterial.ts`](../../react-app/src/map/water/waterMaterial.ts)):
+  Gerstner waves displace the vertices. Colour comes from a terrain depth map,
+  pale and clear in the shallows and dark in deep water. White foam laps
+  where the water meets the land, which is a contact effect worked out from
+  terrain depth. Ripples and reflections sit on top. It has its own Water
+  panel.
+- **Ground** ([`grassMaterial.ts`](../../react-app/src/map/grass/grassMaterial.ts)):
+  per-pixel grass with moisture, season, grain and bare soil on steep slopes.
+  It also paints the paved city and the 1811 street grid, both driven by the
+  History Timeline.
+- **Trees** ([`materials.ts`](../../react-app/src/map/trees/materials.ts)):
+  season colours are patched into the tree shader. The Tree panel's **Look & season**
+  switch swaps between three shading strategies: realistic, flat and toon.
+
+Still open: a dedicated shader section, a written note on the chosen
+strategy, and a contact shader that also foams around objects standing in
+the water (see the [checklist](CHECKLIST.md#class-05-shaders-assignment-2)).
 
 ### Class 06
 

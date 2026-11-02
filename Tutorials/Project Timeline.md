@@ -269,7 +269,7 @@ screenshot: nothing new to see.
 
 ---
 
-## 18 — New York City · now
+## 18 — New York City · Oct 29 · `a349675`
 
 The procedural world and Roosevelt Island became one map: the **whole city on
 its real coastline** (about 21 × 26 km), with the island in its true place and
@@ -292,6 +292,21 @@ street grid of the city behind it.
 **Feature: the Voxel scene** now shows the whole city as blocks.
 
 ![Voxel](<timeline/18-nyc-voxel.jpg>)
+
+---
+
+## 19 — History · now
+
+The project gets its subject: **New York's made ground and Roosevelt Island's
+history**. The climate slider became a **History Timeline**, 1609 to 2100. The
+paved city spreads out from the Battery and clears the forest ahead of it, the
+1811 street grid appears, sea level follows the Battery tide gauge, and the
+city and island change names. Roosevelt Island stays green throughout.
+See [History and Design Position](<History and Design Position.md>).
+
+| 1609 | 1880 | 2026 |
+| --- | --- | --- |
+| ![1609](<timeline/19-history-1609.jpg>) | ![1880](<timeline/19-history-1880.jpg>) | ![2026](<timeline/19-history-2026.jpg>) |
 
 ---
 

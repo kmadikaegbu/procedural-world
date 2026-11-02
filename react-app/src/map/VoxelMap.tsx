@@ -50,6 +50,7 @@ export function VoxelMap({
         <Props
           params={params}
           forest={forest}
+          grass={grass}
           main // VoxelMap is only ever the main view
           onLodStats={onLodStats}
           onPlaced={onPlaced}

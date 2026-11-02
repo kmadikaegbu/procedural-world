@@ -30,7 +30,12 @@ import {
   TIMELINE_MAX,
   TIMELINE_DEFAULT,
   TIMELINE_YEARS_PER_SECOND,
+  cityNameForYear,
+  cityReachForYear,
+  islandNameForYear,
+  latestEvent,
   seaLevelForYear,
+  streetGridForYear,
 } from './map/timeline'
 import {
   Weather,
@@ -163,7 +168,18 @@ function App() {
   const sculpting = mapTab === 'sculpt' && scaleMode === 'readable'
   // likewise for painting the planting mask, on the Props tab
   const painting = mapTab === 'props' && maskTool !== 'off'
-  const headerTitle = 'New York City' + (scene === 'voxel' ? ' — Voxel' : '')
+  const headerTitle = cityNameForYear(timelineYear) + (scene === 'voxel' ? ' — Voxel' : '')
+
+  // the timeline's year decides how far the city has grown and whether the
+  // 1811 street grid exists; the Grass panel's own sliders stay as they are
+  const cityReach = cityReachForYear(timelineYear)
+  const streetGrid = streetGridForYear(timelineYear)
+  const grassView = useMemo(
+    () => ({ ...grass, cityReach, streetGrid }),
+    [grass, cityReach, streetGrid],
+  )
+  const islandName = islandNameForYear(timelineYear)
+  const event = latestEvent(timelineYear)
 
   // Subtitle lists only what's actually present right now, not a fixed blurb.
   // terrain is always on (no toggle removes it); the rest track a real state:
@@ -294,7 +310,7 @@ function App() {
                   params={terrainView}
                   forest={forest}
                   water={water}
-                  grass={grass}
+                  grass={grassView}
                   weather={weather}
                   main
                   onPlaced={onPlaced}
@@ -316,7 +332,7 @@ function App() {
                   params={terrainView}
                   forest={forest}
                   water={water}
-                  grass={grass}
+                  grass={grassView}
                   weather={weather}
                   running={running}
                   onPlaced={onPlaced}
@@ -347,7 +363,7 @@ function App() {
           mode={insetMode}
           forest={forest}
           water={water}
-          grass={grass}
+          grass={grassView}
           weather={weather}
           wireframe={wireframe}
           snowing={isSnowing}
@@ -404,11 +420,11 @@ function App() {
           </p>
 
           <>
-            <div className="panel-title">Climate Timeline</div>
+            <div className="panel-title">History Timeline</div>
 
             <label
               className="row"
-              title="Drives Sea Level through a stylized rise curve — dragging stops Play."
+              title="1609 to 2100. Sets the sea level, how far the city has grown from the Battery, whether the 1811 street grid exists, and the names of the city and the island. Dragging stops Play."
             >
               <span>Year</span>
               <input
@@ -432,7 +448,7 @@ function App() {
                   if (timelineYear >= TIMELINE_MAX) setYear(TIMELINE_MIN)
                   setTimelinePlaying(true)
                 }}
-                title="Animate forward from the current year to 2100."
+                title="Animate forward from the current year to 2100 (from 1609 if you're already at 2100)."
               >
                 ▶ Play
               </button>
@@ -458,9 +474,16 @@ function App() {
             </div>
 
             <p className="hint-text">
-              A stylized sea-level-rise curve, not real NOAA/IPCC
-              projections — illustrates how flooding reshapes the coast
-              over time. Drives the Sea Level control directly.
+              <strong>{islandName}</strong>
+              <br />
+              {event.year}: {event.text}
+            </p>
+
+            <p className="hint-text">
+              Sea level up to today follows the Battery tide gauge (measured
+              since 1856, held flat before). After today it is a stylized
+              curve, not a forecast. The city's spread is an estimate. Sources
+              are in the History and Design Position note.
             </p>
           </>
 

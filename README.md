@@ -112,9 +112,12 @@ The app has **two scenes**, switched from the control panel:
 The Map and Voxel scenes share one parameter set, controlled from the panel:
 
 - **Simulation**: Running/Paused freezes weather and animation in place
-- **Climate Timeline**: a 1950–2100 year slider with Play/Stop that drives
-  sea level. The rise curve is *stylized for illustration*, not real
-  NOAA/IPCC data.
+- **History Timeline**: a 1609–2100 year slider with Play/Stop. The paved
+  city spreads out from the Battery and clears the forest, the 1811 street
+  grid appears, and the city and Roosevelt Island change names. Sea level
+  follows the Battery tide gauge up to today; after today the rise is
+  *stylized for illustration*, not a forecast. See
+  [History and Design Position](<Tutorials/History and Design Position.md>).
 - **Terrain** tab: seed, frequency, octaves, persistence, ridged noise,
   Perlin ↔ cellular noise blend, shaping (redistribute, terraces), sea
   level, island width, resolution, pan offset
@@ -194,7 +197,7 @@ react-app/src/
 │   ├── Props.tsx       seeded, density-clustered tree scattering
 │   ├── Minimap.tsx     top-down orthographic minimap (terrain or noise)
 │   ├── NoisePlane.tsx  grayscale image of the raw noise field
-│   └── timeline.ts     climate timeline: year → sea level
+│   └── timeline.ts     history timeline: year → sea level, city growth, names, events
 │
 ├── weather/            sky, fog, clouds, rain/snow (shared by Map + Voxel)
 │   ├── Weather.tsx     combines sky, clouds, and precipitation

@@ -6,6 +6,8 @@ import {
 } from 'three'
 import { NOISE_GLSL } from '../glsl/noise'
 import { BANDS } from '../noise'
+import { BATTERY, CITY_REACH_ALL } from '../timeline'
+import { CITY_EDGE } from '../world/region'
 
 /**
  * TERRAIN MATERIAL WITH PROCEDURAL GRASS
@@ -49,6 +51,10 @@ export interface GrassUniforms {
   uWet: { value: number }
   uSnow: { value: number }
   uPaving: { value: number }
+  /** how far the built-up city reaches from the Battery, world units (see timeline.ts) */
+  uReach: { value: number }
+  /** 0 before the 1811 street grid, 1 once it exists */
+  uGrid: { value: number }
   uLushColor: { value: Color }
   uDryColor: { value: Color }
   uSoilColor: { value: Color }
@@ -72,6 +78,8 @@ function createUniforms(): GrassUniforms {
     uWet: { value: 0 },
     uSnow: { value: 0 },
     uPaving: { value: 0 },
+    uReach: { value: CITY_REACH_ALL },
+    uGrid: { value: 1 },
     uLushColor: { value: new Color('#4f8a3a') },
     uDryColor: { value: new Color('#b3a45e') },
     uSoilColor: { value: new Color('#7a6248') },
@@ -86,6 +94,7 @@ function createUniforms(): GrassUniforms {
 const VERT_HEADER = /* glsl */ `
 attribute float aIsland;   // 1 on Roosevelt Island (always parkland), 0 elsewhere
 uniform float uPaving;     // 0 = all land is parkland … 1 = paved city
+uniform float uReach;      // how far the city has spread from the Battery (world units)
 varying float vGreen;
 varying vec3 vGPos;
 varying vec3 vGNormal;
@@ -97,7 +106,9 @@ vGNormal = normalize(mat3(modelMatrix) * objectNormal);
 const VERT_POS = /* glsl */ `
 #include <begin_vertex>
 vGPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
-vGreen = max(1.0 - uPaving, aIsland);
+// paved only where the city has reached by the timeline's year (same rule as greenAt() in world/region.ts)
+float urban = smoothstep(0.0, 1.0, clamp((uReach - distance(vGPos.xz, vec2(${BATTERY.x.toFixed(1)}, ${BATTERY.z.toFixed(1)}))) / ${CITY_EDGE.toFixed(1)}, 0.0, 1.0));
+vGreen = max(1.0 - uPaving * urban, aIsland);
 `
 
 // --- fragment stage -----------------------------------------------------------
@@ -121,6 +132,7 @@ uniform vec3 uSoilColor;
 uniform vec3 uSeasonTint;
 uniform float uSeasonMix;
 uniform float uSeasonDry;
+uniform float uGrid;
 varying float vGreen;
 varying vec3 vGPos;
 varying vec3 vGNormal;
@@ -198,7 +210,8 @@ if (gUrban > 0.0) {
   float block = wHash(cell + 17.0);             // tone for this block
   float la = abs(fract(a) - 0.5);
   float lb = abs(fract(b) - 0.5);
-  float street = max(smoothstep(0.43, 0.5, la), smoothstep(0.455, 0.5, lb));
+  // no street lines before the 1811 Commissioners' Plan, just the paved town
+  float street = max(smoothstep(0.43, 0.5, la), smoothstep(0.455, 0.5, lb)) * uGrid;
   float near = 1.0 - smoothstep(60.0, 260.0, length(vViewPosition));
   float tone = 1.0 + (block - 0.5) * 0.16 * (0.4 + 0.6 * near) - street * 0.26 * near;
   tone *= 0.96 + 0.08 * fbm2(gp * 0.8);         // broad drifting of tone, so it isn't a flat sheet

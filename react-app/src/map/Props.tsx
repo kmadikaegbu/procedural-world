@@ -11,6 +11,12 @@ import { LodRings } from './trees/LodRings'
 import { applySeason, useTreeMaterials } from './trees/materials'
 import { scatterTrees, treeMatrix, type PlacedTree } from './trees/scatter'
 import { SEASONS } from './trees/seasons'
+import { hash01 } from './trees/grammar'
+import { GRASS_DEFAULTS, type GrassSettings } from './grass/settings'
+import { islandWeight, islandWiden, urbanWeight } from './world/region'
+
+// share of the trees that survive in the built-up city, as street and park trees
+const STREET_TREES = 0.08
 import { ratios } from './scale'
 
 /**
@@ -26,6 +32,7 @@ import { ratios } from './scale'
 export function Props({
   params,
   forest,
+  grass = GRASS_DEFAULTS,
   voxel = false,
   main = false,
   onLodStats,
@@ -33,6 +40,8 @@ export function Props({
 }: {
   params: TerrainParams
   forest: Forest
+  /** Paving and how far the city has grown: trees are cleared where it's built up. */
+  grass?: GrassSettings
   /** Snap trees onto VoxelTerrain's grid — set when rendering inside VoxelMap. */
   voxel?: boolean
   /** The main 3D view (LOD, debug rings and stats apply) — not the minimap. */
@@ -69,11 +78,21 @@ export function Props({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [...shapeKey(params), scatter, maskInUse, scatterSeed, voxel, scaleMode],
   )
-  // which of them are on grass at the CURRENT sea level, then the first `count`
+  // which of them are on grass at the CURRENT sea level and not cleared for the
+  // city, then the first `count`. As the History Timeline's city spreads out from
+  // the Battery, the forest is cleared ahead of it, leaving only a few street
+  // trees; Roosevelt Island keeps its trees.
   const [grassLo, grassHi] = grassRange(params)
+  const widen = islandWiden(params)
   const visible = useMemo(
-    () => trees.filter((t) => t.h >= grassLo && t.h <= grassHi),
-    [trees, grassLo, grassHi],
+    () =>
+      trees.filter((t) => {
+        if (t.h < grassLo || t.h > grassHi) return false
+        const [x, , z] = t.pos
+        const built = grass.paving * urbanWeight(x, z, grass.cityReach) * (1 - islandWeight(x, z, widen))
+        return built < 0.5 || hash01(t.seed, 9) < STREET_TREES
+      }),
+    [trees, grassLo, grassHi, grass.paving, grass.cityReach, widen],
   )
   // The sea level moves every frame on the climate timeline, but the trees it
   // picks only change when one crosses the grass band. Keep the same array until

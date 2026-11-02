@@ -4,6 +4,7 @@ import type { WaterSettings } from './water/settings'
 import type { GrassSettings } from './grass/settings'
 import type { WeatherParams } from '../weather/presets'
 import { Props } from './Props'
+import { City } from './city/City'
 import { TERRAIN_DEFAULTS, type TerrainParams } from './noise'
 import type { Forest } from './trees/forest'
 import type { LodReadout } from './trees/lod'
@@ -25,6 +26,7 @@ export function Map({
   weather,
   main = false,
   quality = 'high',
+  year,
   onLodStats,
   onPlaced,
   wireframe = false,
@@ -42,6 +44,8 @@ export function Map({
   weather?: WeatherParams
   /** The main 3D view rather than the minimap — LOD and stats only apply here. */
   main?: boolean
+  /** The timeline's year: set it to draw the city's buildings and streets as they were then (main view only). */
+  year?: number
   /** 'low' builds much lighter ground and water meshes — for the minimap. */
   quality?: 'high' | 'low'
   onLodStats?: (r: LodReadout) => void
@@ -78,6 +82,9 @@ export function Map({
         detail={main ? 'high' : 'low'}
         scaleMode={forest.scaleMode}
       />
+      {main && year !== undefined && (
+        <City params={params} year={year} scaleMode={forest.scaleMode} />
+      )}
       {forest.show && (
         <Props
           params={params}

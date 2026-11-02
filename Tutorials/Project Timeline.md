@@ -36,7 +36,8 @@ screenshots.
 | 15 | Oct 25 | Procedural grass |
 | 16 | Oct 25–27 | Real-world scale (Readable / True to scale) and natural tree sizes |
 | 17 | Oct 27 | The noise orb removed |
-| 18 | Now | **New York City**: the procedural world and Roosevelt Island combined |
+| 18 | Oct 28 | **New York City**: the procedural world and Roosevelt Island combined |
+| 19 | Now | **City growth**: streets and buildings built as the years pass, with the census population |
 
 ---
 
@@ -307,6 +308,29 @@ See [History and Design Position](<History and Design Position.md>).
 | 1609 | 1880 | 2026 |
 | --- | --- | --- |
 | ![1609](<timeline/19-history-1609.jpg>) | ![1880](<timeline/19-history-1880.jpg>) | ![2026](<timeline/19-history-2026.jpg>) |
+
+---
+
+## 19 — City growth · now
+
+The Year slider now **builds the city**: streets are laid, buildings rise out
+of the ground, low blocks are replaced by towers in Wall Street and Midtown,
+and a counter tracks the population (the census, with early estimates). The
+sea of 2100 floods the lowest streets. See [City Growth](<City Growth.md>).
+
+![1700](<timeline/19-city-1700.jpg>)
+
+**1850**: Manhattan is gridded and brick.
+
+![1850](<timeline/19-city-1850.jpg>)
+
+**Today**: Wall Street's towers, 8.8 million people.
+
+![2026](<timeline/19-city-2026.jpg>)
+
+**2100**: the stylized sea takes the low-lying city.
+
+![2100](<timeline/19-city-2100.jpg>)
 
 ---
 

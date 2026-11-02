@@ -33,6 +33,12 @@ import type { Season } from '../trees/seasons'
 import { WEATHER_DEFAULTS, type WeatherParams } from '../../weather/presets'
 import type { WildlifeSettings } from './settings'
 
+/**
+ * Animals nearer the camera than this (world units) are drawn at their true size
+ * next to the trees; farther away they grow with distance, so they stay visible.
+ */
+const NEAR_VIEW = 25
+
 /** Room in each species' mesh: the slider maximum, twice over for newborns and leavers. */
 const ROOM: Record<Species, number> = { bird: 600, deer: 300, fox: 60 }
 /** Longest step the simulation takes, so a slow frame can't fling animals across the map. */
@@ -369,6 +375,8 @@ export function Wildlife({
   // each animal's stride/flap phase, kept as it moves so a change of speed doesn't jerk the legs
   const phases = useMemo(() => new WeakMap<object, number>(), [])
   const flashes = useMemo(() => new WeakMap<object, number>(), [])
+  // where the camera is, for the distance enlargement (see draw)
+  const viewer = useRef(new Vector3())
   const coneGeometry = useMemo(() => visionCone(FOX.fov), [])
   // a hoof or paw print: a small flat oval
   const printGeometry = useMemo(() => new CircleGeometry(1, 8).rotateX(-Math.PI / 2), [])
@@ -383,6 +391,7 @@ export function Wildlife({
       sim.habitat.update(params.seaLevel, cityReach, paving)
     }
     materials.time.value = state.clock.elapsedTime
+    viewer.current.copy(state.camera.position)
     sim.env = envFrom(weather, season)
     if (populated.current !== resetKey) {
       populated.current = resetKey
@@ -400,7 +409,14 @@ export function Wildlife({
 
   function draw(dt: number) {
     materials.states.value = settings.showStates ? 1 : 0
-    const sizeOf = (sp: Species) => m(REAL_LENGTH[sp]) * EXAGGERATION[scaleMode].objects * settings.size
+    // The animals are drawn on the same ruler as the trees (real length × the scale's
+    // objects factor), so up close a deer is the right size next to a tree. A deer that
+    // size is a speck from the camera's usual distance, so it is also enlarged with
+    // distance (like a map symbol): by distance ÷ NEAR, up to the Size slider's limit.
+    const sizeOf = (sp: Species) => m(REAL_LENGTH[sp]) * EXAGGERATION[scaleMode].objects
+    const view = viewer.current
+    const boostAt = (x: number, y: number, z: number) =>
+      Math.min(settings.size, Math.max(1, Math.hypot(x - view.x, y - view.y, z - view.z) / NEAR_VIEW))
     const filled: Record<Species, number> = { bird: 0, deer: 0, fox: 0 }
     const modelFilled: Record<ModelKey, number> = { doe: 0, stag: 0, fox: 0 }
     let coneCount = 0
@@ -408,7 +424,10 @@ export function Wildlife({
 
     // fawns are smaller than grown deer
     const drawnSize = (a: Agent) =>
-      sizeOf(a.species) * Math.max(0, a.grow) * (a.species === 'deer' ? 0.55 + 0.45 * a.age : 1)
+      sizeOf(a.species) *
+      boostAt(a.x, a.y, a.z) *
+      Math.max(0, a.grow) *
+      (a.species === 'deer' ? 0.55 + 0.45 * a.age : 1)
     // lean with the ground: nose up going uphill, down going downhill
     const lean = (a: Agent) => {
       const dx = Math.sin(a.heading) * 0.9
@@ -545,7 +564,7 @@ export function Wildlife({
         for (const t of sim.tracks) {
           const age = sim.time - t.t
           if (age > TRACK_LIFE) continue
-          const size = sizeOf(t.species) * 0.07 * (1 - age / TRACK_LIFE)
+          const size = sizeOf(t.species) * boostAt(t.x, t.y, t.z) * 0.07 * (1 - age / TRACK_LIFE)
           rot.setFromAxisAngle(up, t.heading)
           mat.compose(pos.set(t.x, t.y + 0.03, t.z), rot, scl.set(size * 0.55, 1, size))
           pm.setMatrixAt(n++, mat)

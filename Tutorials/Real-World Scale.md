@@ -422,6 +422,33 @@ tail of tall veterans, and size correlates with altitude at about −0.5.
 Before this change every tree was 13–36 m with a flat spread, all three
 species the same height, and no link to the land (correlation 0).
 
+### One ruler for trees, buildings and animals
+
+Everything that stands on the land is its **real size × the same objects
+factor** (×2.9 at the readable scale, ×1 at true scale). That keeps them in
+proportion to each other: a five-storey building stands beside a street tree as
+it does in life, and a deer is a fraction of a tree's height.
+
+| Thing | Real | Drawn (readable) | Rule |
+| --- | --- | --- | --- |
+| Street tree | 25 m | 2.2 u | real × 2.9 |
+| 5-storey building | 18 m | 1.6 u | real × 2.9 (it was ×1.7, which made trees taller than buildings) |
+| 40-storey tower | 144 m | 12 u | real × 2.9 |
+| Deer | 1.9 m long | 0.16 u | real × 2.9, up close |
+| Gull | 1.5 m wingspan | 0.13 u | real × 2.9, up close |
+| Building footprint, street width | 45 m, 10 m | real | **not** enlarged: they tile the real street grid |
+| Terrain relief | 7 m hills | ×15 | the vertical exaggeration |
+
+Two things are the exception:
+
+- **Footprints are real.** Enlarging a lot by 2.9 would make it wider than the
+  block it stands on, so only building *heights* take the factor.
+- **Animals grow with distance.** At the camera's usual distance a 0.16 u deer
+  is a speck. So an animal is drawn at its true size next to the trees when the
+  camera is within about 25 units, and is enlarged by (distance ÷ 25) beyond
+  that, up to the Wildlife tab's **Size ×** limit. It is how a map symbol
+  stays readable as you zoom out. Zoom in and the proportions are right.
+
 ## A checklist for starting a scene
 
 1. **Pick the ruler.** One real thing, its real size, and `METERS_PER_UNIT`.

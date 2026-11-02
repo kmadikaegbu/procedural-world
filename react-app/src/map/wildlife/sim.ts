@@ -174,6 +174,10 @@ export interface Agent {
   bed: number
   /** Distance walked since its last print. */
   stride: number
+  /** 0 standing … 1 lying down: it sinks slowly, and has to stand before it can walk. */
+  lie: number
+  /** Deer: 0.3 a fawn … 1 grown. Fawns are smaller; only grown bucks carry antlers. */
+  age: number
 }
 
 /** A footprint on the ground, fading with time. */
@@ -556,6 +560,7 @@ export class WildlifeSim {
     grow(d, dt)
     d.timer -= dt
     d.thirst += dt * this.thirstRate('deer')
+    d.age = Math.min(1, d.age + dt / 100) // a fawn grows up in about a minute and a half
     let headTarget = 0
     const lead = d.leader && d.leader.state !== 'leaving' ? d.leader : null
     if (d.leader && !lead) d.leader = null
@@ -640,7 +645,17 @@ export class WildlifeSim {
       }
     }
     this.walk(d, dt, params)
+    // grazing deer lift their heads now and then to chew and look round
+    if (headTarget > 0.5 && d.state === 'graze' && Math.sin(this.time * 0.9 + d.id) > 0.75) headTarget = 0.15
     d.head += (headTarget - d.head) * Math.min(1, dt * 3)
+    this.settle(d, d.state === 'rest' && d.goal === 0, dt)
+  }
+
+  /** Lie down (slowly) or get up (quickly, at once if startled). */
+  private settle(a: Agent, lying: boolean, dt: number) {
+    const target = lying ? 1 : 0
+    const rate = target > a.lie ? 0.9 : a.state === 'flee' || a.state === 'alert' ? 6 : 2.2
+    a.lie += Math.max(-rate * dt, Math.min(rate * dt, target - a.lie))
   }
 
   /** Choose the next bout of grazing: shuffle along head down, amble to a new patch, or stand and look around. */
@@ -882,6 +897,7 @@ export class WildlifeSim {
     }
     this.walk(f, dt, params)
     f.head += (headTarget - f.head) * Math.min(1, dt * 3)
+    this.settle(f, f.state === 'rest' && f.goal === 0, dt)
   }
 
   private startWander(f: Agent) {
@@ -943,7 +959,8 @@ export class WildlifeSim {
     const slope = hab.slope[hab.cellAt(a.x, a.z)]
     const uphill = 1 - 0.55 * clamp01((slope - 0.25) / 0.8)
     const bend = 1 - 0.7 * clamp01(Math.abs(diff) / 1.6)
-    const target = a.goal * uphill * bend
+    // a lying animal has to get up before it can go anywhere
+    const target = (a.lie > 0.25 ? 0 : a.goal) * uphill * bend
     const accel = target > a.speed ? 2.5 : 7
     a.speed += Math.max(-accel * dt, Math.min(accel * dt, target - a.speed))
     if (a.goal === 0 && a.speed < 0.02) a.speed = 0
@@ -1081,6 +1098,8 @@ export class WildlifeSim {
       leader: null,
       bed: -1,
       stride: 0,
+      lie: 0,
+      age: sp === 'deer' && (grown < 1 || this.rand() < 0.15) ? 0.3 + this.rand() * 0.2 : 1,
     }
     this.agents.push(a)
     return a

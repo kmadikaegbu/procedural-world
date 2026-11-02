@@ -26,6 +26,7 @@ import {
 import { TerraformBrush } from './map/TerraformBrush'
 import type { BrushTool, TerrainEdits } from './map/terraform'
 import {
+  BATTERY,
   TIMELINE_MIN,
   TIMELINE_MAX,
   TIMELINE_DEFAULT,
@@ -37,6 +38,7 @@ import {
   seaLevelForYear,
   streetGridForYear,
 } from './map/timeline'
+import { CityStats } from './map/city/CityStats'
 import {
   Weather,
   WEATHER_PRESETS,
@@ -107,6 +109,7 @@ const WEATHER_KIND_HINTS: Record<WeatherKind, string> = {
 function App() {
   const [scene, setScene] = useState<SceneMode>('map')
   const [showMinimap, setShowMinimap] = useState(true)
+  const [showCity, setShowCity] = useState(true)
   const [insetMode, setInsetMode] = useState<InsetMode>('terrain')
   const [terrainState, setTerrain] = useState<TerrainParams>(TERRAIN_DEFAULTS)
   // Readable (enlarged so everything stays visible) or true to scale — see map/scale.ts
@@ -162,6 +165,16 @@ function App() {
   const [timelineYear, setTimelineYear] = useState(TIMELINE_DEFAULT)
   const [timelinePlaying, setTimelinePlaying] = useState(false)
   const controlsRef = useRef<OrbitControlsImpl>(null)
+
+  // fly the camera to a place, keeping the way it is looking
+  const lookAt = (x: number, z: number, distance: number) => {
+    const c = controlsRef.current
+    if (!c) return
+    const dir = c.object.position.clone().sub(c.target).normalize()
+    c.target.set(x, 2, z)
+    c.object.position.copy(c.target).addScaledVector(dir, distance)
+    c.update()
+  }
 
   // the brush is live exactly while the Sculpt tab is open
   // (off at true scale: brush strokes are stored at the readable scale)
@@ -313,6 +326,7 @@ function App() {
                   grass={grassView}
                   weather={weather}
                   main
+                  year={showCity ? timelineYear : undefined}
                   onPlaced={onPlaced}
                   onLodStats={onLodStats}
                   wireframe={wireframe}
@@ -473,6 +487,46 @@ function App() {
               </button>
             </div>
 
+            <div className="segmented">
+              <button
+                className={showCity ? 'active' : ''}
+                onClick={() => setShowCity(true)}
+                title="Draw the city's streets and buildings as they were in the chosen year. They are laid and raised as the years pass."
+              >
+                Buildings on
+              </button>
+              <button
+                className={!showCity ? 'active' : ''}
+                onClick={() => setShowCity(false)}
+                title="Hide the streets and buildings."
+              >
+                Buildings off
+              </button>
+            </div>
+
+            <CityStats year={timelineYear} />
+
+            <div className="segmented">
+              <button
+                onClick={() => lookAt(0, 0, 140)}
+                title="Fly to Roosevelt Island."
+              >
+                Island
+              </button>
+              <button
+                onClick={() => lookAt(BATTERY.x + 6, BATTERY.z - 6, 160)}
+                title="Fly to the Battery, the southern tip of Manhattan, where the city began."
+              >
+                Battery
+              </button>
+              <button
+                onClick={() => lookAt(-86, 26, 220)}
+                title="Fly to Midtown Manhattan."
+              >
+                Midtown
+              </button>
+            </div>
+
             <p className="hint-text">
               <strong>{islandName}</strong>
               <br />
@@ -482,7 +536,9 @@ function App() {
             <p className="hint-text">
               Sea level up to today follows the Battery tide gauge (measured
               since 1856, held flat before). After today it is a stylized
-              curve, not a forecast. The city's spread is an estimate. Sources
+              curve, not a forecast. The city's spread is an estimate. Population is
+              the census (before 1790, estimates; after 2020, stylized). The
+              buildings and streets are procedural, not a survey. Sources
               are in the History and Design Position note.
             </p>
           </>

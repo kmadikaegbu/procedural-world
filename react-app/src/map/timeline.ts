@@ -94,6 +94,13 @@ const REACH: [number, number][] = [
 
 export const cityReachForYear = (year: number) => through(REACH, year)
 
+/** The inverse: the year the built-up city first reaches `distance` from the Battery. */
+export const yearForCityReach = (distance: number) =>
+  through(
+    REACH.map(([year, reach]) => [reach, year] as [number, number]),
+    distance,
+  )
+
 /** The Commissioners' Plan, which laid the street grid over Manhattan. */
 export const GRID_YEAR = 1811
 

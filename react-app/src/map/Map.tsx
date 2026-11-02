@@ -5,6 +5,10 @@ import type { GrassSettings } from './grass/settings'
 import type { WeatherParams } from '../weather/presets'
 import { Props } from './Props'
 import { City } from './city/City'
+import { Wildlife } from './wildlife/Wildlife'
+import type { WildlifeSettings } from './wildlife/settings'
+import type { WildlifeStats } from './wildlife/sim'
+import { CITY_REACH_ALL } from './timeline'
 import { TERRAIN_DEFAULTS, type TerrainParams } from './noise'
 import type { Forest } from './trees/forest'
 import type { LodReadout } from './trees/lod'
@@ -27,6 +31,7 @@ export function Map({
   main = false,
   quality = 'high',
   year,
+  wildlife,
   onLodStats,
   onPlaced,
   wireframe = false,
@@ -46,6 +51,8 @@ export function Map({
   main?: boolean
   /** The timeline's year: set it to draw the city's buildings and streets as they were then (main view only). */
   year?: number
+  /** The animals (main view only): their settings, a restart counter, and a live readout. */
+  wildlife?: { settings: WildlifeSettings; resetKey: number; onStats?: (s: WildlifeStats) => void }
   /** 'low' builds much lighter ground and water meshes — for the minimap. */
   quality?: 'high' | 'low'
   onLodStats?: (r: LodReadout) => void
@@ -84,6 +91,18 @@ export function Map({
       />
       {main && year !== undefined && (
         <City params={params} year={year} scaleMode={forest.scaleMode} />
+      )}
+      {main && wildlife?.settings.show && (
+        <Wildlife
+          params={params}
+          settings={wildlife.settings}
+          resetKey={wildlife.resetKey}
+          onStats={wildlife.onStats}
+          cityReach={grass?.cityReach ?? CITY_REACH_ALL}
+          paving={grass?.paving ?? 1}
+          running={running}
+          scaleMode={forest.scaleMode}
+        />
       )}
       {forest.show && (
         <Props

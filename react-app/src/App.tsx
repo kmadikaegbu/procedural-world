@@ -12,6 +12,9 @@ import { WATER_DEFAULTS, type WaterSettings } from './map/water/settings'
 import { WaterPanel } from './map/water/WaterPanel'
 import { GRASS_DEFAULTS, type GrassSettings } from './map/grass/settings'
 import { GrassPanel } from './map/grass/GrassPanel'
+import { WILDLIFE_DEFAULTS, type WildlifeSettings } from './map/wildlife/settings'
+import { WildlifePanel } from './map/wildlife/WildlifePanel'
+import type { WildlifeStats } from './map/wildlife/sim'
 import { useTreeControls } from './map/trees/useTreeControls'
 import { TERRAIN_DEFAULTS, erodeTerrain, type TerrainParams } from './map/noise'
 import {
@@ -152,8 +155,15 @@ function App() {
   const [water, setWater] = useState<WaterSettings>(WATER_DEFAULTS)
   const [grass, setGrass] = useState<GrassSettings>(GRASS_DEFAULTS)
   const [wireframe, setWireframe] = useState(false)
+  const [wildlife, setWildlife] = useState<WildlifeSettings>(WILDLIFE_DEFAULTS)
+  const [wildlifeReset, setWildlifeReset] = useState(0)
+  const [wildlifeStats, setWildlifeStats] = useState<WildlifeStats | null>(null)
+  const wildlifeView = useMemo(
+    () => ({ settings: wildlife, resetKey: wildlifeReset, onStats: setWildlifeStats }),
+    [wildlife, wildlifeReset],
+  )
   const [mapTab, setMapTab] = useState<
-    'terrain' | 'sculpt' | 'weather' | 'props'
+    'terrain' | 'sculpt' | 'weather' | 'props' | 'wildlife'
   >('terrain')
   const [brushTool, setBrushTool] = useState<BrushTool>('raise')
   const [brushRadius, setBrushRadius] = useState(6)
@@ -327,6 +337,7 @@ function App() {
                   weather={weather}
                   main
                   year={showCity ? timelineYear : undefined}
+                  wildlife={wildlifeView}
                   onPlaced={onPlaced}
                   onLodStats={onLodStats}
                   wireframe={wireframe}
@@ -628,6 +639,13 @@ function App() {
                 title="Trees and other objects scattered on the terrain."
               >
                 Props
+              </button>
+              <button
+                className={mapTab === 'wildlife' ? 'active' : ''}
+                onClick={() => setMapTab('wildlife')}
+                title="Birds, deer and foxes: the agents that live in the wild land, and retreat as the city paves it."
+              >
+                Wildlife
               </button>
             </div>
 
@@ -1226,6 +1244,15 @@ function App() {
             )}
 
             {mapTab === 'props' && <TreePanel c={trees} painting={painting} />}
+
+            {mapTab === 'wildlife' && (
+              <WildlifePanel
+                settings={wildlife}
+                setSettings={setWildlife}
+                stats={wildlifeStats}
+                onRestart={() => setWildlifeReset((k) => k + 1)}
+              />
+            )}
 
             {mapTab === 'terrain' && (
               <>

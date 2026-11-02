@@ -58,6 +58,9 @@ at 12 years a second.
   which has measured 2.94 mm a year since 1856. The rise is drawn as
   exaggerated as the hills, so you can see it. After today the curve is
   deliberately dramatic. It is an illustration, not a forecast.
+- 🦌 **The wildlife retreats.** Birds flock, deer graze, and foxes hunt
+  them. They live only on land the city hasn't paved, so as it spreads they
+  are pushed back, until today they're left on Roosevelt Island.
 - 🏷️ **The names change.** The header reads Mannahatta, then New Amsterdam,
   then New York City. The panel shows the island's name for that year and the
   latest thing that happened there.

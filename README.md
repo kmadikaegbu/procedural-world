@@ -1,142 +1,127 @@
-# Procedural World Building — New York City
+# New York, Made Ground
 
-A procedurally generated **New York City**, built in the browser with React and
-three.js, with **Roosevelt Island** as its detailed centrepiece. The coastline
-is the real one (the city's own shoreline data: Manhattan, the Hudson, East and
-Harlem rivers, Queens, Brooklyn and Roosevelt Island in its true place). Seeded
-fractal noise supplies the land's relief; on top sit biomes, procedural trees,
-grass and water, a full weather system, a voxel rendering mode, and a climate
-timeline that floods the coast between 1950 and 2100.
+### Four hundred years of New York, built in your browser, with Roosevelt Island at its centre
 
-**▶ Live demo:** https://procedural-world-design-app.web.app
+**▶ [Open the live demo](https://procedural-world-design-app.web.app)**, press
+**Play** on the History Timeline, and watch the city grow.
 
-This repository holds two things:
-
-1. **The app**, in [`react-app/`](react-app/).
-2. **The course vault**: notes, tutorials, planning, and a per-class progress
-   log for the Procedural World Building course. It's an
-   [Obsidian](https://obsidian.md) vault, but every file is plain Markdown,
-   so it reads fine on GitHub too.
+| 1609 · Mannahatta | 1880 · New York City | 2026 · Today |
+| :---: | :---: | :---: |
+| ![The map in 1609: all forest and meadow](Tutorials/timeline/19-history-1609.jpg) | ![The map in 1880: the paved city spreading from the Battery](Tutorials/timeline/19-history-1880.jpg) | ![The map today: the city paved, Roosevelt Island still green](Tutorials/timeline/19-history-2026.jpg) |
+| Lenape land: forest, marsh and meadow. | The city spreads north from the Battery, clearing the forest as it goes. | The whole city is paved. Roosevelt Island stays green. |
 
 ---
 
-## Contents
+## The idea
 
-- [Where to start](#where-to-start)
-- [Repository map](#repository-map)
-- [The app at a glance](#the-app-at-a-glance)
-- [Quick start](#quick-start)
-- [Deployment](#deployment)
-- [App source layout](#app-source-layout)
-- [Built with](#built-with)
+> **New York's ground is made, not given.**
+
+In 1609, Manhattan was *Mannahatta*: hills, streams, forest and marsh. Almost
+everything since has been a decision laid on top of that land:
+
+- A street grid drawn over the whole island in 1811, before most of it was built.
+- Forests cleared for streets and buildings.
+- Shorelines pushed into the rivers with landfill.
+- Now, a sea that rises a little more each year.
+
+**Roosevelt Island** is the counterpoint. It is a thin strip of rock in the East
+River, right in the middle of all this, and it has been five places in turn:
+
+| Years | Name | What the island was |
+| --- | --- | --- |
+| before 1637 | **Minnehanonck** | Lenape land |
+| 1637 | **Hog Island** | A Dutch pig farm |
+| 1686 | **Blackwell's Island** | A family farm, then the city's prisons, asylum and smallpox hospital |
+| 1921 | **Welfare Island** | Hospitals |
+| 1973 | **Roosevelt Island** | A planned "new town in town", Louis Kahn's Four Freedoms memorial, and now Cornell Tech |
+
+For most of its history the city used the island to keep people out of sight,
+then remade it as an experiment in planning. In this model it is the one piece
+of ground that is never paved.
+
+This project turns that history into a world you can scrub through.
 
 ---
 
-## Where to start
+## What you'll see
 
-| If you want to… | Go to |
+Drag the **History Timeline** from 1609 to 2100, or press Play to watch it run
+at 12 years a second.
+
+- 🏙️ **The city grows.** Paving spreads out from the Battery: New Amsterdam by
+  1664, about 42nd Street by 1850, the whole city by 1950.
+- 🌳 **The forest goes.** Trees are cleared as the city arrives, and a few
+  survive as street trees.
+- 📐 **The grid appears.** From 1811, Manhattan's street grid fades in on built
+  ground, at the island's real 29° tilt.
+- 🌊 **The sea rises.** Up to today, sea level follows the Battery tide gauge,
+  which has measured 2.94 mm a year since 1856. The rise is drawn as
+  exaggerated as the hills, so you can see it. After today the curve is
+  deliberately dramatic. It is an illustration, not a forecast.
+- 🏷️ **The names change.** The header reads Mannahatta, then New Amsterdam,
+  then New York City. The panel shows the island's name for that year and the
+  latest thing that happened there.
+
+The coastline is New York's real one, from the city's own shoreline data. It
+includes Manhattan, Brooklyn, Queens, the Hudson, East and Harlem rivers, and
+Roosevelt Island in its true place. The hills on top are invented, generated
+from seeded noise.
+
+You can also:
+
+- Change the weather: rain, snow that settles on the ground, fog, clouds and
+  the sun's position.
+- Sculpt the land with a brush.
+- Run water erosion over the land.
+- Switch the whole city into **voxels** (cubes).
+- Flip between a readable scale and true real-world scale.
+
+---
+
+## Standing on precedents
+
+The project is a response to earlier attempts to picture or plan this ground:
+
+| Precedent | What this project takes, and where it differs |
 | --- | --- |
-| See the finished thing | [Live demo](https://procedural-world-design-app.web.app) |
-| Run the app locally | [Quick start](#quick-start), then [`react-app/README.md`](react-app/README.md) |
-| See what was built in each class | [`docs/progress/README.md`](docs/progress/README.md) |
-| See what's still outstanding | [`docs/progress/CHECKLIST.md`](docs/progress/CHECKLIST.md) |
-| Learn the tools from scratch | [`Tutorials/`](Tutorials/) |
-| See the visual rules (palette, lighting, materials) | [`Style Guide.md`](<Style Guide.md>) |
-| See why things were designed this way | [`Planning/`](Planning/) and [`Analysis/`](Analysis/) |
-| Read or change the code | [App source layout](#app-source-layout) |
+| **The Welikia / Mannahatta Project** (Eric Sanderson) | Its reconstruction of the island as it was in 1609 sets the starting point. Welikia shows one moment; this project shows the process in between. |
+| **The Commissioners' Plan of 1811** | The grid is here at its real angle, but it *arrives* in 1811 rather than always being there. |
+| **Johnson and Burgee's Roosevelt Island plan** (1969) | It treated the island as a planned counter-city. Here, that difference shows up as ground that never gets paved. |
+| **OMA, *Delirious New York*** (1978) | Koolhaas celebrates the grid as the machine that makes the city. This model shows what the grid replaced. |
+| **Louis Kahn's Four Freedoms Park** (designed 1973, opened 2012) | It shows landscape as a monument, with the island's tip as a place to look back at the city. |
+
+The full argument, with a year-by-year history and sources, is in
+**[History and Design Position](<Tutorials/History and Design Position.md>)**.
+That note also lists which parts of the app use measured data, which are
+estimates, and which are design choices.
+
+### Being honest about the model
+
+- **The city grows as a circle around the Battery.** That's a simplification.
+  The real city grew up Manhattan's spine, and Brooklyn grew out from its own
+  centre.
+- **The shoreline is today's in every year.** The real one moved as landfill
+  was added. Welikia's historical shoreline would be the next thing to add.
 
 ---
 
-## Repository map
+## How it's built
 
-```
-procedural-world/
-│
-├── README.md               ← you are here
-├── Style Guide.md          visual design system: palette, lighting, materials,
-│                           procedural-generation rules, UI conventions
-│
-├── react-app/              THE APP: Vite + React + TypeScript + three.js
-│   ├── src/                source code (see "App source layout" below)
-│   ├── public/             static files copied as-is (favicon)
-│   ├── firebase.json       Firebase Hosting config (serves dist/)
-│   └── README.md           developer guide: scripts, architecture, deploy
-│
-├── docs/
-│   └── progress/           progress log, by class session and by feature
-│
-├── Tutorials/              step-by-step guides written while building this
-│                           (Git/GitHub, React, three.js, procedural map)
-├── Planning/               design decisions, feature ideas, open questions
-├── Analysis/               site reference, precedent, technique research
-│
-├── archive/                earlier class vaults, kept for history only;
-│                           not part of the app
-└── .obsidian/              Obsidian vault settings (ignore on GitHub)
-```
+A browser app written in **React** and **three.js**. Everything is generated as
+it runs: there are no 3D models or texture images.
 
-### Folder by folder
+- **Terrain:** seeded fractal noise, shaped by the real coastline. The mesh is
+  fine around Roosevelt Island and coarser toward the edges of the city.
+- **Trees:** a procedural forest with four levels of detail, drawn with
+  instancing so thousands of trees stay fast.
+- **Grass and streets:** a shader paints grass, paving and the street grid, all
+  driven by the year.
+- **Water:** procedural water with a shoreline that follows the sea level.
+- **Weather:** sky, fog, clouds, and rain or snow.
 
-- **[`react-app/`](react-app/)**: the only code in the repo. Everything you
-  run, build, or deploy happens inside this folder. Its own
-  [README](react-app/README.md) covers development in detail.
-- **[`docs/progress/`](docs/progress/README.md)**: the progress log. One
-  entry per class (deck link, class topics, what this repo did that week),
-  plus a feature log grouped by area: terrain, props and weather, scenes,
-  tooling.
-- **[`Tutorials/`](Tutorials/)**: beginner-friendly guides, best read in this
-  order: Git & GitHub → Installing React → Installing three.js → Building a
-  Procedural Map. See [`Tutorials/README.md`](Tutorials/README.md).
-- **[`Style Guide.md`](<Style Guide.md>)**: the design rules the app follows.
-  Check it before changing colors, lighting, or generation rules.
-- **[`Planning/`](Planning/Planning.md)**: the working notes behind the
-  features: current feature set, decisions, and ideas not built yet.
-- **[`Analysis/`](Analysis/Analysis.md)**: research. Roosevelt Island
-  landmarks and coastline sources, plus references for the noise and
-  rendering techniques.
-- **[`archive/`](archive/)**: notes from the first class sessions, from
-  before this project existed. Read-only history. See
-  [`archive/README.md`](archive/README.md).
+### Run it yourself
 
----
-
-## The app at a glance
-
-The app has **two scenes**, switched from the control panel:
-
-| Scene | What it shows |
-| --- | --- |
-| **Map** | All of New York City (about 21 × 26 km) as smooth shaded terrain: fine detail around Roosevelt Island, coarser toward the edges. Trees, grass, ivy and parkland are on the island; the rest of the city is paved, with a faint street grid. |
-| **Voxel** | The whole city drawn as instanced cubes, with trees snapped to the voxel grid |
-
-The Map and Voxel scenes share one parameter set, controlled from the panel:
-
-- **Simulation**: Running/Paused freezes weather and animation in place
-- **History Timeline**: a 1609–2100 year slider with Play/Stop. The paved
-  city spreads out from the Battery and clears the forest, the 1811 street
-  grid appears, and the city and Roosevelt Island change names. Sea level
-  follows the Battery tide gauge up to today; after today the rise is
-  *stylized for illustration*, not a forecast. See
-  [History and Design Position](<Tutorials/History and Design Position.md>).
-- **Terrain** tab: seed, frequency, octaves, persistence, ridged noise,
-  Perlin ↔ cellular noise blend, shaping (redistribute, terraces), sea
-  level, island width, resolution, pan offset
-- **Sculpt** tab: terraform by hand. Left-drag with a Raise, Lower, or
-  Flatten brush (size, strength, undo, reset); right-drag orbits while
-  sculpting
-- **Weather** tab: presets, sun position, fog, cloud puffs (count, altitude,
-  size, speed…), rain/snow with wind, and snow that builds up on the ground
-- **Props** tab: show/hide trees, tree count, replant
-
-A live top-down **minimap** sits in the corner. It can switch to a
-grayscale view of the raw noise field. Every control shows a tooltip on
-hover.
-
----
-
-## Quick start
-
-**Requirements:** Node.js `^20.19` or `>=22.12` (required by Vite 8) and npm.
+You'll need Node.js `^20.19` or `>=22.12`.
 
 ```bash
 git clone https://github.com/kmadikaegbu/procedural-world.git
@@ -145,81 +130,42 @@ npm install
 npm run dev
 ```
 
-Then open http://localhost:5173.
+Then open http://localhost:5173. The [developer guide](react-app/README.md)
+covers the scripts, the architecture and how to deploy to Firebase.
 
-| Command (run in `react-app/`) | What it does |
+---
+
+## Explore the repository
+
+This repo is both the app and a course vault for *Procedural World Building*.
+The vault is written in [Obsidian](https://obsidian.md), but it's plain
+Markdown, so it reads fine on GitHub.
+
+| If you want… | Go to |
 | --- | --- |
-| `npm run dev` | Dev server with hot reload |
-| `npm run build` | Type-checks (`tsc -b`) and builds to `dist/` |
-| `npm run preview` | Serves the built `dist/` locally |
-| `npm run lint` | Lints with oxlint |
+| The history and the design argument | [History and Design Position](<Tutorials/History and Design Position.md>) |
+| How the project grew, with screenshots | [Project Timeline](<Tutorials/Project Timeline.md>) |
+| How the pieces fit together | [How the World Fits Together](<Tutorials/How the World Fits Together.md>) |
+| Beginner tutorials (Git, React, three.js) | [Tutorials](Tutorials/README.md) |
+| The visual rules: palette, lighting, materials | [Style Guide](<Style Guide.md>) |
+| Design decisions and research | [Planning](Planning/Planning.md) · [Analysis](Analysis/Analysis.md) |
+| What was built each class | [Progress log](docs/progress/README.md) · [Checklist](docs/progress/CHECKLIST.md) |
+| The code | [`react-app/`](react-app/) |
+
+```
+procedural-world/
+├── react-app/      the app (Vite + React + TypeScript + three.js)
+├── Tutorials/      guides, the history note, and the project timeline
+├── Planning/       design decisions and ideas
+├── Analysis/       site research and technique references
+├── docs/progress/  the per-class progress log
+├── Style Guide.md  the visual design system
+└── archive/        earlier class notes, kept for history
+```
 
 ---
 
-## Deployment
-
-The app is hosted on **Firebase Hosting** (project
-`procedural-world-design-app`). Deploys run from inside `react-app/`, and
-`firebase.json` runs `npm run build` before uploading:
-
-```bash
-cd react-app
-firebase deploy
-```
-
-The first time, you'll need the Firebase CLI (`npm i -g firebase-tools`) and
-`firebase login`.
-
----
-
-## App source layout
-
-```
-react-app/src/
-├── main.tsx            entry point: mounts <App />
-├── App.tsx             scene switcher, control panel, all UI state
-├── App.css, index.css  panel styling and theme tokens
-│
-├── map/                Map and Voxel scenes
-│   ├── noise.ts        seeded fractal noise heightfield, shaping ops, and
-│   │                   the coastline-driven height model; TerrainParams
-│   ├── world/          the real NYC shoreline: signed-distance fields,
-│   │                   variable-density grids, where trees may grow
-│   ├── terraform.ts    terraform edit grid: sampling + brush math
-│   ├── TerraformBrush.tsx  pointer handling + brush cursor for sculpting
-│   ├── mapSize.ts      MAP_SIZE: the 100-unit detail square around the island
-│   ├── biomes.ts       height → biome color ramp (shared by both scenes)
-│   ├── Terrain.tsx     smooth terrain mesh
-│   ├── VoxelTerrain.tsx  instanced-cube terrain + grid-snapping helpers
-│   ├── Map.tsx         Map scene: terrain + water + props
-│   ├── VoxelMap.tsx    Voxel scene: voxel terrain + water + props
-│   ├── Water.tsx       water plane at sea level
-│   ├── Props.tsx       seeded, density-clustered tree scattering
-│   ├── Minimap.tsx     top-down orthographic minimap (terrain or noise)
-│   ├── NoisePlane.tsx  grayscale image of the raw noise field
-│   └── timeline.ts     history timeline: year → sea level, city growth, names, events
-│
-├── weather/            sky, fog, clouds, rain/snow (shared by Map + Voxel)
-│   ├── Weather.tsx     combines sky, clouds, and precipitation
-│   ├── presets.ts      WeatherParams type, defaults, named presets
-│   ├── Sky.tsx, Clouds.tsx, Precipitation.tsx
-│
-└── noise/              noise used by the terrain
-    └── cellularNoise.ts  2D cellular / Worley noise
-```
-
-Data flows one way. `App.tsx` owns all parameters in React state and passes
-them down as props, and scenes are pure functions of those params. The same
-seed always gives the same island.
-
----
-
-## Built with
-
-- [Vite](https://vite.dev) + [React 19](https://react.dev) + TypeScript
-- [three.js](https://threejs.org) via
-  [`@react-three/fiber`](https://r3f.docs.pmnd.rs/) and
-  [`@react-three/drei`](https://github.com/pmndrs/drei)
-- [oxlint](https://oxc.rs) for linting
-- [Firebase Hosting](https://firebase.google.com/docs/hosting)
-- [Obsidian](https://obsidian.md) for the course vault
+<sub>Built with [Vite](https://vite.dev), [React 19](https://react.dev),
+[three.js](https://threejs.org) and
+[@react-three/fiber](https://r3f.docs.pmnd.rs/). Hosted on
+[Firebase](https://firebase.google.com/docs/hosting).</sub>

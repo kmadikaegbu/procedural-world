@@ -130,7 +130,8 @@ export function WildlifePanel({
         bed down and the birds roost; rain and storms send the birds to the
         ground; the birds migrate away in autumn and winter. Drag the History
         Timeline to watch the wild shrink to Roosevelt Island. Time is sped
-        up, and the animals are drawn {settings.size}× bigger than real.
+        up. Animals are drawn at the trees' scale up close and grow with
+        distance, up to {settings.size}×, so they stay visible from the air.
       </p>
     </>
   )

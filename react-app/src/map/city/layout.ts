@@ -161,16 +161,19 @@ const TOWER_CAP: [number, number][] = [
   [1915, 40], // the first skyscrapers
   [1932, 75], // the Empire State Building era
   [1960, 60],
-  [1975, 100], // the glass towers
-  [2015, 100],
+  [1975, 75], // the glass towers
+  [2015, 85],
 ]
 
 const STOREY_M = 3.6
 /**
- * Buildings are enlarged less than trees at the readable scale (×1.7, trees ×2.9):
- * a city drawn at the trees' scale is a wall of towers that hides the streets.
+ * Buildings are enlarged by the same factor as trees (the scale's objects factor,
+ * ×2.9 at the readable scale), so a five-storey building stands beside a street
+ * tree in the same proportion as in life. Their footprints are not enlarged: they
+ * tile the real street grid. (This was once 0.6, which left trees taller than
+ * buildings.)
  */
-export const BUILDING_EXAGGERATION = 0.6
+export const BUILDING_EXAGGERATION = 1
 export const storeyHeight = objectSize(STOREY_M) * BUILDING_EXAGGERATION
 
 // --- the output --------------------------------------------------------------------
@@ -390,7 +393,8 @@ function generate(): CityLayout {
           )
           if (goesTall) {
             const cap = through(TOWER_CAP, towerYear)
-            const towerStoreys = Math.max(12, cap * (0.3 + 0.7 * r2) * (0.5 + 0.5 * core))
+            // most towers are mid-height; only a few reach the cap (as in the real skyline)
+            const towerStoreys = Math.max(12, cap * (0.2 + 0.8 * r2 * r2) * (0.5 + 0.5 * core))
             lots.push(
               makeLot(px, pz, rot, w * 0.9, dpt * 0.9, towerStoreys, towerYear, NEVER, r4 + 0.1),
             )

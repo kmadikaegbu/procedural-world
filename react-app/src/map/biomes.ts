@@ -5,7 +5,7 @@ import { BANDS } from './noise'
 // renderers, so a hill reads as the same biome regardless of which one draws it.
 export const BIOME_COLORS = {
   water: new THREE.Color('#4a6d7c'),
-  sand: new THREE.Color('#d9c8a0'),
+  sand: new THREE.Color('#8f9486'),
   grass: new THREE.Color('#81b29a'),
   rock: new THREE.Color('#8a7f76'),
   snow: new THREE.Color('#f4efe6'),

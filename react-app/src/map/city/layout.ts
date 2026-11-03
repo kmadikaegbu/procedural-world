@@ -1,6 +1,9 @@
 import { coastDistance, islandDistance, WORLD } from '../world/shore'
 import { BATTERY, yearForCityReach } from '../timeline'
 import { objectSize } from '../scale'
+import { at } from '../world/project'
+import { openLandAt } from '../world/parks'
+import { ACROSS, BANK_TOWERS, ISLAND_BUILDINGS, islandRibbons, islandXZ } from '../world/island'
 
 /**
  * THE CITY'S BUILDINGS AND STREETS, grown over time.
@@ -23,13 +26,9 @@ import { objectSize } from '../scale'
  * it appears, and the GPU decides what is built (city/City.tsx).
  */
 
-// --- projection (same as scripts/build-nyc-shore.mjs) ---------------------------
+// --- projection: see world/project.ts ----------------------------------------------
 
-const LAT0 = 40.7619
-const LON0 = -73.9499
-const KX = (111195 * Math.cos((LAT0 * Math.PI) / 180)) / 33.5
-const KZ = 111195 / 33.5
-const at = (lat: number, lon: number): [number, number] => [(lon - LON0) * KX, -(lat - LAT0) * KZ]
+export { at }
 
 // --- deterministic noise ---------------------------------------------------------
 
@@ -61,7 +60,7 @@ const DISTRICTS: District[] = [
   { at: at(40.76, -73.979), angle: 29, sa: 2.4, sb: 5.8, fill: 1, tall: 1 }, // Midtown, the Commissioners' grid
   { at: at(40.82, -73.945), angle: 29, sa: 2.4, sb: 5.8, fill: 0.95, tall: 0.75 }, // Harlem and up
   { at: at(40.85, -73.88), angle: 8, sa: 2.6, sb: 4.6, fill: 0.8, tall: 0.35 }, // the Bronx
-  { at: at(40.75, -73.915), angle: 15, sa: 2.4, sb: 4.4, fill: 0.8, tall: 0.45 }, // western Queens
+  { at: at(40.75, -73.915), angle: 15, sa: 2.4, sb: 4.4, fill: 0.65, tall: 0.3 }, // western Queens, low and patchy by the river
   { at: at(40.73, -73.83), angle: -8, sa: 2.6, sb: 4.6, fill: 0.6, tall: 0.25 }, // eastern Queens
   { at: at(40.715, -73.95), angle: 35, sa: 2.2, sb: 4.4, fill: 0.9, tall: 0.5 }, // north Brooklyn
   { at: at(40.64, -73.95), angle: 0, sa: 2.6, sb: 4.6, fill: 0.8, tall: 0.35 }, // south Brooklyn
@@ -87,7 +86,7 @@ function districtAt(x: number, z: number): number {
 /** Business cores: buildings here go tall once the city is old enough. */
 const CORES: { at: [number, number]; sigma: number; weight: number }[] = [
   { at: at(40.7074, -74.0113), sigma: 12, weight: 1 }, // Wall Street
-  { at: at(40.754, -73.984), sigma: 28, weight: 1 }, // Midtown
+  { at: at(40.754, -73.988), sigma: 21, weight: 1 }, // Midtown
   { at: at(40.6928, -73.9903), sigma: 9, weight: 0.55 }, // Downtown Brooklyn
   { at: at(40.7447, -73.9485), sigma: 9, weight: 0.5 }, // Long Island City
   { at: at(40.81, -73.95), sigma: 20, weight: 0.25 }, // Harlem
@@ -102,31 +101,9 @@ function coreAt(x: number, z: number): number {
   return best
 }
 
-/** Central Park, as a quadrilateral (59th & Fifth, 59th & CPW, 110th & CPW, 110th & Fifth). */
-const CENTRAL_PARK = [
-  at(40.7644, -73.9731),
-  at(40.7681, -73.9817),
-  at(40.8005, -73.9581),
-  at(40.7968, -73.9494),
-]
-
-function inPolygon(x: number, z: number, poly: [number, number][]): boolean {
-  let inside = false
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const [xi, zi] = poly[i]
-    const [xj, zj] = poly[j]
-    if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside
-  }
-  return inside
-}
-
-const GOVERNORS_ISLAND = at(40.6895, -74.0168)
-
-/** Left empty: parks, and Governors Island (a fort, not a neighbourhood, for most of its life). */
+/** Left empty: parks, cemeteries, airfields and rail yards (world/parks.ts). */
 function reserved(x: number, z: number): boolean {
-  return (
-    inPolygon(x, z, CENTRAL_PARK) || Math.hypot(x - GOVERNORS_ISLAND[0], z - GOVERNORS_ISLAND[1]) < 7
-  )
+  return openLandAt(x, z) !== null
 }
 
 // --- eras ------------------------------------------------------------------------
@@ -185,6 +162,7 @@ export const Kind = {
   Setback: 2, // stepped, with a spire: Art Deco towers
   Slab: 3, // a box with a rooftop plant: post-war and glass towers
   Crown: 4, // tall with a pyramid top
+  Round: 5, // a round or octagonal tower with a low cone roof: the Octagon, the lighthouse
 } as const
 export type Kind = (typeof Kind)[keyof typeof Kind]
 
@@ -226,6 +204,12 @@ export interface Road {
   len: number
   width: number
   built: number
+  /**
+   * What it is: 0 a street, 1 a footpath, 2 a tennis court, 3 bare earth (a
+   * baseball infield), 4 turf (a sports field), 5 paving (a plaza). Anything but
+   * 0 is drawn flat in its own colour, with no kerb or centre line.
+   */
+  kind?: number
 }
 
 export interface CityLayout {
@@ -255,10 +239,10 @@ function brick(r: number): RGB {
   return r < 0.5 ? mix3([0.5, 0.3, 0.25], [0.62, 0.5, 0.38], r * 2) : mix3([0.62, 0.5, 0.38], [0.5, 0.47, 0.44], (r - 0.5) * 2)
 }
 function stone(r: number): RGB {
-  return mix3([0.72, 0.68, 0.6], [0.58, 0.57, 0.55], r) // limestone to granite
+  return mix3([0.66, 0.65, 0.61], [0.52, 0.52, 0.5], r) // limestone to granite, a neutral grey
 }
 function glass(r: number): RGB {
-  return mix3([0.6, 0.72, 0.8], [0.42, 0.52, 0.6], r) // pale blue-grey
+  return mix3([0.72, 0.8, 0.86], [0.55, 0.64, 0.72], r) // pale blue-grey
 }
 function timber(r: number): RGB {
   return mix3([0.42, 0.34, 0.26], [0.5, 0.42, 0.32], r) // weathered wood
@@ -432,52 +416,44 @@ function generate(): CityLayout {
     }
   })
 
-  addRooseveltIsland(lots)
+  addIslandBuildings(lots)
+  for (const r of islandRibbons()) roads.push(r)
 
   return summarise(lots, roads)
 }
 
 /**
- * Roosevelt Island is left parkland by the rest of the city, so its buildings
- * are placed by hand-written rules instead of the grid. They follow its real
- * story (timeline.ts has the dates): an island of institutions from the 1830s,
- * hospitals in the 20th century, the apartment towers of the 1970s, Cornell
- * Tech at the southern tip from 2017. Positions are along the island's spine
- * (`s` in world units from its centre, + toward the north tip).
+ * Roosevelt Island and the banks beside it are laid out from the reference
+ * photographs (world/island.ts): each building has its real position, footprint,
+ * height and date. A building that is not on the island (a tower in Queens) is
+ * placed too, where the street generator would not put one.
  */
-function addRooseveltIsland(lots: Lot[]) {
-  const th = (29 * Math.PI) / 180
-  const spine: [number, number] = [Math.sin(th), -Math.cos(th)]
-  const across: [number, number] = [Math.cos(th), Math.sin(th)]
-  const rot = -Math.atan2(across[1], across[0])
+const SHAPE_KIND = { block: Kind.Block, slab: Kind.Slab, house: Kind.House, round: Kind.Round } as const
+const WALL_STYLE = { brick: Style.Brick, stone: Style.Stone, glass: Style.Glass, timber: Style.Timber } as const
 
-  // [built year, s, offset across the island, storeys, kind, style, gone]
-  const plan: [number, number, number, number, Kind, Style, number][] = [
-    [1832, 6, 0.5, 3, Kind.Block, Style.Stone, 1970], // penitentiary
-    [1839, 16, 0, 3, Kind.Block, Style.Stone, NEVER], // the Octagon asylum
-    [1856, -22, 0.4, 3, Kind.House, Style.Stone, NEVER], // the smallpox hospital
-    [1860, -9, -0.4, 4, Kind.Block, Style.Brick, 1960], // charity hospital
-    [1872, 44, 0, 2, Kind.House, Style.Stone, NEVER], // lighthouse keeper's house
-    [1906, 24, 0.5, 4, Kind.Block, Style.Brick, 1990],
-    [1939, 28, -0.3, 8, Kind.Block, Style.Stone, NEVER], // Goldwater hospital
-    [1952, 36, 0.2, 9, Kind.Block, Style.Brick, NEVER], // Coler
-    [1976, -4, 1.0, 14, Kind.Slab, Style.Brick, NEVER], // Main Street apartments
-    [1976, 2, -1.0, 14, Kind.Slab, Style.Brick, NEVER],
-    [1976, 8, 1.0, 16, Kind.Slab, Style.Brick, NEVER],
-    [1977, 14, -1.0, 15, Kind.Slab, Style.Brick, NEVER],
-    [1980, 20, 1.0, 14, Kind.Slab, Style.Brick, NEVER],
-    [1989, -12, -1.0, 16, Kind.Slab, Style.Glass, NEVER],
-    [1989, 12, 1.0, 14, Kind.Slab, Style.Glass, NEVER],
-    [2017, -32, 0.4, 7, Kind.Slab, Style.Glass, NEVER], // Cornell Tech
-    [2019, -36, -0.6, 8, Kind.Slab, Style.Glass, NEVER],
-    [2020, -29, -0.8, 6, Kind.Slab, Style.Glass, NEVER],
-    [2021, -39, 0.6, 12, Kind.Slab, Style.Glass, NEVER],
-  ]
-  plan.forEach(([built, s, off, storeys, kind, style, gone], i) => {
-    const x = spine[0] * s + across[0] * off * 2
-    const z = spine[1] * s + across[1] * off * 2
-    if (islandDistance(x, z) < 1.2) return // off the island: skip rather than put it in the river
-    lots.push(makeLot(x, z, rot, 1.3, 1.9, storeys, built, gone, rnd(i, 5, 11), kind, style))
+function addIslandBuildings(lots: Lot[]) {
+  const rot = -Math.atan2(ACROSS[1], ACROSS[0]) // a lot's local x runs across the island
+  const all = [...ISLAND_BUILDINGS, ...BANK_TOWERS]
+  all.forEach((b, i) => {
+    const [x, z] = islandXZ(b.s, b.u)
+    const onIsland = ISLAND_BUILDINGS.includes(b)
+    // never put a building in the river
+    if (onIsland ? islandDistance(x, z) < 0.15 : coastDistance(x, z) < 0.3) return
+    lots.push(
+      makeLot(
+        x,
+        z,
+        rot,
+        Math.max(0.2, b.across / 33.5),
+        Math.max(0.2, b.along / 33.5),
+        b.height / STOREY_M,
+        b.built,
+        b.gone ?? NEVER,
+        rnd(i, 5, 11),
+        SHAPE_KIND[b.shape],
+        WALL_STYLE[b.wall],
+      ),
+    )
   })
 }
 

@@ -1,5 +1,7 @@
 import { Euler, Matrix4, Quaternion, Vector3 } from 'three'
 import { ImprovedNoise } from 'three/examples/jsm/math/ImprovedNoise.js'
+import { randomParkPoint } from '../world/parks'
+import { islandTreeWeight, linden, WOODS, islandXZ } from '../world/island'
 import { hash01, hash32 } from './grammar'
 import { BANDS, height, type TerrainParams } from '../noise'
 import { WORLD } from '../world/shore'
@@ -161,6 +163,14 @@ const forestNoise = new ImprovedNoise()
 // share of candidate spots clustered around the island, and how far they spread
 // (world units; about 63% fall within this distance of the island's centre)
 const FOCUS_SHARE = 0.55
+// a share of the candidate spots go inside the real parks (world/parks.ts), so they're woods
+const PARK_SHARE = 0.2
+// and a share inside Roosevelt Island's woods (world/island.ts)
+const WOODS_SHARE = 0.12
+
+let lindenCache: [number, number][] | null = null
+/** Four Freedoms Park's rows of trees, placed exactly (the first candidates of every forest). */
+const lindens = () => (lindenCache ??= linden())
 const FOCUS_SPREAD = 38
 const SEA_MIN = -1.2
 const SEA_MAX = 2.6
@@ -273,10 +283,24 @@ export function scatterTrees(
     // anywhere on the map. Spread evenly over a ~470,000-unit map, 30,000 trees
     // would leave the island nearly bare; this keeps it lush while trees still
     // grow, more sparsely, on suitable land everywhere.
-    const focused = hash01(seed, 4) < FOCUS_SHARE
+    const roll = hash01(seed, 4)
+    const row = cand < lindens().length ? lindens()[cand] : null
+    const wood = !row && roll > 0.5 && roll < 0.5 + WOODS_SHARE ? WOODS[Math.floor(hash01(seed, 12) * WOODS.length)] : null
+    const focused = roll < FOCUS_SHARE
     let x: number
     let z: number
-    if (focused) {
+    const inPark = roll > 1 - PARK_SHARE ? randomParkPoint(hash01(seed, 7), hash01(seed, 8), hash01(seed, 9)) : null
+    if (row) {
+      ;[x, z] = row
+    } else if (wood) {
+      // a random spot inside one of the island's woods
+      ;[x, z] = islandXZ(
+        wood.s + (hash01(seed, 13) - 0.5) * ((wood.along * 1) / 33.5),
+        wood.u + (hash01(seed, 14) - 0.5) * ((wood.across * 1) / 33.5),
+      )
+    } else if (inPark) {
+      ;[x, z] = inPark
+    } else if (focused) {
       // Box–Muller: two uniform numbers → a point from a 2-D bell curve
       const rad = FOCUS_SPREAD * Math.sqrt(-2 * Math.log(Math.max(hash01(seed, 5), 1e-9)))
       const ang = hash01(seed, 6) * Math.PI * 2
@@ -293,6 +317,8 @@ export function scatterTrees(
       z = voxel.z(z)
     }
 
+    // on Roosevelt Island, trees keep off the lawns, fields, plazas and buildings, and grow thick in the woods
+    if (!row && hash01(seed, 11) > islandTreeWeight(x, z)) continue
     if (maskOn && !maskAt(mask, x, z)) continue
     const h = height(x, z, params)
     if (h < loY || h > hiY) continue // grass band only

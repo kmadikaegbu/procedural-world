@@ -316,7 +316,7 @@ change it. The Voxel scene keeps its plain biome colours.
 `src/map/scale.ts` defines the world's ruler: **1 unit ≈ 33.5 m**, taken from
 the island's real 3,220 m length. Sizes are written as real metres × one
 exaggeration factor per category (`vertical` ×15, `objects` ×2.9,
-`islandWidth` ×2.5 at the readable scale). The **Readable / True to scale**
+`islandWidth` ×1: horizontal proportions are real at both scales; the slider can fatten it). The **Readable / True to scale**
 switch in the View section sets the factors to 1 for a true-to-life island
 (about 7 m of relief, 25 m trees, 240 m wide). Assets are authored at the
 readable scale; `applyScale()` and `ratios()` shrink the terrain and objects

@@ -55,7 +55,7 @@ export interface Exaggeration {
  * a 25 m street tree, the island ~2.5× its real 240 m width.
  */
 export const EXAGGERATION: Record<ScaleMode, Exaggeration> = {
-  readable: { vertical: 15, objects: 2.9, islandWidth: 2.5 },
+  readable: { vertical: 15, objects: 2.9, islandWidth: 1 }, // horizontal proportions stay real: only heights are enlarged
   true: { vertical: 1, objects: 1, islandWidth: 1 },
 }
 

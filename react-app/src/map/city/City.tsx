@@ -154,8 +154,8 @@ const BUILDING_FRAG = /* glsl */ `
   float isGlass = step(1.5, vStyle) * step(vStyle, 2.5);
   float isTimber = step(2.5, vStyle);
   float win = mix(punched, banded, isGlass) * (1.0 - 0.7 * isTimber);
-  vec3 glassCol = mix(vec3(0.16, 0.24, 0.32), vec3(0.32, 0.44, 0.54), fx);
-  diffuseColor.rgb = mix(diffuseColor.rgb, glassCol, win * wall * 0.85);
+  vec3 glassCol = mix(vec3(0.3, 0.4, 0.5), vec3(0.46, 0.58, 0.68), fx);
+  diffuseColor.rgb = mix(diffuseColor.rgb, glassCol, win * wall * 0.6);
   diffuseColor.rgb *= mix(0.7, 1.0, wall);                   // roofs a little darker
   // fresh concrete while it is going up
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.55, 0.54, 0.5), (1.0 - vRise) * 0.7);
@@ -181,6 +181,8 @@ function buildingMaterial(u: CityUniforms): MeshStandardMaterial {
 const ROAD_VERT_HEADER = /* glsl */ `
 ${SHARED_HEADER}
 attribute float aBuilt;
+attribute float aKind;
+varying float vKind;
 varying vec2 vRoad;       // along the street (world units), across it (-0.5 … 0.5)
 varying float vFresh;
 varying float vWidth;
@@ -198,6 +200,7 @@ float rx = -0.5 + (position.x + 0.5) * rLaid;
 vec4 rWorld = instanceMatrix * vec4(rx, 0.0, position.z, 1.0);
 vRoad = vec2(position.x * rLen, position.z);
 vFresh = 1.0 - rLaid;
+vKind = aKind;
 vWidth = rWide;
 transformed = vec3(rx * rShow, groundAt(rWorld.xz) + 0.1, position.z * rShow);
 `
@@ -207,6 +210,7 @@ uniform float uYear;
 varying vec2 vRoad;
 varying float vFresh;
 varying float vWidth;
+varying float vKind;
 `
 const ROAD_FRAG = /* glsl */ `
 #include <color_fragment>
@@ -219,6 +223,18 @@ const ROAD_FRAG = /* glsl */ `
   float centre = step(abs(vRoad.y), 0.03) * step(0.4, vWidth) * step(0.5, fract(vRoad.x / 0.6)) * smoothstep(1910.0, 1930.0, uYear);
   vec3 col = mix(road, vec3(0.52, 0.52, 0.5), edge * 0.9);
   col = mix(col, vec3(0.85, 0.7, 0.2), centre);
+  if (vKind > 0.5) {
+    // flat ground surfaces: footpath, tennis court, bare earth, turf, paving
+    float k = floor(vKind + 0.5);
+    vec3 flatCol = vec3(0.72, 0.69, 0.62);                         // 1 footpath
+    if (k > 1.5) flatCol = vec3(0.22, 0.40, 0.62);                 // 2 tennis court
+    if (k > 2.5) flatCol = vec3(0.66, 0.5, 0.32);                  // 3 bare earth
+    if (k > 3.5) flatCol = vec3(0.36, 0.6, 0.24);                  // 4 turf
+    if (k > 4.5) flatCol = vec3(0.64, 0.62, 0.57);                 // 5 paving
+    // a pale border line round a court
+    flatCol = mix(flatCol, vec3(0.9), step(1.5, k) * step(k, 2.5) * step(0.44, abs(vRoad.y)));
+    col = flatCol;
+  }
   diffuseColor.rgb = col;
 }
 `
@@ -287,13 +303,16 @@ function buildCity(u: CityUniforms) {
   const rMat = roadMaterial(u)
   const roads = new InstancedMesh(rGeo, rMat, city.roads.length)
   const built = new Float32Array(city.roads.length)
+  const kinds = new Float32Array(city.roads.length)
   city.roads.forEach((r, i) => {
     q.setFromAxisAngle(up, r.rot)
     m4.compose(pos.set(r.x, 0, r.z), q, scl.set(r.len, 1, r.width))
     roads.setMatrixAt(i, m4)
     built[i] = r.built
+    kinds[i] = r.kind ?? 0
   })
   rGeo.setAttribute('aBuilt', new InstancedBufferAttribute(built, 1))
+  rGeo.setAttribute('aKind', new InstancedBufferAttribute(kinds, 1))
   roads.frustumCulled = false
   roads.receiveShadow = true
   group.add(roads)

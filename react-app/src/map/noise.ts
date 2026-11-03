@@ -21,7 +21,7 @@ export type TerrainParams = {
   redistribution: number // shaping exponent: <1 lifts lowlands into plateaus, >1 flattens valleys + sharpens peaks
   terraces: number // shaping: quantize height into this many steps (0 = off)
   resolution: number // grid segments per side — calibrates topography detail vs. cost
-  islandWidth: number // Roosevelt Island's width multiplier — 0.4 = its real width at true scale, 1 = legible
+  islandWidth: number // Roosevelt Island's width multiplier: 1 = its real width, higher = fatter (the rivers beside it stay open)
   offsetX: number // pan through the noise field, in sampled (post-frequency) units
   offsetZ: number // — same coastline, different hills underneath; seed jumps, this slides
   seaLevel: number // world-Y height of the water surface — the land doesn't move, just what's submerged
@@ -67,7 +67,7 @@ export const TERRAIN_DEFAULTS: TerrainParams = {
 
 const SEABED_DEPTH = 4 // how far below sea level the river bottom sits
 const BANK_UP = 3.5 // units from the shore over which the land climbs to full height (~120 m)
-const SHELF = 6 // units from the shore over which the bed drops to full depth (~200 m)
+const SHELF = 3.5 // units from the shore over which the bed drops to full depth (~200 m)
 // Relief: Roosevelt Island is a low park (its highest ground is ~7 m). Manhattan
 // beside it is a little higher and hillier. In the real city the island sits
 // below the Manhattan shore; keep that relationship.

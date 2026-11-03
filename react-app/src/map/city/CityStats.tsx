@@ -1,4 +1,5 @@
 import { TIMELINE_MAX, TIMELINE_MIN } from '../timeline'
+import { bridgesOpenBy } from './bridges'
 import { buildingsAt, roadKmAt } from './layout'
 import {
   formatPopulation,
@@ -47,6 +48,8 @@ export function CityStats({ year }: { year: number }) {
         <dd>{people > 0 ? formatPopulation(people) : '—'}</dd>
         <dt>Buildings</dt>
         <dd>{Math.round(buildingsAt(year)).toLocaleString('en-US')}</dd>
+        <dt>Bridges open</dt>
+        <dd>{bridgesOpenBy(year)}</dd>
         <dt>Streets laid</dt>
         <dd>{Math.round(roadKmAt(year)).toLocaleString('en-US')} km</dd>
       </dl>

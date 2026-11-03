@@ -87,8 +87,8 @@ export function createWaterUniforms(): WaterUniforms {
     uFoam: { value: 0.6 },
     uReflect: { value: 0.5 },
     uRain: { value: 0 },
-    uShallow: { value: new Color('#58b9c4') },
-    uDeep: { value: new Color('#0c3556') },
+    uShallow: { value: new Color('#3d5b5a') },
+    uDeep: { value: new Color('#1f3436') },
     uSky: { value: new Color('#8fa3b0') },
   }
 }

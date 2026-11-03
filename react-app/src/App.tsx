@@ -1136,13 +1136,13 @@ function App() {
 
             <label
               className="row"
-              title="Scales Roosevelt Island's width. Lower = thinner and more true-to-life; higher = fatter, so terrain detail reads more easily. The rivers beside it stay open."
+              title="Scales Roosevelt Island's width. 1 = its real width (about 240 m); higher = fatter, so it reads more easily from the air. The rivers beside it stay open."
             >
               <span>Island width</span>
               <input
                 type="range"
-                min={0.4}
-                max={2}
+                min={0.5}
+                max={3}
                 step={0.05}
                 value={terrain.islandWidth}
                 onChange={(e) => setT('islandWidth', Number(e.target.value))}

@@ -1,6 +1,7 @@
 import {
   BoxGeometry,
   ConeGeometry,
+  CylinderGeometry,
   ExtrudeGeometry,
   Shape,
   type BufferGeometry,
@@ -53,6 +54,12 @@ function build(kind: Kind): BufferGeometry {
     case Kind.Slab:
       // a plain tower with the machinery box on the roof
       return mergeGeometries([box(1, 0.97, 1, 0), box(0.5, 0.03, 0.5, 0.97)])
+    case Kind.Round:
+      // an eight-sided tower with a low cone roof
+      return mergeGeometries([
+        flat(new CylinderGeometry(0.5, 0.5, 0.78, 8, 1).rotateY(Math.PI / 8).translate(0, 0.39, 0)),
+        flat(new ConeGeometry(0.56, 0.22, 8, 1).rotateY(Math.PI / 8).translate(0, 0.89, 0)),
+      ])
     case Kind.Crown:
       // a tall shaft capped with a pyramid
       return mergeGeometries([
@@ -62,7 +69,7 @@ function build(kind: Kind): BufferGeometry {
   }
 }
 
-export const KINDS = [Kind.House, Kind.Block, Kind.Setback, Kind.Slab, Kind.Crown] as const
+export const KINDS = [Kind.House, Kind.Block, Kind.Setback, Kind.Slab, Kind.Crown, Kind.Round] as const
 
 /** One geometry per kind, indexed by Kind. */
 export function buildShapes(): BufferGeometry[] {

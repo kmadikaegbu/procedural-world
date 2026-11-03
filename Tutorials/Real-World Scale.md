@@ -89,7 +89,7 @@ Now the other direction: what the code actually draws, converted into metres.
 | The whole map | about 616 × 764 | about 20.6 × 25.6 km | Manhattan and its neighbours | |
 | The detail square (fine mesh only) | 100 × 100 | 3.35 km square | | |
 | Island length | 94 | 3,150 m | 3,150–3,220 m | **1×, true to scale** |
-| Island width at Width = 1 (default) | 18 | ~600 m | 244 m | **~2.5× wider** |
+| Island width at Width = 1 (default) | 7.3 | ~244 m | 244 m | **1×, true to scale** (it was 2.5× wider until the NYC layout change) |
 | Island width at Width = 0.45 | 8.1 | ~270 m | 244 m | ~1.1×, close to true |
 | Tallest hills (Amplitude = 4) | up to ~3–4 | 100–135 m | 7 m | **~15–19× taller** |
 | River bed | −4 below sea level | −134 m | much shallower in reality | very deep |
@@ -383,7 +383,7 @@ place the ruler is defined.
 | Rule | How it's applied |
 | --- | --- |
 | **Define the scale** | `METERS_PER_UNIT = 33.5` (also used by `scripts/build-nyc-shore.mjs` when it projects the shoreline), plus `m()` and `toMeters()` converters. |
-| **One factor per category** | `EXAGGERATION.readable = { vertical: 15, objects: 2.9, islandWidth: 2.5 }`; `EXAGGERATION.true` is all 1s. |
+| **One factor per category** | `EXAGGERATION.readable = { vertical: 15, objects: 2.9, islandWidth: 1 }`; `EXAGGERATION.true` is all 1s. |
 | **Objects from real metres** | Mature tree heights are `objectSize(28 / 19 / 14 m)` for open, dense and leaning (a full-crowned plane, a compact park tree, a stunted wind-bent waterfront tree). Each placed tree is then a fraction of that, 0.3 (sapling) to 1.15 (veteran), set by its stand's age and its site: see "Tree size" below. Tree **spacing** is set in metres (default 6 m) and enlarged by the same objects factor. Ivy and fallen leaves shrink with the trees. |
 | **Vertical sizes** | Wave height is set in metres (default 0.27 m) × the vertical factor, so waves stay in proportion to the hills. The river bed, erosion and sculpt offsets follow the same factor. |
 | **Resolution** | Real river chop (~5–30 m crest to crest) is finer than the 17 m wave mesh, so it stays as shader ripples; the geometric waves are long swell. |

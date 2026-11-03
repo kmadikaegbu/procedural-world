@@ -78,6 +78,23 @@ different tone. The grid fades with distance, because a pattern that fine would
 only shimmer from far away. Along Roosevelt Island you can count about 40
 cross-street blocks, which matches reality (46th to 86th Street).
 
+## Parks and open land
+
+The city's real parks are left as green, building-free land with trees: Central
+Park, Prospect Park, Randalls and Wards Islands, Governors Island, Battery
+Park, Flushing Meadows, Forest Park, Bronx Park, Pelham Bay, Inwood Hill, and
+two cemeteries. LaGuardia Airport and Sunnyside Yard are left empty and paved.
+They are ovals and rectangles of the real size (`world/parks.ts`; positions
+from memory, approximate), not their exact outlines. The streets, buildings and
+paving skip them, 20 % of the forest is planted inside them, and the animals
+can live there.
+
+## True horizontal proportions
+
+Roosevelt Island is now drawn at its **real width** (about 240 m) at the
+readable scale too. Only heights are enlarged (hills ×15, trees and buildings
+×2.9). The **Island width** slider (1 = real) can still fatten it.
+
 ## What still works
 
 | Feature | In the city map |

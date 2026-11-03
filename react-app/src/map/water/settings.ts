@@ -41,8 +41,8 @@ export const WATER_DEFAULTS: WaterSettings = {
   clarity: 2,
   foam: 0.6,
   reflection: 0.5,
-  shallowColor: '#5cc6c9',
-  deepColor: '#124a72',
+  shallowColor: '#4a6968',
+  deepColor: '#1f3436',
 }
 
 export const WATER_SLIDERS: {

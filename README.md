@@ -50,6 +50,15 @@ at 12 years a second.
 
 - 🏙️ **The city grows.** Paving spreads out from the Battery: New Amsterdam by
   1664, about 42nd Street by 1850, the whole city by 1950.
+- 🏗️ **The city is built.** Streets are laid and buildings rise out of the
+  ground as the years pass, in grey concrete at first. Low blocks are replaced
+  by towers in Wall Street and Midtown. A counter shows the population (the
+  census, 1624 to today) and how many buildings and kilometres of street
+  exist. The buildings and streets are procedural, not a survey.
+- 🌉 **The bridges open.** The Brooklyn (1883), Williamsburg (1903),
+  Manhattan and Queensboro (1909), Hell Gate (1916), Triborough (1936) and
+  Roosevelt Island (1955) bridges are built in their real years, with the
+  tramway (1976) and its two cabins.
 - 🌳 **The forest goes.** Trees are cleared as the city arrives, and a few
   survive as street trees.
 - 📐 **The grid appears.** From 1811, Manhattan's street grid fades in on built
@@ -67,8 +76,15 @@ at 12 years a second.
 
 The coastline is New York's real one, from the city's own shoreline data. It
 includes Manhattan, Brooklyn, Queens, the Hudson, East and Harlem rivers, and
-Roosevelt Island in its true place. The hills on top are invented, generated
-from seeded noise.
+Roosevelt Island in its true place and at its true width. The city's parks
+(Central Park, Prospect Park, Randalls Island and others) are left green and
+empty. The hills on top are invented, generated from seeded noise.
+
+**Roosevelt Island is laid out from photographs.** Its buildings (Cornell
+Tech, the Main Street towers, Manhattan Park, the Octagon, Coler Hospital, the
+lighthouse), Four Freedoms and Southpoint parks, sports fields, paths and the
+banks either side were placed from four aerial photographs of the real
+island. See [Roosevelt Island Layout](<Tutorials/Roosevelt Island Layout.md>).
 
 You can also:
 
@@ -78,6 +94,9 @@ You can also:
 - Run water erosion over the land.
 - Switch the whole city into **voxels** (cubes).
 - Flip between a readable scale and true real-world scale.
+- Watch the wildlife: deer in herds that notice foxes by sight, smell (carried
+  on the wind) and sound; animals that drink at the shore, bed down at night,
+  shelter from the rain and leave tracks.
 
 ---
 
@@ -103,6 +122,13 @@ estimates, and which are design choices.
 - **The city grows as a circle around the Battery.** That's a simplification.
   The real city grew up Manhattan's spine, and Brooklyn grew out from its own
   centre.
+- **The buildings and streets are made up.** They follow New York's real
+  rules (growth outward from the Battery, tilted grids, towers in the business
+  cores), but no building is in its real place, and each stands for a few real
+  ones. Only Roosevelt Island's buildings are placed from photographs.
+- **Heights share one scale.** Trees, buildings and animals are drawn at their
+  real size × 2.9 (hills ×15), so they stay in proportion to each other.
+  Footprints and street widths are real.
 - **The shoreline is today's in every year.** The real one moved as landfill
   was added. Welikia's historical shoreline would be the next thing to add.
 
@@ -121,6 +147,9 @@ no texture images.
 - **Grass and streets:** a shader paints grass, paving and the street grid, all
   driven by the year.
 - **Water:** procedural water with a shoreline that follows the sea level.
+- **The city:** about 60,000 buildings and 50,000 street segments, placed once
+  and built by the shader as the Year changes. The bridges are planned from the
+  real shoreline so each spans its river.
 - **Weather:** sky, fog, clouds, and rain or snow.
 - **Animals:** the deer and foxes are Quaternius's rigged low-poly models (CC0,
   from [Poly Pizza](https://poly.pizza/u/Quaternius)). Their animations are

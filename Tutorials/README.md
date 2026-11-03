@@ -16,6 +16,7 @@ zero.
 | 8 | [NYC World](<NYC World.md>) | How Roosevelt Island and the procedural world became one New York City: real shoreline data, distance fields, one continuous mesh |
 | 9 | [History and Design Position](<History and Design Position.md>) | What the project is about: New York's made ground and Roosevelt Island's history, the design position, precedents, and how the History Timeline shows it |
 | 10 | [City Growth](<City Growth.md>) | How streets, buildings and the population grow with the Year slider: districts, eras, towers, and the shader that builds the city |
+| 11 | [Roosevelt Island Layout](<Roosevelt Island Layout.md>) | How the island, its banks and its bridges were laid out from aerial photographs: a survey, a build and a review |
 | — | [Project Timeline](<Project Timeline.md>) | Screenshots of every version of the app, from the first commit to now |
 
 The finished result of these guides is the app in

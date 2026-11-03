@@ -1,6 +1,7 @@
 import { EXAGGERATION } from '../scale'
 import { ISLAND_MEAN_HALF_WIDTH, islandDistance } from './shore'
 import { BATTERY } from '../timeline'
+import { parkWeight } from './parks'
 
 /**
  * Roosevelt Island's outline is the real one, but at the readable scale it is
@@ -13,7 +14,7 @@ import { BATTERY } from '../timeline'
 const WIDEN_MAX = 6
 
 export function islandWiden(p: { islandWidth: number }): number {
-  // p.islandWidth × 2.5 = how many times its real width the island is drawn (1 at true scale)
+  // p.islandWidth × the readable factor = how many times its real width the island is drawn (1 = real)
   const factor = p.islandWidth * EXAGGERATION.readable.islandWidth
   return Math.min(WIDEN_MAX, Math.max(0, ISLAND_MEAN_HALF_WIDTH * (factor - 1)))
 }
@@ -24,7 +25,8 @@ export function islandWiden(p: { islandWidth: number }): number {
  */
 export function islandWeight(x: number, z: number, widen: number): number {
   const t = Math.min(1, Math.max(0, (islandDistance(x, z, widen) + 0.5) / 1))
-  return t * t * (3 - 2 * t)
+  // the city's real parks (world/parks.ts) stay green too, like the island
+  return Math.max(t * t * (3 - 2 * t), parkWeight(x, z))
 }
 
 /** Width of the city's edge, in world units (~1 km): built-up fades to green across it. */

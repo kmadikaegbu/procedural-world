@@ -114,6 +114,17 @@ are approximate, to the street corner.
 saying what it's doing (grazing, fleeing a fox, flying with the flock). There
 are far more in the early years, before the city paves their land.
 
+**Watch Roosevelt Island's day.** From 1976, when the new town and the
+Tramway open, the island runs as a small city simulation. About 12,000
+residents and 2,000 people who come in for the day keep a daily routine. They
+commute by Tram, subway or bus, go to school, work hospital shifts, walk in
+the parks and stop at the Main Street shops. The Tram's cabins carry 110 a
+trip, so queues build at the rush hours. Trash goes through tubes under Main
+Street to the plant at the north end, as on the real island. The panel tracks
+riders, trash and the island's electricity through the day. The **Morning
+rush**, **Midday**, **Evening** and **Night** buttons jump to that time of
+day.
+
 **Start with the tour.** On a first visit a short guided tour opens at the top
 of the screen: five stops from Mannahatta in 1609, through the city's spread,
 the 1811 grid and the skyline, to the last wild land and the sea in 2100. Each
@@ -132,6 +143,8 @@ In the Lab you can also:
 - Watch the wildlife: deer in herds that notice foxes by sight, smell (carried
   on the wind) and sound; animals that drink at the shore, bed down at night,
   shelter from the rain and leave tracks.
+- Run Roosevelt Island's day in the **People** tab: change the speed, follow
+  the trash flows, and read the riders, trash and electricity for the day.
 
 ---
 

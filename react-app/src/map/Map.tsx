@@ -8,6 +8,9 @@ import { City } from './city/City'
 import { Bridges } from './city/BridgeLayer'
 import { Liberty } from './city/Liberty'
 import { Wildlife } from './wildlife/Wildlife'
+import { IslandLife } from './islandlife/IslandLife'
+import type { IslandLifeSettings } from './islandlife/settings'
+import type { IslandLifeStats } from './islandlife/sim'
 import type { WildlifeSettings } from './wildlife/settings'
 import type { WildlifeStats } from './wildlife/sim'
 import { CITY_REACH_ALL } from './timeline'
@@ -34,6 +37,7 @@ export function Map({
   quality = 'high',
   year,
   wildlife,
+  islandLife,
   onLodStats,
   onPlaced,
   wireframe = false,
@@ -55,6 +59,8 @@ export function Map({
   year?: number
   /** The animals (main view only): their settings, a restart counter, and a live readout. */
   wildlife?: { settings: WildlifeSettings; resetKey: number; onStats?: (s: WildlifeStats) => void }
+  /** Roosevelt Island's people (main view only, with the city): their settings and a live readout. */
+  islandLife?: { settings: IslandLifeSettings; onStats?: (s: IslandLifeStats) => void }
   /** 'low' builds much lighter ground and water meshes — for the minimap. */
   quality?: 'high' | 'low'
   onLodStats?: (r: LodReadout) => void
@@ -96,6 +102,16 @@ export function Map({
           <City params={params} year={year} scaleMode={forest.scaleMode} />
           <Bridges params={params} year={year} scaleMode={forest.scaleMode} />
           <Liberty params={params} year={year} scaleMode={forest.scaleMode} />
+          {islandLife?.settings.show && (
+            <IslandLife
+              params={params}
+              year={year}
+              settings={islandLife.settings}
+              running={running}
+              scaleMode={forest.scaleMode}
+              onStats={islandLife.onStats}
+            />
+          )}
         </>
       )}
       {main && wildlife?.settings.show && (

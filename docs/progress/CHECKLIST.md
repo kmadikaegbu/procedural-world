@@ -74,6 +74,38 @@ Shader studies are done; the strategy note and the swap section are not.
       around the island, and the camera is framed from the island's real
       length.
 
+## Class 09: City Morphology (Assignment 1) and City Simulation (Assignment 2)
+
+- [x] **A city model.** The History Timeline grows New York from 1609 to
+      today: the lost city is procedural, and the real city comes from the
+      building footprints.
+- [x] **Road strategy.** A grid for each district, at the district's own
+      angle and block size, with avenues and streets. Roads are laid before
+      the buildings on them, plus bridges and the island's streets.
+- [x] **Plots for facilities.** Blocks are cut into ~45 m lots. Parks,
+      cemeteries, airfields and rail yards are kept open. *(No farms.)*
+- [x] **Procedural building system.** There are six shapes and four wall
+      styles. Storeys come from the era and the district, capped by the
+      tallest building of the day.
+- [ ] **(Optional) A building editor.** No panel yet to tune a single
+      building by hand (floors, setbacks, a fire escape, a water tank), as
+      in the class demo.
+- [x] **Zones and maps drive height and type.** Each district has a height
+      factor, and a business-core field turns low buildings into towers.
+- [x] **The city as a simulation.** Roosevelt Island runs as one (the
+      People tab). The rest of the city still grows from fixed rules.
+- [x] **What it simulates.** Inhabitants (residents and day visitors),
+      waste (the AVAC tubes) and energy (each unit's load).
+- [x] **Resource flows between units.** People move between homes,
+      workplaces, parks and stations. Trash flows from chutes to the plant,
+      and electricity follows who is where.
+- [x] **Agents on schedules along the roads and buildings.** Each person has
+      a daily plan, walks along Main Street, and queues for timetabled
+      trips with limited capacity.
+- [ ] **(Optional) Weekends, and the rest of the city.** Every day is a
+      weekday. Simulating Manhattan's buildings the same way would need far
+      fewer, coarser agents.
+
 ## Housekeeping
 
 - [ ] Add screenshots for each class under `docs/progress/class-NN/`.

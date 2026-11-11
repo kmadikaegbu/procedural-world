@@ -155,9 +155,53 @@ paving; the ground shader draws the grid; `Props.tsx` clears the trees.
 
 ---
 
+## Island life: what's real and what's stylized
+
+The People tab runs Roosevelt Island as a city simulation, modelled on Stone
+Librande's SimCity diagrams (Class 09): units, agents, paths and resources.
+
+**From the island's record:**
+- Opening years:
+  - the new town and the Tramway: 1975–76
+  - the F train station: 1989
+  - Manhattan Park: 1989
+  - the Octagon's apartments: 2006
+  - Southpoint Park: 2011
+  - Four Freedoms Park: 2012
+  - Cornell Tech and The House: 2017
+  - Goldwater Hospital closed in 2013
+- A Tram cabin carries 110 people.
+- The pneumatic trash system (AVAC) has run under Main Street since 1975.
+- The resident count is scaled to the 2020 census, 11,722.
+
+**Stylized:**
+- **Schedules and roles:** the shares of commuters, children, retirees and
+  local workers, and the times they leave and come back.
+- **Hospital staff:** the three shifts and how many work each one.
+- **Timetables:** the headways for the Tram, the train and the bus.
+- **Rates:** trash per person and per hospital, and every electrical load.
+  They give the right shape of a day (an evening peak, a quiet night with
+  the hospital still running), not measured figures.
+- **The AVAC plant** is placed at the north end, but its position is
+  approximate.
+- **The trash in the tubes** is drawn at a tenth of its real speed (about
+  100 km/h), so it can be followed.
+
+**Simplifications:**
+- Every day is a weekday.
+- Each agent stands for ten people.
+- Everyone walks Main Street; there are no cars on the island.
+- The Tram's labelled queue is the island's side only. Trips leave on the
+  timetable, separate from the cabins drawn on the cable.
+
+---
+
 ## Sources
 
 - [Roosevelt Island — Wikipedia](https://en.wikipedia.org/wiki/Roosevelt_Island)
+- [Roosevelt Island Tramway — Wikipedia](https://en.wikipedia.org/wiki/Roosevelt_Island_Tramway)
+- [Roosevelt Island station — Wikipedia](https://en.wikipedia.org/wiki/Roosevelt_Island_station)
+- [Automated vacuum collection — Wikipedia](https://en.wikipedia.org/wiki/Automated_vacuum_collection)
 - [Roosevelt Island Historical Walk — correctionhistory.org](https://correctionhistory.org/rooseveltisland/html/rooseveltislandtour_names.html)
 - [Islands of New York City: Roosevelt Island — NYPL](https://live-legacy-admin.nypl.org/blog/2009/03/28/islands-new-york-city-roosevelt-island)
 - [The Octagon (Roosevelt Island) — Wikipedia](https://en.wikipedia.org/wiki/The_Octagon_(Roosevelt_Island))

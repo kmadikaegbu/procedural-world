@@ -189,7 +189,13 @@
 
 /* the map's tab row holds four labels in the 260px panel — trim the side
    padding so they fit without wrapping */
+.segmented--tabs {
+  flex-wrap: wrap;
+}
+
+/* six tabs: two rows of three */
 .segmented--tabs button {
+  flex: 1 1 30%;
   padding: 6px 2px;
 }
 
@@ -584,4 +590,33 @@
   border-radius: 8px;
   transform: translateY(-22px);
   width: max-content;
+}
+
+/* Island life: labels on the stations and the trash plant, and the panel's clock */
+.life-label {
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--text);
+  background: rgba(15, 15, 23, 0.75);
+  border: 1px solid rgba(255, 176, 0, 0.6);
+  border-radius: 6px;
+}
+
+.life-clock {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 4px 0 8px;
+}
+
+.life-clock strong {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+.life-clock span {
+  font-size: 12px;
+  opacity: 0.7;
 }

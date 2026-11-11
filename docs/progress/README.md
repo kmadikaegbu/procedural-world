@@ -172,7 +172,98 @@ factor per category, and offers a Readable / True to scale switch. The
 animals use the same rule, with a Size slider on top because a real deer
 is a twentieth of a unit.
 
-*(Class 09 onward: add an entry here as each happens — deck link + class
+### Class 09 — City Morphology and City Simulation
+
+**Deck:** [PWB — Class 09](https://www.figma.com/deck/N3QRa7XiCmWft4dtEmChNL/PWB---Class-09)
+
+**Class topics:** PCG 07: City Morphology. City-building games as
+precedents: SimCity and SimCity 2000 (Will Wright), Chaim Gingold's
+*Building SimCity*, and Cities: Skylines. Road networks, strategies for
+dividing blocks into plots, zoning, and building morphology (building
+tiers, and a demo of a parametric building with floors, a fire escape and a
+water tank). Then City Simulation: Stone Librande's design diagrams for
+SimCity. Resources (citizens, money, goods, water, trash, electricity) are
+carried by agents (walking, driving, shuttling, working) along paths
+(power, transport, water) between units (housing, shops, workplaces): a
+source, an agent that carries information, and a sink. Also covered: flows
+through the city, production chains, and regions of linked cities.
+
+**Assignment 1 (city morphology):**
+- Consider whether your world will include a city model.
+- Design the road strategy: organic, grid or layered.
+- Work out which plots become areas for facilities (buildings, parks,
+  farms).
+- Define a procedural building system that sets a building's parameters.
+- Vary building types by zone, using maps to drive height or building
+  type.
+
+**Assignment 2 (city simulation):**
+- Consider whether your cities run as simulations.
+- Decide what the simulation covers: inhabitants, energy, waste.
+- Think of resource flows as a way for a city to move data and simulate
+  urban dynamics.
+- Connect cities with agents that do tasks and keep schedules across the
+  roads and buildings of your city.
+
+**This repo's progress:** Assignment 1 was largely done before the class, in
+the History Timeline's city ([`map/city/layout.ts`](../../react-app/src/map/city/layout.ts)):
+
+- **Roads.** Each district has its own grid. The old town has short blocks
+  at 14°. Manhattan has the Commissioners' grid at 29°. Brooklyn, Queens,
+  the Bronx and Staten Island each have their own angle and block size.
+  Avenues are wider than streets. Roads are laid a few years before the
+  buildings on them, so the street network grows out from the Battery.
+  Bridges and the island's own streets sit on top of that.
+- **Plots.** Each block between avenues is cut into lots of about 45 m. A
+  district's fill share leaves some lots empty, for yards and rail. Parks,
+  cemeteries, airfields and rail yards are kept free of buildings
+  ([`world/parks.ts`](../../react-app/src/map/world/parks.ts)), and the
+  forest and the animals use the green ones. There are no farms.
+- **Building system.** Every building is one of six shapes (house, block,
+  setback, slab, crown, round) in one of four wall styles (brick, stone,
+  glass, timber). Its storeys come from its build year and its district.
+  The tallest buildings follow the record of the day: 12 storeys in 1890,
+  40 in 1915, 75 in 1932. From the footprints data, the real city adds
+  every standing building at its real size and height.
+- **Zones driving height and type.** Each district has a height factor. On
+  top of that, a field of business cores (Wall Street, Midtown, Downtown
+  Brooklyn, Long Island City, Harlem) decides where low buildings are pulled
+  down and replaced by towers.
+
+Assignment 2 is answered on Roosevelt Island. The rest of the city still
+grows from the timeline's rules. The People tab
+([`map/islandlife/`](../../react-app/src/map/islandlife/)) runs the island
+with Librande's four parts:
+
+- **Units.** Nine apartment buildings, The House (Cornell Tech's residents),
+  the hospitals, the school, the campus, the Main Street shops, five parks,
+  three stations and the AVAC trash plant. Each opens in its real year, so
+  the simulation follows the History Timeline: nothing before 1976, no subway
+  before 1989, no Four Freedoms visitors before 2012.
+- **Agents with schedules.** Each agent stands for ten people:
+  - **Residents:** commuters, local workers, children, retirees and students.
+    Their numbers come from each building's volume, scaled to the 2020
+    census (11,722).
+  - **People who come in for the day:** hospital staff on three shifts, campus
+    staff, teachers and visitors.
+  - **Their day:** each has a plan for the day (leave at 7–9, come back in
+    the evening, maybe by way of the shops), and walks it along Main Street.
+- **Paths.** Main Street carries every walk. The Tram, the F train and the
+  bus run on timetables with a capacity per trip. A Tram cabin holds 110, so
+  queues build at the stations in the rush hours. Tubes under Main Street
+  carry trash.
+- **Resources.**
+  - **Trash:** about 1 kg a day per resident at home, plus the hospital. It
+    collects in each building's chute until the plant pulls it through the
+    tube.
+  - **Electricity:** each unit draws a base load plus a load for each person
+    inside, and the Tram adds its own. The panel charts today against
+    yesterday.
+
+A test run of one 2026 weekday gives about 6,500 Tram rides, 9,000 subway
+rides, 15 t of trash, and a load of 7–11 MW that peaks in the evening.
+
+*(Class 10 onward: add an entry here as each happens — deck link + class
 topics + what this repo actually did, same format as above.)*
 
 <details>

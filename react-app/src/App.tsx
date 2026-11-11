@@ -15,6 +15,11 @@ import { GrassPanel } from './map/grass/GrassPanel'
 import { WILDLIFE_DEFAULTS, type WildlifeSettings } from './map/wildlife/settings'
 import { WildlifePanel } from './map/wildlife/WildlifePanel'
 import type { WildlifeStats } from './map/wildlife/sim'
+import { ISLAND_LIFE_DEFAULTS, type IslandLifeSettings } from './map/islandlife/settings'
+import { IslandLifePanel } from './map/islandlife/IslandLifePanel'
+import { clockText, jumpTo, MOMENTS } from './map/islandlife/clock'
+import { TOWN_OPENS } from './map/islandlife/places'
+import type { IslandLifeStats } from './map/islandlife/sim'
 import { useTreeControls } from './map/trees/useTreeControls'
 import { TERRAIN_DEFAULTS, erodeTerrain, type TerrainParams } from './map/noise'
 import {
@@ -203,8 +208,11 @@ function App() {
     () => ({ settings: wildlife, resetKey: wildlifeReset, onStats: setWildlifeStats }),
     [wildlife, wildlifeReset],
   )
+  const [islandLife, setIslandLife] = useState<IslandLifeSettings>(ISLAND_LIFE_DEFAULTS)
+  const [islandLifeStats, setIslandLifeStats] = useState<IslandLifeStats | null>(null)
+  const islandLifeView = useMemo(() => ({ settings: islandLife, onStats: setIslandLifeStats }), [islandLife])
   const [mapTab, setMapTab] = useState<
-    'terrain' | 'sculpt' | 'weather' | 'props' | 'wildlife'
+    'terrain' | 'sculpt' | 'weather' | 'props' | 'wildlife' | 'people'
   >('terrain')
   const [brushTool, setBrushTool] = useState<BrushTool>('raise')
   const [brushRadius, setBrushRadius] = useState(6)
@@ -466,6 +474,7 @@ function App() {
                   main
                   year={showCity ? timelineYear : undefined}
                   wildlife={wildlifeView}
+                  islandLife={islandLifeView}
                   onPlaced={onPlaced}
                   onLodStats={onLodStats}
                   wireframe={wireframe}
@@ -776,6 +785,39 @@ function App() {
                 'Pick an animal to fly down and follow it, or zoom in anywhere on wild land. There are more in the early years, before the city paves their land.'}
             </p>
 
+            <div className="panel-title">Island life</div>
+            {timelineYear >= TOWN_OPENS && islandLife.show ? (
+              <>
+                <div className="preset-grid">
+                  {MOMENTS.map((mo) => (
+                    <button
+                      key={mo.label}
+                      onClick={() => {
+                        jumpTo(mo.minute)
+                        flyTo('island')
+                      }}
+                      title={mo.title}
+                    >
+                      {mo.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="hint-text">
+                  {islandLifeStats
+                    ? `${clockText(islandLifeStats.minute)} on Roosevelt Island: ${islandLifeStats.onIsland.toLocaleString('en-US')} people there, ${islandLifeStats.doing.walk.toLocaleString('en-US')} walking, ${islandLifeStats.doing.queue.toLocaleString('en-US')} waiting for a ride. `
+                    : ''}
+                  The island's people keep a daily routine: commuting by Tram and subway, school, shifts at the hospitals and
+                  walks in the parks. Their trash goes by tube to the plant at the north end. See the People tab in Lab.
+                </p>
+              </>
+            ) : (
+              <p className="hint-text">
+                {islandLife.show
+                  ? `The island's town opens in ${TOWN_OPENS}, with its first apartment towers and the Tramway. Move the timeline to ${TOWN_OPENS} or later to see its people.`
+                  : 'People are turned off in the People tab (Lab).'}
+              </p>
+            )}
+
             <p className="hint-text">
               <strong>{islandName}</strong>
               <br />
@@ -910,6 +952,13 @@ function App() {
                 title="Birds, deer and foxes: the agents that live in the wild land, and retreat as the city paves it."
               >
                 Wildlife
+              </button>
+              <button
+                className={mapTab === 'people' ? 'active' : ''}
+                onClick={() => setMapTab('people')}
+                title="Roosevelt Island's people, run as a city simulation: daily schedules, the Tram's queues, trash in the tubes and electricity."
+              >
+                People
               </button>
             </div>
 
@@ -1515,6 +1564,15 @@ function App() {
                 setSettings={setWildlife}
                 stats={wildlifeStats}
                 onRestart={() => setWildlifeReset((k) => k + 1)}
+              />
+            )}
+
+            {mapTab === 'people' && (
+              <IslandLifePanel
+                settings={islandLife}
+                setSettings={setIslandLife}
+                stats={islandLifeStats}
+                year={timelineYear}
               />
             )}
 

@@ -5,6 +5,7 @@ import { coastDistance, islandDistance, WORLD } from './world/shore'
 import { islandWiden } from './world/region'
 import { sampleEdits, type TerrainEdits } from './terraform'
 import { erode } from './erosion'
+import { EXAGGERATION, m } from './scale'
 
 const perlin = new ImprovedNoise()
 
@@ -68,10 +69,13 @@ export const TERRAIN_DEFAULTS: TerrainParams = {
 const SEABED_DEPTH = 4 // how far below sea level the river bottom sits
 const BANK_UP = 3.5 // units from the shore over which the land climbs to full height (~120 m)
 const SHELF = 3.5 // units from the shore over which the bed drops to full depth (~200 m)
-// Relief: Roosevelt Island is a low park (its highest ground is ~7 m). Manhattan
-// beside it is a little higher and hillier. In the real city the island sits
-// below the Manhattan shore; keep that relationship.
-const ISLAND_RELIEF = 0.7
+// Roosevelt Island is flat: a low deck of landfill a few metres above the river,
+// edged all round by a seawall, not a hill. So it rises steeply at the shore to a
+// level top with only a gentle roll, at its real height (enlarged ×15 like all
+// the land at the readable scale). Manhattan beside it is higher and hillier.
+const ISLAND_DECK = m(2.5) * EXAGGERATION.readable.vertical // ~2.5 m above the water
+const ISLAND_ROLL = m(0.8) * EXAGGERATION.readable.vertical // its lawns and paths rise and fall by under a metre
+const SEAWALL = 0.3 // units (~10 m) over which the island climbs from the water to its deck
 const URBAN_RELIEF = 0.55
 const URBAN_LIFT = 0.45 // units (~15 m) the rest of the city is raised above the island's base
 const EDGE_FADE = 40 // units: how far in from the map's edge the land sinks into the sea
@@ -180,9 +184,9 @@ function proceduralHeight(x: number, z: number, p: TerrainParams): number {
     // lift the land clear of the waterline so the coast comes from the shoreline
     // data, not from the noise happening to dip below zero
     const onIsland = smoothstep(-0.5, 0.5, islandDistance(x, z, widen))
-    const relief = URBAN_RELIEF + (ISLAND_RELIEF - URBAN_RELIEF) * onIsland
-    const lift = URBAN_LIFT * (1 - onIsland) * (p.amplitude / 4)
-    h = ((0.12 + 0.88 * n01) * p.amplitude * relief + lift) * smoothstep(0, BANK_UP, d)
+    const city = ((0.12 + 0.88 * n01) * p.amplitude * URBAN_RELIEF + URBAN_LIFT * (p.amplitude / 4)) * smoothstep(0, BANK_UP, d)
+    const island = (ISLAND_DECK + ISLAND_ROLL * (n01 - 0.5)) * p.vScale * smoothstep(0, SEAWALL, d)
+    h = city + (island - city) * onIsland
   } else {
     h = -bed * smoothstep(0, SHELF, -d)
   }

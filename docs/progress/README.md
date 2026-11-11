@@ -266,6 +266,12 @@ class session — more granular than the by-class summary above.
 
 ### Landmarks
 
+- **Roosevelt Island is flat (2026-11-11).** It was drawn as a long hill (the
+  land rose from the shore over ~120 m, wider than the island, to a ridge
+  down its middle). It is now a level deck about 2.5 m above the river (×15 at
+  the readable scale) that rises steeply at the seawall, with under a metre of
+  roll (`ISLAND_DECK` in `map/noise.ts`).
+
 - **The Statue of Liberty (2026-11-11).** Built from simple shapes in
   `map/city/Liberty.tsx`: Liberty Island, Fort Wood's star (from 1811), the
   foundation and Hunt's pedestal (rising 1884–86), and the figure with torch,

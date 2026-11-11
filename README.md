@@ -86,7 +86,9 @@ The coastline is New York's real one, from the city's own shoreline data. It
 includes Manhattan, Brooklyn, Queens, the Hudson, East and Harlem rivers, and
 Roosevelt Island in its true place and at its true width. The city's parks
 (Central Park, Prospect Park, Randalls Island and others) are left green and
-empty. The hills on top are invented, generated from seeded noise.
+empty. The hills on top are invented, generated from seeded noise, except
+on Roosevelt Island, which is flat as in life: a level deck about 2.5 m above
+the river, edged by its seawall.
 
 **Roosevelt Island is laid out from photographs.** Its buildings (Cornell
 Tech, the Main Street towers, Manhattan Park, the Octagon, Coler Hospital, the

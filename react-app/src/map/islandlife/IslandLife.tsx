@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Html, Line } from '@react-three/drei'
 import {
@@ -28,9 +28,13 @@ import {
   type PersonKey,
   type VehicleModelKey,
 } from './models'
-import { isOpen, LINES, mainStreetU, PLACES, placeIndex, TOWN_OPENS } from './places'
+import { isOpen, LINES, PLACES, placeIndex, TOWN_OPENS } from './places'
 import { IslandLifeSim, route, setActiveIslandSim, type IslandLifeStats, type Person, type Vehicle } from './sim'
 import { ROLE_INFO, TRASH_COLOR, type IslandLifeSettings } from './settings'
+import { onRibbon, setIslandGround, setIslandStreets } from './streets'
+import { loadRealStreets } from '../city/realStreets'
+import { cityVersion, getCity, onCityChange } from '../city/layout'
+import { islandDistance } from '../world/shore'
 
 /**
  * ISLAND LIFE ON THE MAP: the people of Roosevelt Island walking Main Street's
@@ -55,13 +59,10 @@ const PULSE_ROOM = 40
 const PERSON_M = 1.7
 /** Longest frame the simulation takes in one go, seconds. */
 const MAX_DT = 0.1
-/** The streets are drawn this far above the ground (city/City.tsx), so whoever is on one stands on it. */
+/** Streets, paths and courts are drawn this far above the ground (city/City.tsx), so whoever is on one stands on it. */
 const ROAD_LIFT = 0.1
-/** How far either side of Main Street's middle its road and sidewalks reach, units. */
-const ROAD_HALF = 0.32
-/** On Main Street, how high its surface is above the ground; easing off over a short step at its edge. */
-const streetLift = (s: number, u: number) =>
-  ROAD_LIFT * Math.min(1, Math.max(0, (ROAD_HALF + 0.06 - Math.abs(u - mainStreetU(s))) / 0.12))
+/** How high the surface underfoot at world (x, z) stands above the ground: a street's, a path's, or none. */
+const liftAt = (x: number, z: number) => (onRibbon(x, z) ? ROAD_LIFT : 0)
 
 /** Vehicles are enlarged with distance too, but by no more than this: a bus many times its size would bury Main Street. */
 const VEHICLE_BOOST = 3
@@ -144,6 +145,16 @@ export function IslandLife({
     setActiveIslandSim(sim)
     return () => setActiveIslandSim(null)
   }, [sim])
+
+  // the island's real streets, for the simulation to drive and walk along (streets.ts)
+  useEffect(() => {
+    loadRealStreets()
+      .then(setIslandStreets)
+      .catch((err) => console.warn('Island life: no real streets; walking and driving down the middle of the island.', err))
+  }, [])
+  // what the map draws underfoot (streets, paths, courts), to stand people and vehicles on it
+  const cityKey = useSyncExternalStore(onCityChange, cityVersion)
+  useEffect(() => setIslandGround(getCity().roads, (x, z) => islandDistance(x, z) > -0.6), [cityKey])
 
   // ground height on a grid over the island, so a thousand people don't each sample the noise every frame
   const ground = useMemo(() => {
@@ -313,7 +324,7 @@ export function IslandLife({
         u += Math.sin(a) * r
       }
       const [x, z] = islandXZ(s, u)
-      const h = groundAt(s, u) + streetLift(s, u)
+      const h = groundAt(s, u) + liftAt(x, z)
       // children are shorter, and no two grown-ups quite the same height
       const tall = p.role === 'child' ? 0.72 : 0.92 + 0.14 * hash(p.seed + 2)
       const size = base * boost(x, h, z) * tall
@@ -403,7 +414,8 @@ export function IslandLife({
         if (!mesh || k >= VEHICLE_ROOM) continue
         vfilled[key]++
         const [x, z] = islandXZ(v.s, v.u)
-        const h = groundAt(v.s, v.u) + streetLift(v.s, v.u)
+        // a vehicle is always on a street: whatever the map draws there, it drives on top
+        const h = groundAt(v.s, v.u) + ROAD_LIFT
         const lenM = v.kind === 'redbus' ? RED_BUS_M : VEHICLE_M[key]
         const size = m(lenM) * objects * Math.min(VEHICLE_BOOST, boost(x, h, z))
         rot.setFromAxisAngle(up, face(v, v.ds, v.du, dt * 8))

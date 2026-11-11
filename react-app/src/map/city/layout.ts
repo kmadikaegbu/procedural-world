@@ -613,7 +613,7 @@ const M = 1 / 33.5
  * records (`bed`, 0 when it doesn't): streets get a sidewalk either side, the
  * rest don't.
  */
-function drawnWidth(kind: StreetKind, bed: number): number {
+export function drawnWidth(kind: StreetKind, bed: number): number {
   switch (kind) {
     case StreetKind.Street:
       return Math.min(45, Math.max(8, (bed || 10.4) + 7))
@@ -635,7 +635,7 @@ const ISLAND_FOOTPRINTS = ISLAND_BUILDINGS.filter((b) => b.gone === undefined).m
   hs: b.along / 33.5 / 2,
   hu: b.across / 33.5 / 2,
 }))
-function onIslandBuilding(x: number, z: number): boolean {
+export function onIslandBuilding(x: number, z: number): boolean {
   if (islandDistance(x, z) < -0.5) return false
   const [s, u] = islandSU(x, z)
   return ISLAND_FOOTPRINTS.some((f) => Math.abs(s - f.s) < f.hs && Math.abs(u - f.u) < f.hu)

@@ -1,5 +1,6 @@
 import { islandEdges } from '../world/island'
 import { isOpen, LINES, mainStreetU, PLACES, placeIndex, TOWN_OPENS, type Place } from './places'
+import { streetDrive, streetWalk } from './streets'
 
 /**
  * ISLAND LIFE: Roosevelt Island run as a small city simulation, after Stone
@@ -11,8 +12,9 @@ import { isOpen, LINES, mainStreetU, PLACES, placeIndex, TOWN_OPENS, type Place 
  *              who they are: commuters, local workers, children, retirees,
  *              Cornell Tech students, and people who come in for the day
  *              (hospital staff on three shifts, campus staff, teachers, visitors)
- *   PATHS      Main Street, which every walk follows (on its sidewalks) and
- *              every vehicle drives (on the right); the Tram, the subway and
+ *   PATHS      the island's real streets and footpaths (streets.ts), which
+ *              every walk follows (on the pavements) and every vehicle drives
+ *              (on the right); the Tram, the subway and
  *              the bus, which run on a timetable and carry a limited number a
  *              trip, so queues build at the rush hours; the Roosevelt Island
  *              Bridge, the only road on and off; and the AVAC tubes under
@@ -501,7 +503,7 @@ export class IslandLifeSim {
   }
 
   private walkTo(p: Person, to: [number, number]) {
-    p.route = route([p.s, p.u], to, p.lane)
+    p.route = walk([p.s, p.u], to, p.lane)
     p.leg = 1
     p.doing = 'walk'
   }
@@ -848,7 +850,7 @@ function parkPoint(pl: Place, x: number): [number, number] {
   return [pl.s + Math.cos(a) * pl.hs * r, pl.u + Math.sin(a) * pl.hu * r]
 }
 
-/** A walk from one point to another: out to Main Street, along it, and in. */
+/** A path along the middle of the island (Main Street's old line, which the AVAC tubes follow): out to it, along it, and in. */
 export function route(from: [number, number], to: [number, number], lane: number): [number, number][] {
   const [s0, u0] = from
   const [s1, u1] = to
@@ -864,6 +866,16 @@ export function route(from: [number, number], to: [number, number], lane: number
 }
 
 /**
+ * A walk from one point to another along the island's real streets: out to the
+ * nearest pavement or footpath, along them, and in (see streets.ts). Next door,
+ * straight across. Before the streets load, along the middle of the island.
+ */
+function walk(from: [number, number], to: [number, number], lane: number): [number, number][] {
+  if (Math.hypot(to[0] - from[0], to[1] - from[1]) < 0.8) return [from, to]
+  return streetWalk(from, to, lane) ?? route(from, to, lane)
+}
+
+/**
  * Where the Roosevelt Island Bridge comes onto the island: at Motorgate, whose
  * ramps take the traffic down to Main Street (the bridge's deck is drawn by
  * the bridges layer; the vehicles start and end their runs here).
@@ -875,11 +887,15 @@ const BRIDGE: [number, number] = (() => {
 })()
 
 /**
- * A drive along Main Street, on the right: from a point (the bridge, or a stop at
+ * A drive along the streets, on the right: from a point (the bridge, or a stop at
  * the kerb) to the kerb beside a door, or on to the bridge. Vehicles pull up at
  * the kerb; only the bridge takes them off the street.
  */
 function drive(from: [number, number], to: [number, number]): [number, number][] {
+  // on the island's real streets, on the right (streets.ts); the bridge's end is just off East Road
+  const real = streetDrive(from, to)
+  if (real) return [...(from === BRIDGE ? [BRIDGE] : []), ...real, ...(to === BRIDGE ? [BRIDGE] : [])]
+  // before the streets load: along the middle of the island
   const lane = (Math.sign(to[0] - from[0]) || 1) * DRIVE_LANE
   const end: [number, number] = to === BRIDGE ? to : [to[0], mainStreetU(to[0]) + lane]
   const r = route(from, end, lane)

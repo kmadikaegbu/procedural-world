@@ -258,8 +258,13 @@ function line(points: [number, number][], widthM: number, built: number, kind: n
   return out
 }
 
-/** Every flat ground surface on and beside the island: fields, courts, plazas, paths and roads. */
-export function islandRibbons(): Ribbon[] {
+/**
+ * Every flat ground surface on and beside the island: fields, courts, plazas,
+ * paths and roads. `streets` adds the hand-laid Main Street and the two shore
+ * drives (FDR Drive, Vernon Boulevard); leave them out when the city's real
+ * street data is drawn, which has them at their true places.
+ */
+export function islandRibbons(streets = true): Ribbon[] {
   const out: Ribbon[] = []
 
   for (const p of PATCHES) {
@@ -279,7 +284,7 @@ export function islandRibbons(): Ribbon[] {
     const mid = (e[0] + e[1]) / 2
     main.push([s, mid - (s > 22 ? 0.8 : 0)])
   }
-  out.push(...line(main, 12, 1850, Surface.Road))
+  if (streets) out.push(...line(main, 12, 1850, Surface.Road))
 
   // the promenades round the shore, just inside the water's edge
   const west: [number, number][] = []
@@ -299,6 +304,7 @@ export function islandRibbons(): Ribbon[] {
     ...line([[-34, -2.6], [-31.5, -1.6], [-30.5, -0.6]], 4, 1990, Surface.Earth),
   )
 
+  if (!streets) return out
   // FDR Drive and Vernon Boulevard, just inland of the Manhattan and Queens shores
   out.push(...shoreRoad(-1, -50, 60, 26, 1940, 0.8))
   out.push(...shoreRoad(+1, -22, 50, 20, 1900, 0.7))

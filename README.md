@@ -69,8 +69,12 @@ at 12 years a second.
   real one sits right at the map's edge.
 - 🌳 **The forest goes.** Trees are cleared as the city arrives, and a few
   survive as street trees.
-- 📐 **The grid appears.** From 1811, Manhattan's street grid fades in on built
-  ground, at the island's real 29° tilt.
+- 📐 **The real streets are laid.** Every street, highway, park path and
+  alley is the city's own, along its surveyed centre line (NYC's Centerline
+  data), drawn at its real width. Each is laid as the city reaches it: the
+  crooked lanes of the old town first, then the 1811 grid marching up
+  Manhattan, then Brooklyn's and Queens' own grids. The lost city's buildings
+  line those real streets.
 - 🌊 **The sea rises.** Up to today, sea level follows the Battery tide gauge,
   which has measured 2.94 mm a year since 1856. The rise is drawn as
   exaggerated as the hills, so you can see it. After today the curve is
@@ -201,16 +205,20 @@ no texture images.
   fine around Roosevelt Island and coarser toward the edges of the city.
 - **Trees:** a procedural forest with four levels of detail, drawn with
   instancing so thousands of trees stay fast.
-- **Grass and streets:** a shader paints grass, paving and the street grid, all
-  driven by the year.
+- **Grass and paving:** a shader paints grass and paved ground, driven by the
+  year.
 - **Water:** procedural water with a shoreline that follows the sea level.
-- **The city:** about 464,000 buildings and 50,000 street segments, placed once
-  and built by the shader as the Year changes. 422,000 of the buildings are
-  real: `scripts/build-nyc-buildings.mjs` downloads the city's
-  [Building Footprints](https://data.cityofnewyork.us/d/5zhs-2jue) (NYC Open
-  Data), reduces each outline to its smallest rectangle and packs them into a
-  5 MB binary file the page loads after it starts. The rest are the procedural
-  lost city. The bridges are planned from the real shoreline so each spans its
+- **The city:** about 494,000 buildings and 157,000 straight pieces of
+  street, placed once and built by the shader as the Year changes. 422,000 of
+  the buildings are real: `scripts/build-nyc-buildings.mjs` downloads the
+  city's [Building Footprints](https://data.cityofnewyork.us/d/5zhs-2jue) (NYC
+  Open Data), reduces each outline to its smallest rectangle and packs them
+  into a 5 MB binary file the page loads after it starts. The rest are the
+  procedural lost city, set along the real streets. The streets are real too:
+  `scripts/build-nyc-streets.mjs` downloads the city's
+  [Centerline](https://data.cityofnewyork.us/d/inkn-q76z) data (71,500 lines:
+  streets, highways, paths, ramps and alleys) into a 1.3 MB file. Until it
+  loads, a procedural grid stands in. The bridges are planned from the real shoreline so each spans its
   river.
 - **Weather:** sky, fog, clouds, and rain or snow.
 - **Animals:** the deer and foxes are Quaternius's rigged low-poly models (CC0,

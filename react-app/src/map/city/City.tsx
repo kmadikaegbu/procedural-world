@@ -29,9 +29,11 @@ import {
   getCity,
   onCityChange,
   setRealBuildings,
+  setRealStreets,
   storeyHeight,
 } from './layout'
 import { loadRealBuildings } from './realBuildings'
+import { loadRealStreets } from './realStreets'
 import { EXAGGERATION } from '../scale'
 import { buildShapes, KINDS } from './shapes'
 
@@ -352,6 +354,9 @@ export function City({
     loadRealBuildings()
       .then(setRealBuildings)
       .catch((err) => console.warn('Real buildings failed to load; drawing the procedural city.', err))
+    loadRealStreets()
+      .then(setRealStreets)
+      .catch((err) => console.warn('Real streets failed to load; drawing the procedural street grid.', err))
   }, [])
   const version = useSyncExternalStore(onCityChange, cityVersion)
   // eslint-disable-next-line react-hooks/exhaustive-deps

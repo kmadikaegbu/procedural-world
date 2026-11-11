@@ -3,8 +3,9 @@ import { BATTERY, yearForCityReach } from '../timeline'
 import { objectSize } from '../scale'
 import { at } from '../world/project'
 import { openLandAt } from '../world/parks'
-import { ACROSS, BANK_TOWERS, ISLAND_BUILDINGS, islandRibbons, islandXZ } from '../world/island'
+import { ACROSS, BANK_TOWERS, ISLAND_BUILDINGS, islandRibbons, islandSU, islandXZ } from '../world/island'
 import type { RealBuildings } from './realBuildings'
+import { StreetKind, type RealStreets } from './realStreets'
 
 /**
  * THE CITY'S BUILDINGS AND STREETS, grown over time.
@@ -304,12 +305,72 @@ function makeLot(
 
 // --- generation ----------------------------------------------------------------------
 
-function generate(real: RealBuildings | null): CityLayout {
-  const lots: Lot[] = []
-  const roads: Road[] = []
-  // the real city first, so each lot of the lost city can find what replaced it
-  const replaced = real ? addRealBuildings(lots, real) : null
+/** Whatever replaced a lost building: the year the first real building on its ground went up. */
+type Replaced = (x: number, z: number, rot: number, w: number, d: number, built: number) => number
 
+/**
+ * One building of the lost city on a lot of `lotLen` along its street and
+ * `depth` across: the year it goes up (from when the city reached here), its
+ * height (from its era and district), and, in a business core, the tower that
+ * later replaces it. With the real buildings loaded it is only the building that
+ * stood here before them.
+ */
+function lostLot(
+  lots: Lot[],
+  px: number,
+  pz: number,
+  rot: number,
+  lotLen: number,
+  depth: number,
+  dist: District,
+  [r1, r2, r3, r4]: [number, number, number, number],
+  replaced: Replaced | null,
+) {
+  const away = Math.hypot(px - BATTERY.x, pz - BATTERY.z)
+  // the front reaches here, then the lot fills in over a few decades
+  const built = Math.min(
+    1975,
+    yearForCityReach(away + (r1 - 0.5) * 16) + r2 * r2 * 70,
+  )
+  const core = coreAt(px, pz)
+  const w = lotLen * (0.72 + 0.2 * r3)
+  const dpt = depth * (0.72 + 0.2 * r4)
+  // an ordinary building of its day
+  const storeys = Math.max(
+    1,
+    through(STOREYS, built) * (0.7 + r2 * 0.7) * (0.6 + 0.8 * dist.tall),
+  )
+
+  // in a core, the low building is later replaced by a tower
+  const towerYear = 1890 + Math.pow(r3, 1.3) * 125
+  const goesTall = core * dist.tall > 0.22 && r1 < core * 1.1 && towerYear > built + 25
+  if (replaced) {
+    // with the real city loaded, this lot is only the building that stood
+    // here before it: it comes down when the first real one on its ground
+    // goes up (no invented towers: the real ones are there)
+    const gone = replaced(px, pz, rot, w, dpt, built)
+    if (gone - built >= MIN_LIFE) lots.push(makeLot(px, pz, rot, w, dpt, storeys, built, gone, r4))
+    return
+  }
+  lots.push(
+    makeLot(px, pz, rot, w, dpt, storeys, built, goesTall ? towerYear : NEVER, r4),
+  )
+  if (goesTall) {
+    const cap = through(TOWER_CAP, towerYear)
+    // most towers are mid-height; only a few reach the cap (as in the real skyline)
+    const towerStoreys = Math.max(12, cap * (0.2 + 0.8 * r2 * r2) * (0.5 + 0.5 * core))
+    lots.push(
+      makeLot(px, pz, rot, w * 0.9, dpt * 0.9, towerStoreys, towerYear, NEVER, r4 + 0.1),
+    )
+  }
+}
+
+/**
+ * THE PROCEDURAL GRID, used until the real streets have loaded (or if they
+ * can't be): each district gets a regular grid at its own angle, with a lost
+ * building on every lot.
+ */
+function proceduralGrid(lots: Lot[], roads: Road[], replaced: Replaced | null) {
   const corners = [
     [WORLD.x0, WORLD.z0],
     [WORLD.x1, WORLD.z0],
@@ -362,48 +423,12 @@ function generate(real: RealBuildings | null): CityLayout {
           const salt = di * 97 + k
           if (rnd(ia, ib, salt) > dist.fill) continue
 
-          const r1 = rnd(ia, ib, salt + 1)
-          const r2 = rnd(ia, ib, salt + 2)
-          const r3 = rnd(ia, ib, salt + 3)
-          const r4 = rnd(ia, ib, salt + 4)
-          const away = Math.hypot(px - BATTERY.x, pz - BATTERY.z)
-          // the front reaches here, then the lot fills in over a few decades
-          const built = Math.min(
-            1975,
-            yearForCityReach(away + (r1 - 0.5) * 16) + r2 * r2 * 70,
-          )
-          const core = coreAt(px, pz)
-          const w = lotLen * (0.72 + 0.2 * r3)
-          const dpt = depth * (0.72 + 0.2 * r4)
-          const rot = rotSt
-          // an ordinary building of its day
-          const storeys = Math.max(
-            1,
-            through(STOREYS, built) * (0.7 + r2 * 0.7) * (0.6 + 0.8 * dist.tall),
-          )
-
-          // in a core, the low building is later replaced by a tower
-          const towerYear = 1890 + Math.pow(r3, 1.3) * 125
-          const goesTall = core * dist.tall > 0.22 && r1 < core * 1.1 && towerYear > built + 25
-          if (replaced) {
-            // with the real city loaded, this lot is only the building that stood
-            // here before it: it comes down when the first real one on its ground
-            // goes up (no invented towers: the real ones are there)
-            const gone = replaced(px, pz, rot, w, dpt, built)
-            if (gone - built >= MIN_LIFE) lots.push(makeLot(px, pz, rot, w, dpt, storeys, built, gone, r4))
-            continue
-          }
-          lots.push(
-            makeLot(px, pz, rot, w, dpt, storeys, built, goesTall ? towerYear : NEVER, r4),
-          )
-          if (goesTall) {
-            const cap = through(TOWER_CAP, towerYear)
-            // most towers are mid-height; only a few reach the cap (as in the real skyline)
-            const towerStoreys = Math.max(12, cap * (0.2 + 0.8 * r2 * r2) * (0.5 + 0.5 * core))
-            lots.push(
-              makeLot(px, pz, rot, w * 0.9, dpt * 0.9, towerStoreys, towerYear, NEVER, r4 + 0.1),
-            )
-          }
+          lostLot(lots, px, pz, rotSt, lotLen, depth, dist, [
+            rnd(ia, ib, salt + 1),
+            rnd(ia, ib, salt + 2),
+            rnd(ia, ib, salt + 3),
+            rnd(ia, ib, salt + 4),
+          ], replaced)
         }
 
         // --- the streets round the block: a cross street and an avenue ---
@@ -437,12 +462,29 @@ function generate(real: RealBuildings | null): CityLayout {
     }
   })
 
+}
+
+function generate(real: RealBuildings | null, streets: RealStreets | null): CityLayout {
+  const lots: Lot[] = []
+  const roads: Road[] = []
+  // the real city first, so each lot of the lost city can find what replaced it
+  const replaced = real ? addRealBuildings(lots, real) : null
+
+  if (streets) {
+    const pieces = addRealStreets(roads, streets)
+    lostCityAlong(lots, pieces, replaced)
+  } else {
+    proceduralGrid(lots, roads, replaced)
+  }
+
   // the real data has the bank towers already, at their true places
   addIslandBuildings(lots, !real)
-  for (const r of islandRibbons()) roads.push(r)
+  // with the real streets, the island's Main Street and the shore drives come from them
+  for (const r of islandRibbons(!streets)) roads.push(r)
 
   return summarise(lots, roads)
 }
+
 
 // --- the real city ---------------------------------------------------------------------
 
@@ -550,6 +592,181 @@ function addIslandBuildings(lots: Lot[], banks: boolean) {
   })
 }
 
+// --- the real streets ------------------------------------------------------------------
+
+/** One straight piece of a real street, between two of its line's vertices. */
+interface Piece {
+  x0: number
+  z0: number
+  x1: number
+  z1: number
+  /** Half the width it is drawn, world units. */
+  half: number
+  kind: StreetKind
+  rot: number
+}
+
+const M = 1 / 33.5
+
+/**
+ * How wide each kind of line is drawn, metres, from the roadbed width the city
+ * records (`bed`, 0 when it doesn't): streets get a sidewalk either side, the
+ * rest don't.
+ */
+function drawnWidth(kind: StreetKind, bed: number): number {
+  switch (kind) {
+    case StreetKind.Street:
+      return Math.min(45, Math.max(8, (bed || 10.4) + 7))
+    case StreetKind.Highway:
+      return Math.min(45, Math.max(10, (bed || 20) + 2))
+    case StreetKind.Path:
+      return Math.min(8, bed || 3.5)
+    case StreetKind.Ramp:
+      return Math.max(6, (bed || 8) + 1)
+    default:
+      return Math.max(5, (bed || 6) + 2)
+  }
+}
+
+/** Roosevelt Island's own buildings, standing today, in the island's frame: no street runs through them. */
+const ISLAND_FOOTPRINTS = ISLAND_BUILDINGS.filter((b) => b.gone === undefined).map((b) => ({
+  s: b.s,
+  u: b.u,
+  hs: b.along / 33.5 / 2,
+  hu: b.across / 33.5 / 2,
+}))
+function onIslandBuilding(x: number, z: number): boolean {
+  if (islandDistance(x, z) < -0.5) return false
+  const [s, u] = islandSU(x, z)
+  return ISLAND_FOOTPRINTS.some((f) => Math.abs(s - f.s) < f.hs && Math.abs(u - f.u) < f.hu)
+}
+
+/**
+ * Lay every real street as straight ribbons along its centre line, and say when
+ * each was laid. The data has no such year, so it comes from two estimates: when
+ * the city reached this far from the Battery (as for the lost city), and the year
+ * the oldest buildings standing beside it went up. A street is at least as old as
+ * its buildings, so it takes the earlier one.
+ */
+function addRealStreets(roads: Road[], streets: RealStreets): Piece[] {
+  const pieces: Piece[] = []
+  for (let i = 0; i < streets.count; i++) {
+    const kind = streets.kind[i] as StreetKind
+    const width = drawnWidth(kind, streets.width[i]) * M
+    const near = streets.year[i]
+    const a = streets.start[i]
+    const b = streets.start[i + 1]
+    // one year for the whole line, from its middle
+    const mi = a + ((b - a) >> 1)
+    const mx = streets.x[mi]
+    const mz = streets.z[mi]
+    const away = Math.hypot(mx - BATTERY.x, mz - BATTERY.z)
+    let built = yearForCityReach(away + (rnd(i, 3, 17) - 0.5) * 16) - 4
+    if (near >= 1650) built = Math.min(built, near - 5)
+    built = Math.max(1624, Math.min(1972, built))
+    for (let v = a; v < b - 1; v++) {
+      const x0 = streets.x[v]
+      const z0 = streets.z[v]
+      const x1 = streets.x[v + 1]
+      const z1 = streets.z[v + 1]
+      const len = Math.hypot(x1 - x0, z1 - z0)
+      if (len < 0.01) continue
+      const cx = (x0 + x1) / 2
+      const cz = (z0 + z1) / 2
+      if (coastDistance(cx, cz) < -0.4) continue // out over the water: piers and the like
+      if (onIslandBuilding(cx, cz)) continue
+      const rot = -Math.atan2(z1 - z0, x1 - x0)
+      // a little longer than the piece, so the joints at a bend overlap
+      roads.push({
+        x: cx,
+        z: cz,
+        rot,
+        len: len + Math.min(width, 0.25),
+        width,
+        built,
+        kind: kind === StreetKind.Path ? 1 : 0,
+      })
+      pieces.push({ x0, z0, x1, z1, half: width / 2, kind, rot })
+    }
+  }
+  return pieces
+}
+
+/** Distance from a point to a piece's centre line. */
+function distToPiece(p: Piece, x: number, z: number): number {
+  const dx = p.x1 - p.x0
+  const dz = p.z1 - p.z0
+  const l2 = dx * dx + dz * dz
+  const t = Math.max(0, Math.min(1, ((x - p.x0) * dx + (z - p.z0) * dz) / l2))
+  return Math.hypot(x - (p.x0 + t * dx), z - (p.z0 + t * dz))
+}
+
+/** Lot depth of the lost city (across the street), world units: about 28 m. */
+const LOT_DEPTH = 0.85
+/** Lot width along the street, world units: about 45 m. */
+const LOT_ALONG = 1.4
+
+/**
+ * THE LOST CITY ALONG THE REAL STREETS: a building on each lot down both sides
+ * of every real street, kept off every other street and off its neighbours,
+ * so the old town lines the streets that are really there.
+ */
+function lostCityAlong(lots: Lot[], pieces: Piece[], replaced: Replaced | null) {
+  // the pieces in a grid, for asking what street is near a point
+  const CELL = 1
+  const key = (i: number, j: number) => (i + 4096) * 8192 + (j + 4096)
+  const grid = new Map<number, number[]>()
+  pieces.forEach((p, k) => {
+    if (p.kind === StreetKind.Path) return // a lot may back onto a footpath
+    const pad = p.half + LOT_DEPTH
+    for (let i = Math.floor((Math.min(p.x0, p.x1) - pad) / CELL); i <= Math.floor((Math.max(p.x0, p.x1) + pad) / CELL); i++)
+      for (let j = Math.floor((Math.min(p.z0, p.z1) - pad) / CELL); j <= Math.floor((Math.max(p.z0, p.z1) + pad) / CELL); j++) {
+        const c = key(i, j)
+        const list = grid.get(c)
+        if (list) list.push(k)
+        else grid.set(c, [k])
+      }
+  })
+  const clearOfStreets = (x: number, z: number, self: number, room: number) => {
+    const list = grid.get(key(Math.floor(x / CELL), Math.floor(z / CELL)))
+    if (!list) return true
+    for (const k of list) if (k !== self && distToPiece(pieces[k], x, z) < pieces[k].half + room) return false
+    return true
+  }
+  // one lot to a patch of ground, so lots on the corners don't stack up
+  const TAKEN = 0.75
+  const taken = new Set<number>()
+
+  pieces.forEach((p, k) => {
+    if (p.kind !== StreetKind.Street) return
+    const len = Math.hypot(p.x1 - p.x0, p.z1 - p.z0)
+    if (len < LOT_ALONG * 0.6) return
+    const ux = (p.x1 - p.x0) / len
+    const uz = (p.z1 - p.z0) / len
+    const n = Math.max(1, Math.round(len / LOT_ALONG))
+    const lotLen = len / n
+    for (const side of [-1, 1]) {
+      const off = p.half + LOT_DEPTH / 2 + 0.05
+      for (let q = 0; q < n; q++) {
+        const t = (q + 0.5) * lotLen
+        const px = p.x0 + ux * t - uz * off * side
+        const pz = p.z0 + uz * t + ux * off * side
+        if (px < WORLD.x0 || px > WORLD.x1 || pz < WORLD.z0 || pz > WORLD.z1) continue
+        if (coastDistance(px, pz) < 0.6 || islandDistance(px, pz) > -1.5) continue
+        if (reserved(px, pz)) continue
+        const salt = q * 2 + (side > 0 ? 1 : 0)
+        const dist = DISTRICTS[districtAt(px, pz)]
+        if (rnd(k, salt, 41) > dist.fill) continue
+        if (!clearOfStreets(px, pz, k, LOT_DEPTH * 0.35)) continue
+        const cell = key(Math.floor(px / TAKEN), Math.floor(pz / TAKEN))
+        if (taken.has(cell)) continue
+        taken.add(cell)
+        lostLot(lots, px, pz, p.rot, lotLen, LOT_DEPTH, dist, [rnd(k, salt, 42), rnd(k, salt, 43), rnd(k, salt, 44), rnd(k, salt, 45)], replaced)
+      }
+    }
+  })
+}
+
 // --- readouts --------------------------------------------------------------------
 
 function summarise(lots: Lot[], roads: Road[]): CityLayout {
@@ -581,11 +798,12 @@ function countUpTo(sorted: Float32Array, value: number): number {
 
 let cache: CityLayout | null = null
 let realCity: RealBuildings | null = null
+let realStreets: RealStreets | null = null
 const listeners = new Set<() => void>()
 
 /** The city's lots and roads, built on first use and kept. */
 export function getCity(): CityLayout {
-  if (!cache) cache = generate(realCity)
+  if (!cache) cache = generate(realCity, realStreets)
   return cache
 }
 
@@ -596,12 +814,19 @@ export function setRealBuildings(real: RealBuildings) {
   listeners.forEach((f) => f())
 }
 
+/** Hand over the real streets once they've loaded: the streets, and the lost city along them, are laid out again. */
+export function setRealStreets(streets: RealStreets) {
+  realStreets = streets
+  cache = null
+  listeners.forEach((f) => f())
+}
+
 /** For useSyncExternalStore: call `f` when the layout changes; `cityVersion` says which one it is. */
 export function onCityChange(f: () => void): () => void {
   listeners.add(f)
   return () => listeners.delete(f)
 }
-export const cityVersion = () => (realCity ? 1 : 0)
+export const cityVersion = () => (realCity ? 1 : 0) + (realStreets ? 2 : 0)
 
 /** Buildings standing in `year` (counting ones still going up). */
 export function buildingsAt(year: number): number {

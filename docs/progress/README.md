@@ -95,8 +95,8 @@ three.js materials with `onBeforeCompile`:
   panel.
 - **Ground** ([`grassMaterial.ts`](../../react-app/src/map/grass/grassMaterial.ts)):
   per-pixel grass with moisture, season, grain and bare soil on steep slopes.
-  It also paints the paved city and the 1811 street grid, both driven by the
-  History Timeline.
+  It also paints the paved city, driven by the History Timeline. (It used to
+  fake a 29° street grid too; the real streets replaced it.)
 - **Trees** ([`materials.ts`](../../react-app/src/map/trees/materials.ts)):
   season colours are patched into the tree shader. The Tree panel's **Look & season**
   switch swaps between three shading strategies: realistic, flat and toon.
@@ -328,6 +328,22 @@ class session — more granular than the by-class summary above.
 - **Caveats:** 64% of the years are round numbers, so the city fills in with
   jumps at 1910, 1920 and 1930; 3,758 buildings have no year and get an
   estimate from the city's growth.
+- **Real streets (2026-11-11).** The procedural district grids are replaced
+  by every street, highway, park path, ramp and alley on the map, from NYC
+  Open Data's [Centerline](https://data.cityofnewyork.us/d/inkn-q76z) (CSCL):
+  71,500 lines along their surveyed centre lines, drawn at their recorded
+  roadbed width plus sidewalks.
+  - `react-app/scripts/build-nyc-streets.mjs` packs them into
+    `public/data/nyc-streets.bin` (1.3 MB), and `map/city/realStreets.ts`
+    loads it.
+  - Each street is laid in the earlier of two years: when the city's spread
+    reached it, and five years before the oldest buildings beside it.
+  - The lost city is now set lot by lot down both sides of the real streets,
+    kept off the other streets and off its neighbours.
+  - Roosevelt Island's Main Street and the FDR Drive and Vernon Boulevard
+    beside it come from the data too. The island keeps its hand-laid
+    promenades, fields and plazas.
+  - The procedural grid is kept only as a stand-in until the file loads.
 
 ### Interface
 

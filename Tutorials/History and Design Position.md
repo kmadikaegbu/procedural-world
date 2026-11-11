@@ -74,9 +74,9 @@ The app is not a neutral model of a place. It argues that:
 1. **Land is a decision, not a given.** Every grey cell in the city is ground
    that something was cleared, filled or paved to make. The timeline makes you
    watch it happen, from the Battery outward.
-2. **The grid is an act of imposition.** The street grid appears in 1811 and
-   only on ground the city has reached. It is drawn faint so the land can be
-   seen under it.
+2. **The grid is an act of imposition.** The streets are the city's real
+   ones, and each is laid only when the city reaches it, so the 1811 grid
+   marches up Manhattan block by block over the old land.
 3. **Roosevelt Island resists.** It stays green in every era, through the
    asylum years and today. It is the place the city kept apart, and in the
    model it is the only ground the paving rule can't reach.
@@ -112,7 +112,7 @@ One control, the **History Timeline** (1609 → 2100), drives all of it.
 | --- | --- | --- |
 | The city grows out from the Battery | Paving spreads in a circle around the Battery: New Amsterdam (~0.8 km) by 1664, ~2.5 km by 1800, ~6.5 km (42nd St) by 1850, into Harlem and Brooklyn by 1900, the whole city by 1950. | **Estimate.** A circle is a simplification; the real city grew up Manhattan's spine and out from Brooklyn's own centre. |
 | The forest is cleared for the city | Trees vanish where the paving reaches; about 8% survive as street and park trees. | **Stylized** share. |
-| The 1811 grid | Street lines fade in from 1811 over ten years, only on paved ground, at Manhattan's 29° angle. | Year and angle **real**; spacing approximate. |
+| The streets | Every street, highway, park path and alley is drawn along its real centre line at its real width (NYC Centerline, 71,500 lines). Each is laid in the earlier of two years: when the city reached it (the circle from the Battery, less 4 years), and 5 years before the oldest buildings standing beside it today. The lost city's buildings line these streets. | Paths and widths **real**; the year each was laid is an **estimate** (the data has none). Roosevelt Island's streets are the real ones too, apart from any piece that would cross one of its photo-placed buildings. |
 | The buildings | The 421,993 buildings standing today rise in the year the city records for each (NYC Building Footprints), at their real place and roof height. Before them, a procedural "lost city" stands for the buildings since torn down. | Standing buildings **real** (64% of years are rounded); the lost city **procedural**, cleared by ~1950 where nothing stands today. |
 | Roosevelt Island apart from the city | The island is never paved and keeps its trees in every era. | A **design choice**: the island did have buildings throughout. |
 | The story | A card tells the city's history in 37 chapters as the years pass (`react-app/src/story/chapters.ts`), each with the population of its year; Play stops on each so it can be read, and the camera flies to where it happened, marked with a beacon, line or area. | **Real** events from the standard histories; dates and figures should be spot-checked before presenting. Chapters after today are imagined. |
@@ -129,7 +129,7 @@ Screenshots of the same view in three years:
 
 The code: `react-app/src/map/timeline.ts` holds every date, curve and name;
 `world/region.ts` (`urbanWeight`, `greenAt`) turns the city's reach into
-paving; the ground shader draws the grid; `Props.tsx` clears the trees.
+paving; `city/layout.ts` lays the real streets; `Props.tsx` clears the trees.
 
 ---
 
@@ -139,6 +139,10 @@ paving; the ground shader draws the grid; `Props.tsx` clears the trees.
   Battery Park City and parts of every borough is not shown: the land is
   already there in 1609. The Welikia Project's historical shoreline would fix
   this: the coast could grow over time, the way the paving does.
+- **When each street was laid is an estimate.** The Centerline data says
+  where each street runs today, not when it opened, and streets that were
+  demapped (the old town's lost lanes, the blocks under Rockefeller Center or
+  the housing projects) are missing. Historical street maps would date them.
 - **The city's growth is a circle.** Better: digitize a handful of historical
   maps (1767 Ratzer, 1836, 1879, 1916) into "built-up by year" outlines.
 - **Buildings are boxes, and the demolished ones are invented.** Today's

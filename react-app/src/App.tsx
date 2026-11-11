@@ -638,7 +638,7 @@ function App() {
 
             <label
               className="row"
-              title="1609 to 2100. Sets the sea level, how far the city has grown from the Battery, whether the 1811 street grid exists, and the names of the city and the island. Dragging stops Play."
+              title="1609 to 2100. Sets the sea level, how far the city and its streets have grown from the Battery, and the names of the city and the island. Dragging stops Play."
             >
               <span>Year</span>
               <input
@@ -829,8 +829,9 @@ function App() {
               since 1856, held flat before). After today it is a stylized
               curve, not a forecast. The city's spread is an estimate. Population is
               the census (before 1790, estimates; after 2020, stylized). The
-              buildings standing today are real (NYC Building Footprints); the
-              ones before them and the streets are procedural. Sources are in
+              buildings standing today are real (NYC Building Footprints), and so
+              are the streets (NYC Centerline); when each street was laid is an
+              estimate, and the buildings before today's are procedural. Sources are in
               the History and Design Position note.
             </p>
           </>

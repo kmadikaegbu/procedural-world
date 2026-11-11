@@ -195,26 +195,14 @@ gCol *= 1.0 - 0.2 * uWet;
 float gMix = gW * (1.0 - uSnow);
 diffuseColor.rgb = mix(diffuseColor.rgb, gCol, gMix);
 
-// 9. the built-up city: a faint street grid, turned 29° like Manhattan's real
-//    one (avenues run north-north-east), with each block a slightly different
-//    tone. It only shows on built ground above the waterline, and fades out with
-//    distance — a pattern this fine would just shimmer from far away.
+// 9. the built-up city: paved ground with a broad drift of tone, so it isn't a
+//    flat sheet. The streets themselves are drawn on top, along the city's real
+//    centre lines (city/layout.ts), so the ground no longer fakes a grid.
+//    Only on built ground above the waterline.
 float gAbove = smoothstep(uSea + 0.005 * gA, uSea + 0.075 * gA, vGPos.y);   // relative to the terrain height, so it holds at any scale
 float gUrban = (1.0 - vGreen) * gAbove * (1.0 - uSnow);
 if (gUrban > 0.0) {
-  vec2 aveDir = vec2(0.4848, -0.8746);          // along the avenues (x east, z south)
-  vec2 stDir = vec2(0.8746, 0.4848);            // along the cross streets
-  float a = dot(gp, aveDir) / 2.4;              // cross streets are ~80 m apart
-  float b = dot(gp, stDir) / 5.8;               // avenues are ~190 m apart
-  vec2 cell = floor(vec2(a, b));
-  float block = wHash(cell + 17.0);             // tone for this block
-  float la = abs(fract(a) - 0.5);
-  float lb = abs(fract(b) - 0.5);
-  // no street lines before the 1811 Commissioners' Plan, just the paved town
-  float street = max(smoothstep(0.43, 0.5, la), smoothstep(0.455, 0.5, lb)) * uGrid;
-  float near = 1.0 - smoothstep(60.0, 260.0, length(vViewPosition));
-  float tone = 1.0 + (block - 0.5) * 0.16 * (0.4 + 0.6 * near) - street * 0.26 * near;
-  tone *= 0.96 + 0.08 * fbm2(gp * 0.8);         // broad drifting of tone, so it isn't a flat sheet
+  float tone = 0.96 + 0.08 * fbm2(gp * 0.8);
   diffuseColor.rgb *= mix(1.0, tone, gUrban);
 }
 `

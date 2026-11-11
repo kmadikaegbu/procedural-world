@@ -198,8 +198,8 @@ estimates, and which are design choices.
 ## How it's built
 
 A browser app written in **React** and **three.js**. Almost everything is
-generated as it runs. The only 3D models are the deer and foxes, and there are
-no texture images.
+generated as it runs. The only 3D models are the animals, Roosevelt Island's
+people and its cars and buses, and there are no texture images.
 
 - **Terrain:** seeded fractal noise, shaped by the real coastline. The mesh is
   fine around Roosevelt Island and coarser toward the edges of the city.
@@ -225,6 +225,15 @@ no texture images.
   from [Poly Pizza](https://poly.pizza/u/Quaternius)). Their animations are
   baked into textures when the page loads, so hundreds of animals can each play
   their own clip with one draw call per model. The birds are built in code.
+- **People and vehicles:** Roosevelt Island's people are Quaternius's animated
+  Man, Man in Suit, Woman and Woman in Dress, and its cars are his Car, Sedan,
+  SUV and Pickup Truck (all CC0, from [Poly Pizza](https://poly.pizza/u/Quaternius)).
+  The people's walk and idle animations are baked the same way as the
+  animals'. Each person wears their own shirt colour and each car its own
+  paint, about one in six a yellow cab. The bus and the van are by
+  [Poly by Google](https://poly.pizza/u/Poly%20by%20Google), CC-BY 3.0:
+  "Bus" (https://poly.pizza/m/4CPpvEmrMoF) and "Van"
+  (https://poly.pizza/m/aT_24cDaW1a).
 
 ### Run it yourself
 

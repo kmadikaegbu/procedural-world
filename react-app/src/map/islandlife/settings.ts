@@ -16,6 +16,8 @@ export interface IslandLifeSettings {
   size: number
   /** Draw the trash tubes, the trash moving in them, and the station queues' labels. */
   flows: boolean
+  /** Tint each person with their role's colour, instead of their own clothes. */
+  roleColors: boolean
 }
 
 export const ISLAND_LIFE_DEFAULTS: IslandLifeSettings = {
@@ -23,6 +25,7 @@ export const ISLAND_LIFE_DEFAULTS: IslandLifeSettings = {
   speed: 3,
   size: 8,
   flows: true,
+  roleColors: false,
 }
 
 export const ROLE_INFO: Record<Role, { label: string; color: string; title: string }> = {

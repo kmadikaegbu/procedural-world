@@ -79,14 +79,32 @@ export interface ClipInfo {
   stride: number
 }
 
-export interface AnimalModel {
+/** A rigged model baked into a vertex animation texture, with clips named C. */
+export interface BakedModel<C extends string> {
   geometry: BufferGeometry
   texture: DataTexture
   vertices: number
-  clips: Record<Clip, ClipInfo>
+  clips: Record<C, ClipInfo>
   /** Per animal: the clip it's fading out of, and the clip it's in (see VAT_VERT). */
   clipFrom: InstancedBufferAttribute
   clipTo: InstancedBufferAttribute
+}
+export type AnimalModel = BakedModel<Clip>
+
+/** How to bake a model's clips. */
+export interface BakeOptions<C extends string> {
+  /** Frames recorded per second of each clip. */
+  fps: Record<C, number>
+  /** Instances the model's mesh has room for. */
+  room: number
+  /** The clip whose first frame is the model's rest pose, measured to scale it. */
+  rest: C
+  /** Clips that move the model along, whose stride is measured. */
+  gaits: C[]
+  /** Gaits with a flight between footfalls (a gallop), which cover more ground than the sweep. */
+  airborne?: C[]
+  /** Scale to 1 unit long, nose to tail (an animal), or 1 unit tall (a person). */
+  fit: 'length' | 'height'
 }
 
 let loading: Promise<Record<ModelKey, AnimalModel>> | null = null
@@ -99,7 +117,14 @@ export function loadAnimalModels(): Promise<Record<ModelKey, AnimalModel>> {
       const out = {} as Record<ModelKey, AnimalModel>
       for (const key of Object.keys(SOURCES) as ModelKey[]) {
         const gltf = await loader.loadAsync(`${import.meta.env.BASE_URL}models/${SOURCES[key].file}`)
-        out[key] = bake(gltf.scene, gltf.animations, SOURCES[key].clips, ROOM[key])
+        out[key] = bakeClips<Clip>(gltf.scene, gltf.animations, SOURCES[key].clips, {
+          fps: FPS,
+          room: ROOM[key],
+          rest: 'idle',
+          gaits: ['walk', 'gallop'],
+          airborne: ['gallop'],
+          fit: 'length',
+        })
         await new Promise((r) => setTimeout(r)) // let a frame draw between models
       }
       return out
@@ -109,7 +134,14 @@ export function loadAnimalModels(): Promise<Record<ModelKey, AnimalModel>> {
   return loading
 }
 
-function bake(root: Object3D, animations: AnimationClip[], names: Record<Clip, string>, room: number): AnimalModel {
+/** Play each clip once and record every vertex's position, frame by frame, into a texture. */
+export function bakeClips<C extends string>(
+  root: Object3D,
+  animations: AnimationClip[],
+  names: Record<C, string>,
+  opts: BakeOptions<C>,
+): BakedModel<C> {
+  const room = opts.room
   root.updateMatrixWorld(true)
   // the skinned body, plus any rigid parts carried on a bone (the stag's antlers)
   const parts: Mesh[] = []
@@ -140,14 +172,14 @@ function bake(root: Object3D, animations: AnimationClip[], names: Record<Clip, s
   // play each clip and record every vertex, frame by frame
   const mixer = new AnimationMixer(root)
   const frames: Float32Array[] = []
-  const clips = {} as Record<Clip, ClipInfo>
+  const clips = {} as Record<C, ClipInfo>
   const bone = new Matrix4()
   const toWorld: Matrix4[] = []
-  for (const clip of CLIPS) {
+  for (const clip of Object.keys(names) as C[]) {
     const anim = animations.find((a) => a.name === names[clip])
-    if (!anim) throw new Error(`animal model has no "${names[clip]}" animation`)
+    if (!anim) throw new Error(`model has no "${names[clip]}" animation`)
     const duration = Math.min(anim.duration, MAX_SECONDS)
-    const n = Math.max(2, Math.round(duration * FPS[clip]))
+    const n = Math.max(2, Math.round(duration * opts.fps[clip]))
     clips[clip] = { start: frames.length, frames: n, duration, stride: 1 }
     const action = mixer.clipAction(anim)
     action.play()
@@ -192,28 +224,35 @@ function bake(root: Object3D, animations: AnimationClip[], names: Record<Clip, s
   }
   mixer.uncacheRoot(root)
 
-  // scale to 1 unit long, centred, feet on the ground (from the first idle frame)
-  const rest = frames[clips.idle.start]
+  // scale to 1 unit long (or tall), centred, feet on the ground (from the rest pose)
+  const rest = frames[clips[opts.rest].start]
+  let minX = Infinity
+  let maxX = -Infinity
   let minY = Infinity
+  let maxY = -Infinity
   let minZ = Infinity
   let maxZ = -Infinity
   for (let i = 0; i < vertices; i++) {
+    minX = Math.min(minX, rest[i * 3])
+    maxX = Math.max(maxX, rest[i * 3])
     minY = Math.min(minY, rest[i * 3 + 1])
+    maxY = Math.max(maxY, rest[i * 3 + 1])
     minZ = Math.min(minZ, rest[i * 3 + 2])
     maxZ = Math.max(maxZ, rest[i * 3 + 2])
   }
-  const k = 1 / (maxZ - minZ)
+  const k = 1 / (opts.fit === 'height' ? maxY - minY : maxZ - minZ)
+  const midX = opts.fit === 'height' ? (minX + maxX) / 2 : 0
   const midZ = (minZ + maxZ) / 2
   for (const fr of frames) {
     for (let i = 0; i < vertices; i++) {
-      fr[i * 3] *= k
+      fr[i * 3] = (fr[i * 3] - midX) * k
       fr[i * 3 + 1] = (fr[i * 3 + 1] - minY) * k
       fr[i * 3 + 2] = (fr[i * 3 + 2] - midZ) * k
     }
   }
 
-  // the gaits' stride: how far the lowest hoof sweeps fore and aft over the cycle
-  for (const clip of ['walk', 'gallop'] as Clip[]) {
+  // the gaits' stride: how far the lowest foot sweeps fore and aft over the cycle
+  for (const clip of opts.gaits) {
     const c = clips[clip]
     const first = frames[c.start]
     let hoof = 0
@@ -226,7 +265,7 @@ function bake(root: Object3D, animations: AnimationClip[], names: Record<Clip, s
       hi = Math.max(hi, z)
     }
     // a galloping animal also flies between footfalls, so it covers more ground than the sweep
-    c.stride = Math.min(2, Math.max(0.15, (hi - lo) * (clip === 'gallop' ? 1.5 : 1)))
+    c.stride = Math.min(2, Math.max(0.15, (hi - lo) * (opts.airborne?.includes(clip) ? 1.5 : 1)))
   }
 
   // every frame into one half-float texture, a row of vertices at a time, wrapping
@@ -313,21 +352,56 @@ vColor.xyz = mix(vColor.xyz, instanceColor.xyz, uStates);
 #endif
 `
 
+// a model with clothes or paint: the vertices marked aPaint take the instance's colour, the
+// rest keep their own (raised by uLift, a power below 1 that brightens the darkest the
+// most), and uStates tints the whole body
+const PAINT_COLOR = /* glsl */ `
+#include <color_vertex>
+#ifdef USE_INSTANCING_COLOR
+vColor.xyz = mix(pow(color.xyz, vec3(uLift)), instanceColor.xyz, max(aPaint, uStates));
+#endif
+`
+
+/** Add `uFill` × the surface colour to what a standard material emits. */
+export function fillLight(fragment: string): string {
+  return fragment
+    .replace('#include <common>', '#include <common>\nuniform float uFill;')
+    .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * uFill;')
+}
+
 /**
  * The material for one model, and the matching one for its shadow. Flat shading
- * gives the low-poly facets without baking normals for every frame.
+ * gives the low-poly facets without baking normals for every frame. With
+ * `paint`, the geometry has an aPaint attribute (see PAINT_COLOR), and the model
+ * gets a little fill light of its own (`fill`, a share of its colour): a figure
+ * as thin as a person, seen against the sun, would otherwise be a black
+ * silhouette in the scene's faint ambient light.
  */
-export function modelMaterials(model: AnimalModel, uStates: IUniform<number>) {
+export function modelMaterials(
+  model: { texture: DataTexture; vertices: number },
+  uStates: IUniform<number>,
+  paint?: { lift: number; fill: number },
+) {
   const uniforms = { uVat: { value: model.texture }, uVerts: { value: model.vertices }, uStates }
   const inject = (shader: WebGLProgramParametersWithUniforms, color: boolean) => {
     Object.assign(shader.uniforms, uniforms)
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>\n${VAT_HEADER}`)
       .replace('#include <begin_vertex>', VAT_VERT)
-    if (color) shader.vertexShader = shader.vertexShader.replace('#include <color_vertex>', VAT_COLOR)
+    if (color && paint) {
+      shader.uniforms.uLift = { value: paint.lift }
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute float aPaint;\nuniform float uLift;')
+        .replace('#include <color_vertex>', PAINT_COLOR)
+      shader.uniforms.uFill = { value: paint.fill }
+      shader.fragmentShader = fillLight(shader.fragmentShader)
+    } else if (color) shader.vertexShader = shader.vertexShader.replace('#include <color_vertex>', VAT_COLOR)
   }
   const body = new MeshStandardMaterial({ roughness: 0.85, vertexColors: true, flatShading: true })
   body.onBeforeCompile = (s) => inject(s, true)
+  // three.js reuses a compiled program for materials whose onBeforeCompile reads the same:
+  // the painted variant changes the shader, so it needs a key of its own
+  body.customProgramCacheKey = () => (paint ? 'vat-paint' : 'vat')
   const depth = new MeshDepthMaterial({ depthPacking: RGBADepthPacking })
   depth.onBeforeCompile = (s) => inject(s, false)
   return { body, depth }

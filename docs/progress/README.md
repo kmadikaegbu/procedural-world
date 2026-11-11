@@ -248,10 +248,24 @@ with Librande's four parts:
     staff, teachers and visitors.
   - **Their day:** each has a plan for the day (leave at 7–9, come back in
     the evening, maybe by way of the shops), and walks it along Main Street.
-- **Paths.** Main Street carries every walk. The Tram, the F train and the
-  bus run on timetables with a capacity per trip. A Tram cabin holds 110, so
-  queues build at the stations in the rush hours. Tubes under Main Street
-  carry trash.
+- **Paths.** Main Street carries every walk, on its sidewalks, and every
+  vehicle, on the right. The Tram, the F train and the bus run on
+  timetables with a capacity per trip. A Tram cabin holds 110, so queues
+  build at the stations in the rush hours. Tubes under Main Street carry
+  trash.
+- **Vehicles.** The bus to Queens comes over the Roosevelt Island Bridge to
+  be at its Motorgate stop for each trip of its timetable, then leaves. The
+  island's red bus runs from Motorgate down to the Tram, up to the north end
+  and back. Cars come over the bridge to drop someone off or make a
+  delivery, pull up at the kerb by a door for a few minutes, and leave; more
+  come at the rush hours. Visitors really do park in Motorgate, so these are
+  the cars Main Street sees. Each car or bus is one vehicle, not ten.
+- **What it looks like.** People are drawn with real animated models
+  (Quaternius, CC0), each in their own shirt colour, walking or standing
+  with their own animations; **Colour by role** tints them by who they are
+  instead. Cars (Quaternius, CC0) get their own paint, about one in six a
+  yellow cab. The buses are Poly by Google's "Bus" (CC-BY 3.0), in MTA
+  white or the island's red.
 - **Resources.**
   - **Trash:** about 1 kg a day per resident at home, plus the hospital. It
     collects in each building's chute until the plant pulls it through the

@@ -806,8 +806,9 @@ function App() {
                   {islandLifeStats
                     ? `${clockText(islandLifeStats.minute)} on Roosevelt Island: ${islandLifeStats.onIsland.toLocaleString('en-US')} people there, ${islandLifeStats.doing.walk.toLocaleString('en-US')} walking, ${islandLifeStats.doing.queue.toLocaleString('en-US')} waiting for a ride. `
                     : ''}
-                  The island's people keep a daily routine: commuting by Tram and subway, school, shifts at the hospitals and
-                  walks in the parks. Their trash goes by tube to the plant at the north end. See the People tab in Lab.
+                  The island's people keep a daily routine: commuting by Tram, subway and bus, school, shifts at the hospitals
+                  and walks in the parks. Buses and cars come over the bridge onto Main Street. Their trash goes by tube to the
+                  plant at the north end. See the People tab in Lab.
                 </p>
               </>
             ) : (

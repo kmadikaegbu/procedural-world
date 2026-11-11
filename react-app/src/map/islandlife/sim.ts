@@ -1,3 +1,4 @@
+import { islandEdges } from '../world/island'
 import { isOpen, LINES, mainStreetU, PLACES, placeIndex, TOWN_OPENS, type Place } from './places'
 
 /**
@@ -10,10 +11,16 @@ import { isOpen, LINES, mainStreetU, PLACES, placeIndex, TOWN_OPENS, type Place 
  *              who they are: commuters, local workers, children, retirees,
  *              Cornell Tech students, and people who come in for the day
  *              (hospital staff on three shifts, campus staff, teachers, visitors)
- *   PATHS      Main Street, which every walk follows; the Tram, the subway and
+ *   PATHS      Main Street, which every walk follows (on its sidewalks) and
+ *              every vehicle drives (on the right); the Tram, the subway and
  *              the bus, which run on a timetable and carry a limited number a
- *              trip, so queues build at the rush hours; and the AVAC tubes
- *              under Main Street, which suck each building's trash to the plant
+ *              trip, so queues build at the rush hours; the Roosevelt Island
+ *              Bridge, the only road on and off; and the AVAC tubes under
+ *              Main Street, which suck each building's trash to the plant
+ *   VEHICLES   the bus to Queens, which pulls in at Motorgate for each trip of
+ *              the timetable; the island's red bus, up and down Main Street;
+ *              and cars that come over the bridge to drop someone off or make
+ *              a delivery, more of them at the rush hours
  *   RESOURCES  people (where they are), trash (made at home and in the
  *              hospitals, carried by the tubes) and electricity (what each
  *              unit draws for the people in it)
@@ -43,6 +50,28 @@ const AVAC_MIN = 5
 const HOME_TRASH = 0.002
 /** Trash a hospital makes each minute for each person on its staff roll, kg. */
 const HOSPITAL_TRASH = 0.0015
+
+/** Driving speed on Main Street: about 25 km/h, in units per simulated minute (the buses a little slower). */
+const DRIVE = 25000 / 60 / 33.5
+const BUS_DRIVE = 20000 / 60 / 33.5
+/** How far right of Main Street's middle vehicles drive, and how far out the sidewalks are (units). */
+const DRIVE_LANE = 0.09
+const SIDEWALK = 0.2
+/** Minutes between the red buses, at the rush hours and otherwise. */
+const RED_BUS = { peak: 8, offPeak: 16 }
+/**
+ * Cars coming over the bridge each simulated minute, through the day (each a
+ * real car). Roosevelt Island keeps most cars off its streets: visitors park in
+ * Motorgate, so the cars on Main Street are mostly drop-offs, taxis and
+ * deliveries. Stylized, like the other rates.
+ */
+function carsPerMinute(m: number): number {
+  if (m < 360) return 0.05
+  if (m < 420) return 0.3
+  if (rush(m)) return 0.9
+  if (m < 1200) return 0.5
+  return 0.2
+}
 
 const DAY = 1440
 const OFF = -1
@@ -94,6 +123,34 @@ interface LineState {
   nextAt: number
   ridersToday: number
   ridersYesterday: number
+  /** The trip a bus has already been sent for (the bus line only). */
+  busFor: number
+}
+
+export type VehicleKind = 'bus' | 'redbus' | 'car'
+
+/** One part of a vehicle's run: drive this route, then wait `dwell` minutes (and at least until `until`). */
+interface Drive {
+  route: [number, number][]
+  dwell: number
+  until?: number
+}
+
+export interface Vehicle {
+  kind: VehicleKind
+  seed: number
+  /** Position, island frame, and the way it faces (a unit vector, island frame). */
+  s: number
+  u: number
+  ds: number
+  du: number
+  speed: number
+  drives: Drive[]
+  part: number
+  route: [number, number][]
+  leg: number
+  /** Parked (at a stop or a door) until this minute. */
+  waitUntil: number
 }
 
 interface Pulse {
@@ -120,6 +177,9 @@ export interface IslandLifeStats {
   today: number[]
   yesterday: number[]
   shopVisits: number
+  /** Vehicles on the island's streets now. */
+  cars: number
+  buses: number
 }
 
 /** A small seeded random generator (mulberry32), so a year's population is always the same. */
@@ -155,10 +215,14 @@ export class IslandLifeSim {
   clock = 7 * 60
   people: Person[] = []
   pulses: Pulse[] = []
+  vehicles: Vehicle[] = []
   year = 0
   private key = ''
   private open: boolean[] = PLACES.map(() => false)
-  private lines: LineState[] = LINES.map(() => ({ outQ: [], inQ: [], nextAt: 0, ridersToday: 0, ridersYesterday: 0 }))
+  private lines: LineState[] = LINES.map(() => ({ outQ: [], inQ: [], nextAt: 0, ridersToday: 0, ridersYesterday: 0, busFor: -1 }))
+  private nextRedBus = 0
+  private carsDue = 0
+  private vehicleSeed = 0
   private chutes = new Float64Array(PLACES.length)
   private present = new Int32Array(PLACES.length)
   private nextCycle = 0
@@ -250,7 +314,7 @@ export class IslandLifeSim {
         route: [],
         leg: 0,
         speed: WALK * (0.85 + 0.3 * r()),
-        lane: (r() - 0.5) * 0.26,
+        lane: (r() < 0.5 ? -1 : 1) * (SIDEWALK + 0.07 * r()),
         pause: 0,
         seed,
       })
@@ -394,9 +458,15 @@ export class IslandLifeSim {
       p.nextAt = this.dayBase() + p.plan[p.next].at
       if (p.nextAt <= this.clock) p.nextAt += DAY
     }
-    LINES.forEach((_, i) => (this.lines[i].nextAt = this.nextTrip(i, this.clock)))
+    LINES.forEach((_, i) => {
+      this.lines[i].nextAt = this.nextTrip(i, this.clock)
+      this.lines[i].busFor = -1
+    })
     this.nextCycle = this.clock + AVAC_CYCLE
     this.pulses = []
+    this.vehicles = []
+    this.nextRedBus = this.clock
+    this.carsDue = 0
   }
 
   private dayBase() {
@@ -525,6 +595,8 @@ export class IslandLifeSim {
       }
     })
 
+    this.traffic(dt, now)
+
     // walking, and wandering in the parks
     this.present.fill(0)
     for (const p of this.people) {
@@ -589,6 +661,110 @@ export class IslandLifeSim {
     this.today[slot] = kw / 1000
   }
 
+  // --- traffic --------------------------------------------------------------------
+
+  private addVehicle(kind: VehicleKind, speed: number, drives: Drive[]) {
+    const first = drives[0].route[0]
+    this.vehicles.push({
+      kind,
+      seed: this.vehicleSeed++,
+      s: first[0],
+      u: first[1],
+      ds: 1,
+      du: 0,
+      speed,
+      drives,
+      part: 0,
+      route: drives[0].route,
+      leg: 1,
+      waitUntil: 0,
+    })
+  }
+
+  private traffic(dt: number, now: number) {
+    if (!this.bridgeOpen()) {
+      this.vehicles = []
+      return
+    }
+    // the bus to Queens: it comes over the bridge to be at its stop when each trip leaves
+    LINES.forEach((line, i) => {
+      if (line.short !== 'Bus' || !this.lineOpen(i)) return
+      const l = this.lines[i]
+      const stop = PLACES[line.place].door
+      const inbound = drive(BRIDGE, stop)
+      const approach = pathLength(inbound) / BUS_DRIVE + 1
+      if (l.busFor !== l.nextAt && this.clock >= l.nextAt - approach) {
+        l.busFor = l.nextAt
+        this.addVehicle('bus', BUS_DRIVE, [
+          { route: inbound, dwell: 0.5, until: l.nextAt },
+          { route: drive(stop, BRIDGE), dwell: 0 },
+        ])
+      }
+    })
+    // the red bus: from Motorgate down Main Street to the Tram, up to the north end, and back
+    if (this.clock >= this.nextRedBus) {
+      if (lineRuns(0, now)) {
+        const garage = PLACES[placeIndex('Motorgate Garage')].door
+        const tram = PLACES[placeIndex('Tramway island station')].door
+        const north: [number, number] = [32, mainStreetU(32)]
+        this.addVehicle('redbus', BUS_DRIVE, [
+          { route: drive(garage, tram), dwell: 0.6 },
+          { route: drive(tram, north), dwell: 0.4 },
+          { route: drive(north, garage), dwell: 0 },
+        ])
+      }
+      this.nextRedBus += rush(now) ? RED_BUS.peak : RED_BUS.offPeak
+    }
+    // cars: over the bridge to a door, a few minutes there, and back
+    this.carsDue += carsPerMinute(now) * dt
+    while (this.carsDue >= 1) {
+      this.carsDue -= 1
+      const r = rng(this.vehicleSeed * 31 + 7)
+      const doors = PLACES.map((p, i) => (this.open[i] && p.people > 0 && p.kind !== 'park' ? i : OFF)).filter((i) => i !== OFF)
+      if (!doors.length) break
+      // weighted by how many live or work there
+      let x = r() * doors.reduce((a, i) => a + PLACES[i].people, 0)
+      let to = doors[0]
+      for (const i of doors) if ((x -= PLACES[i].people) < 0) {
+        to = i
+        break
+      }
+      const door = PLACES[to].door
+      this.addVehicle('car', DRIVE * (0.9 + 0.2 * r()), [
+        { route: drive(BRIDGE, door), dwell: 1 + 6 * r() },
+        { route: drive(door, BRIDGE), dwell: 0 },
+      ])
+    }
+
+    this.vehicles = this.vehicles.filter((v) => {
+      if (this.clock < v.waitUntil) return true
+      const s0 = v.s
+      const u0 = v.u
+      if (move(v, v.speed * dt)) {
+        const d = v.drives[v.part]
+        v.part++
+        if (v.part >= v.drives.length) return false
+        v.waitUntil = Math.max(this.clock + d.dwell, d.until ?? 0)
+        // set off from where it pulled up (the next drive was planned from the door)
+        v.route = [[v.s, v.u], ...v.drives[v.part].route.slice(1)]
+        v.leg = 1
+      }
+      const ds = v.s - s0
+      const du = v.u - u0
+      const len = Math.hypot(ds, du)
+      if (len > 1e-6) {
+        v.ds = ds / len
+        v.du = du / len
+      }
+      return true
+    })
+  }
+
+  /** The bridge to Queens: the island's only road on and off (1955). */
+  private bridgeOpen() {
+    return this.year >= 1955 && this.running
+  }
+
   private newDay() {
     this.yesterday = this.today
     this.today = []
@@ -635,6 +811,8 @@ export class IslandLifeSim {
       today: Array.from({ length: 144 }, (_, k) => this.today[k] ?? NaN),
       yesterday: Array.from({ length: 144 }, (_, k) => this.yesterday[k] ?? NaN),
       shopVisits: this.shopVisits,
+      cars: this.vehicles.filter((v) => v.kind === 'car').length,
+      buses: this.vehicles.filter((v) => v.kind !== 'car').length,
     }
   }
 
@@ -683,6 +861,36 @@ export function route(from: [number, number], to: [number, number], lane: number
   }
   pts.push([s1, u1])
   return pts
+}
+
+/**
+ * Where the Roosevelt Island Bridge comes onto the island: at Motorgate, whose
+ * ramps take the traffic down to Main Street (the bridge's deck is drawn by
+ * the bridges layer; the vehicles start and end their runs here).
+ */
+const BRIDGE: [number, number] = (() => {
+  const s = 12.4
+  const e = islandEdges(s) ?? [-1, 4.4]
+  return [s, e[1] - 0.3]
+})()
+
+/**
+ * A drive along Main Street, on the right: from a point (the bridge, or a stop at
+ * the kerb) to the kerb beside a door, or on to the bridge. Vehicles pull up at
+ * the kerb; only the bridge takes them off the street.
+ */
+function drive(from: [number, number], to: [number, number]): [number, number][] {
+  const lane = (Math.sign(to[0] - from[0]) || 1) * DRIVE_LANE
+  const end: [number, number] = to === BRIDGE ? to : [to[0], mainStreetU(to[0]) + lane]
+  const r = route(from, end, lane)
+  // a stop at the kerb ends on the street: drop the step in to the door that route() adds
+  return to === BRIDGE ? r : r.filter((p, k) => k === r.length - 1 || Math.hypot(p[0] - end[0], p[1] - end[1]) > 1e-6)
+}
+
+function pathLength(r: [number, number][]) {
+  let d = 0
+  for (let k = 1; k < r.length; k++) d += Math.hypot(r[k][0] - r[k - 1][0], r[k][1] - r[k - 1][1])
+  return d
 }
 
 /** Move along a route by `dist`; true when the end is reached. */

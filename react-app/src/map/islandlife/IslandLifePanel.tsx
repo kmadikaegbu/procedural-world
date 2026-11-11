@@ -90,6 +90,10 @@ export function IslandLifePanel({
         <input type="range" min={1} max={20} step={1} value={settings.size} onChange={(e) => setSettings((s) => ({ ...s, size: Number(e.target.value) }))} />
         <em>{settings.size}</em>
       </label>
+      <label className="row" title="Tint each person with their role's colour (the legend below), instead of showing their own clothes.">
+        <span>Colour by role</span>
+        <input type="checkbox" checked={settings.roleColors} onChange={(e) => setSettings((s) => ({ ...s, roleColors: e.target.checked }))} />
+      </label>
       <label className="row" title="Draw the AVAC trash tubes under Main Street with the trash moving in them, and label each station with its queue.">
         <span>Show flows</span>
         <input type="checkbox" checked={settings.flows} onChange={(e) => setSettings((s) => ({ ...s, flows: e.target.checked }))} />
@@ -107,7 +111,8 @@ export function IslandLifePanel({
           <div style={{ marginTop: 6 }}>
             {ROLES.filter((r) => stats.roles[r] > 0).map((r) => (
               <span key={r} title={ROLE_INFO[r].title} style={{ display: 'inline-block', marginRight: 8, whiteSpace: 'nowrap' }}>
-                <span style={{ color: ROLE_INFO[r].color }}>●</span> {ROLE_INFO[r].label} {fmt(stats.roles[r])}
+                {settings.roleColors && <span style={{ color: ROLE_INFO[r].color }}>● </span>}
+                {ROLE_INFO[r].label} {fmt(stats.roles[r])}
               </span>
             ))}
           </div>
@@ -122,6 +127,13 @@ export function IslandLifePanel({
                   {l.ridersYesterday > 0 && ` (${fmt(l.ridersYesterday)} yesterday)`}
                 </div>
               ))}
+          </div>
+
+          <div style={{ marginTop: 8 }}>
+            <strong>On Main Street</strong>
+            <div>
+              {fmt(stats.cars)} {stats.cars === 1 ? 'car' : 'cars'}, {fmt(stats.buses)} {stats.buses === 1 ? 'bus' : 'buses'}
+            </div>
           </div>
 
           <div style={{ marginTop: 8 }}>
@@ -151,12 +163,18 @@ export function IslandLifePanel({
 
       <p className="hint-text">
         Roosevelt Island as a city simulation, after Stone Librande's SimCity diagrams. Units (homes, workplaces, parks,
-        stations) are joined by paths (Main Street, the Tram, the subway, the bus, the trash tubes). Agents follow daily
-        schedules, and each one stands for ten people. Resources flow between the units. Residents come from the
+        stations) are joined by paths (Main Street, the Tram, the subway, the bus, the bridge, the trash tubes). Agents
+        follow daily schedules, and each one stands for ten people; each car or bus is one vehicle. The bus to Queens
+        pulls in at Motorgate for every trip of its timetable, the island's red bus runs up and down Main Street, and
+        cars come over the bridge to drop people off and make deliveries (visitors park in Motorgate). Resources flow between the units. Residents come from the
         buildings' size, scaled to the 2020 census (11,722). The Tram's cabins carry 110, so queues build at the rush
         hours. Trash goes by pneumatic tube to the plant at the north end, as the island's real AVAC system has done
         since 1975 (drawn at a tenth of its real speed, so you can follow it). The rates for trash and electricity are stylized: they show the shape of a day, not measured
         figures. Every day is a weekday.
+      </p>
+      <p className="hint-text">
+        Models: people and cars by Quaternius (CC0); the bus and van by Poly by Google (CC-BY 3.0), all from Poly
+        Pizza.
       </p>
     </>
   )

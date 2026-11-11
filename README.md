@@ -5,6 +5,10 @@
 **▶ [Open the live demo](https://procedural-world-design-app.web.app)**, press
 **Play** on the History Timeline, and watch the city grow.
 
+**📘 [Tools and Procedural Techniques](docs/TECHNIQUES.md):** everything this
+project uses (software, data, 3D models, references) and how each part of the
+world is generated.
+
 | 1609 · Mannahatta | 1880 · New York City | 2026 · Today |
 | :---: | :---: | :---: |
 | ![The map in 1609: all forest and meadow](Tutorials/timeline/19-history-1609.jpg) | ![The map in 1880: the paved city spreading from the Battery](Tutorials/timeline/19-history-1880.jpg) | ![The map today: the city paved, Roosevelt Island still green](Tutorials/timeline/19-history-2026.jpg) |
@@ -186,7 +190,9 @@ estimates, and which are design choices.
   in with jumps at 1910, 1920 and 1930. Each real building is drawn as the
   smallest box around its outline, with its real roof height. Roosevelt
   Island's own buildings are still placed from photographs.
-- **The streets are made up.** They follow the same rules as the lost city.
+- **Today's streets are real; the lost city's lots are made up.** The streets
+  come from the city's Centerline data. The lost city's buildings are laid along
+  them by rule, not at their historical places.
 - **Heights share one scale.** Trees, buildings and animals are drawn at their
   real size × 2.9 (hills ×15), so they stay in proportion to each other.
   Footprints and street widths are real.
@@ -199,7 +205,9 @@ estimates, and which are design choices.
 
 A browser app written in **React** and **three.js**. Almost everything is
 generated as it runs. The only 3D models are the animals, Roosevelt Island's
-people and its cars and buses, and there are no texture images.
+people and its cars and buses, and there are no texture images. Each technique
+is explained, with links to its code, in
+**[Tools and Procedural Techniques](docs/TECHNIQUES.md)**.
 
 - **Terrain:** seeded fractal noise, shaped by the real coastline. The mesh is
   fine around Roosevelt Island and coarser toward the edges of the city.
@@ -266,6 +274,7 @@ Markdown, so it reads fine on GitHub.
 | The visual rules: palette, lighting, materials | [Style Guide](<Style Guide.md>) |
 | Design decisions and research | [Planning](Planning/Planning.md) · [Analysis](Analysis/Analysis.md) |
 | What was built each class | [Progress log](docs/progress/README.md) · [Checklist](docs/progress/CHECKLIST.md) |
+| What I used, and every procedural technique | [Tools and Procedural Techniques](docs/TECHNIQUES.md) |
 | The code | [`react-app/`](react-app/) |
 
 ```

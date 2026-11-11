@@ -41,7 +41,7 @@ export function CameraFlight({
   flight,
 }: {
   controls: RefObject<OrbitControlsImpl | null>
-  /** Set a new object to start a flight; null does nothing. */
+  /** Set a new object to start a flight; null cancels the current flight. */
   flight: Flight | null
 }) {
   const leg = useRef<Leg | null>(null)
@@ -51,6 +51,7 @@ export function CameraFlight({
 
   useEffect(() => {
     pending.current = flight
+    if (!flight) leg.current = null
   }, [flight])
 
   const start = (c: OrbitControlsImpl, f: Flight) => {

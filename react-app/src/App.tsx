@@ -261,9 +261,9 @@ function App() {
 
   // the brush is live exactly while the Sculpt tab is open
   // (off at true scale: brush strokes are stored at the readable scale)
-  const sculpting = mapTab === 'sculpt' && scaleMode === 'readable'
+  const sculpting = lab && mapTab === 'sculpt' && scaleMode === 'readable'
   // likewise for painting the planting mask, on the Props tab
-  const painting = mapTab === 'props' && maskTool !== 'off'
+  const painting = lab && mapTab === 'props' && maskTool !== 'off'
   const headerTitle = cityNameForYear(timelineYear) + (scene === 'voxel' ? ' — Voxel' : '')
 
   // the timeline's year decides how far the city has grown and whether the
@@ -425,7 +425,7 @@ function App() {
     mask,
     params: terrainView,
     // shown while painting, and while the mask is limiting where trees grow
-    showOverlay: painting || (scatter.maskEnabled && mapTab === 'props'),
+    showOverlay: painting || (lab && scatter.maskEnabled && mapTab === 'props'),
     onChange: setMask,
   }
   const brushProps = {
@@ -774,7 +774,10 @@ function App() {
                 <button
                   key={sp}
                   className={follow === sp ? 'active' : ''}
-                  onClick={() => setFollow(follow === sp ? null : sp)}
+                  onClick={() => {
+                    setFlight(null)
+                    setFollow(follow === sp ? null : sp)
+                  }}
                 >
                   {sp === 'deer' ? 'Deer' : sp === 'fox' ? 'Fox' : 'Birds'}
                 </button>
@@ -1630,6 +1633,7 @@ function App() {
           <div className="panel-actions">
             <button
               onClick={() => {
+                setFlight(null)
                 controlsRef.current?.reset()
                 setPlace(null)
                 setFollow(null)

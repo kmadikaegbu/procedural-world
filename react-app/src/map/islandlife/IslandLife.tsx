@@ -151,11 +151,11 @@ export function IslandLife({
     for (let i = 0; i < NS; i++)
       for (let j = 0; j < NU; j++) {
         const [x, z] = islandXZ(S0 + i * STEP, U0 + j * STEP)
-        g[i * NU + j] = Math.max(height(x, z, params), params.seaLevel)
+        g[i * NU + j] = height(x, z, params)
       }
     return g
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [...shapeKey(params), params.seaLevel > 0.5])
+  }, shapeKey(params))
   const groundAt = (s: number, u: number) => {
     const fi = Math.min(NS - 1.001, Math.max(0, (s - S0) / STEP))
     const fj = Math.min(NU - 1.001, Math.max(0, (u - U0) / STEP))
@@ -167,7 +167,10 @@ export function IslandLife({
     const g10 = ground[(i + 1) * NU + j]
     const g01 = ground[i * NU + j + 1]
     const g11 = ground[(i + 1) * NU + j + 1]
-    return (g00 * (1 - a) + g10 * a) * (1 - b) + (g01 * (1 - a) + g11 * a) * b
+    return Math.max(
+      (g00 * (1 - a) + g10 * a) * (1 - b) + (g01 * (1 - a) + g11 * a) * b,
+      params.seaLevel,
+    )
   }
 
   const people = useRef<InstancedMesh>(null)
@@ -250,7 +253,7 @@ export function IslandLife({
       }),
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [y, ground])
+  }, [y, ground, params.seaLevel])
 
   const labels = useMemo(
     () =>
@@ -260,7 +263,7 @@ export function IslandLife({
         return { i, at: [x, groundAt(s, u) + 1.2, z] as [number, number, number] }
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ground],
+    [ground, params.seaLevel],
   )
   const labelText = useRef<(HTMLDivElement | null)[]>([])
 

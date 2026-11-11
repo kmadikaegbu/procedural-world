@@ -4,12 +4,23 @@ import { objectSize } from '../scale'
 import { at } from '../world/project'
 import { openLandAt } from '../world/parks'
 import { ACROSS, BANK_TOWERS, ISLAND_BUILDINGS, islandRibbons, islandXZ } from '../world/island'
+import type { RealBuildings } from './realBuildings'
 
 /**
  * THE CITY'S BUILDINGS AND STREETS, grown over time.
  *
- * Nothing here is a survey. It is a procedural stand-in for the real thing,
- * built from a few rules that are true of New York:
+ * Two layers of buildings:
+ *
+ *   - THE REAL CITY (once the data has loaded, realBuildings.ts): every building
+ *     standing today, at its real place, size and roof height, rising in the
+ *     year the city records it was built. That data only knows the survivors:
+ *     everything pulled down before is missing from it.
+ *   - THE LOST CITY, procedural: a stand-in for the buildings that came before.
+ *     Each one comes down in the year the first real building on its ground goes
+ *     up, so the old town is replaced by the real one as the timeline plays.
+ *
+ * The lost city is not a survey. It is built from a few rules that are true of
+ * New York:
  *
  *   - the town grew outward from the Battery (the same estimate the paving
  *     uses, timeline.ts), so a lot's BUILT YEAR comes from how far it is from
@@ -293,9 +304,11 @@ function makeLot(
 
 // --- generation ----------------------------------------------------------------------
 
-function generate(): CityLayout {
+function generate(real: RealBuildings | null): CityLayout {
   const lots: Lot[] = []
   const roads: Road[] = []
+  // the real city first, so each lot of the lost city can find what replaced it
+  const replaced = real ? addRealBuildings(lots, real) : null
 
   const corners = [
     [WORLD.x0, WORLD.z0],
@@ -372,6 +385,14 @@ function generate(): CityLayout {
           // in a core, the low building is later replaced by a tower
           const towerYear = 1890 + Math.pow(r3, 1.3) * 125
           const goesTall = core * dist.tall > 0.22 && r1 < core * 1.1 && towerYear > built + 25
+          if (replaced) {
+            // with the real city loaded, this lot is only the building that stood
+            // here before it: it comes down when the first real one on its ground
+            // goes up (no invented towers: the real ones are there)
+            const gone = replaced(px, pz, rot, w, dpt, built)
+            if (gone - built >= MIN_LIFE) lots.push(makeLot(px, pz, rot, w, dpt, storeys, built, gone, r4))
+            continue
+          }
           lots.push(
             makeLot(px, pz, rot, w, dpt, storeys, built, goesTall ? towerYear : NEVER, r4),
           )
@@ -416,24 +437,96 @@ function generate(): CityLayout {
     }
   })
 
-  addIslandBuildings(lots)
+  // the real data has the bank towers already, at their true places
+  addIslandBuildings(lots, !real)
   for (const r of islandRibbons()) roads.push(r)
 
   return summarise(lots, roads)
+}
+
+// --- the real city ---------------------------------------------------------------------
+
+/** Years a lost building must stand to be worth drawing at all. */
+const MIN_LIFE = 10
+/**
+ * When a lost building with nothing standing on its ground today comes down: the
+ * mid-century clearances (parks, highways, housing projects). An estimate.
+ */
+const CLEARED_BY = 1950
+/** Grid for finding the real buildings on a lot's ground, world units. */
+const FIND_CELL = 1
+
+/**
+ * Add every real building as a lot, and return a lookup: the year the first real
+ * building went up inside a given rectangle (the lost building's ground).
+ */
+function addRealBuildings(
+  lots: Lot[],
+  real: RealBuildings,
+): (x: number, z: number, rot: number, w: number, d: number, built: number) => number {
+  const cells = new Map<number, number[]>() // cell → [x, z, built, …]
+  const key = (i: number, j: number) => (i + 2048) * 4096 + (j + 2048)
+
+  for (let i = 0; i < real.count; i++) {
+    const x = real.x[i]
+    const z = real.z[i]
+    if (x < WORLD.x0 || x > WORLD.x1 || z < WORLD.z0 || z > WORLD.z1) continue
+    // in the river by the app's simplified shore (piers, mostly), or on Roosevelt
+    // Island, which is laid out by hand from photographs (addIslandBuildings)
+    if (coastDistance(x, z) < 0.15 || islandDistance(x, z) > -1.5) continue
+    const rr = rnd(i, 7, 13)
+    // the year the city records; where it has none, a guess from when the city
+    // reached this far (the same estimate as the lost city's)
+    const recorded = real.year[i] >= 1650 && real.year[i] <= 2030
+    const built = recorded
+      ? real.year[i]
+      : Math.min(2015, yearForCityReach(Math.hypot(x - BATTERY.x, z - BATTERY.z)) + 20 + rr * 60)
+    // a roof the city never measured gets the usual height for its day
+    const metres = real.height[i] > 0 ? real.height[i] : through(STOREYS, built) * STOREY_M
+    lots.push(makeLot(x, z, -real.angle[i], real.w[i], real.d[i], metres / STOREY_M, built, NEVER, rr))
+
+    const k = key(Math.floor(x / FIND_CELL), Math.floor(z / FIND_CELL))
+    const list = cells.get(k)
+    if (list) list.push(x, z, built)
+    else cells.set(k, [x, z, built])
+  }
+
+  return (x, z, rot, w, d, built) => {
+    // the lot's own axes (see makeLot: local x along (cos rot, −sin rot))
+    const ux = Math.cos(rot)
+    const uz = -Math.sin(rot)
+    const r = Math.hypot(w, d) / 2
+    let first = Infinity
+    for (let i = Math.floor((x - r) / FIND_CELL); i <= Math.floor((x + r) / FIND_CELL); i++) {
+      for (let j = Math.floor((z - r) / FIND_CELL); j <= Math.floor((z + r) / FIND_CELL); j++) {
+        const list = cells.get(key(i, j))
+        if (!list) continue
+        for (let n = 0; n < list.length; n += 3) {
+          const dx = list[n] - x
+          const dz = list[n + 1] - z
+          if (Math.abs(dx * ux + dz * uz) <= w / 2 && Math.abs(-dx * uz + dz * ux) <= d / 2) {
+            first = Math.min(first, list[n + 2])
+          }
+        }
+      }
+    }
+    return first < Infinity ? first : Math.max(built + 40, CLEARED_BY)
+  }
 }
 
 /**
  * Roosevelt Island and the banks beside it are laid out from the reference
  * photographs (world/island.ts): each building has its real position, footprint,
  * height and date. A building that is not on the island (a tower in Queens) is
- * placed too, where the street generator would not put one.
+ * placed too, where the street generator would not put one, unless the real
+ * data is loaded (`banks` false), which has them all.
  */
 const SHAPE_KIND = { block: Kind.Block, slab: Kind.Slab, house: Kind.House, round: Kind.Round } as const
 const WALL_STYLE = { brick: Style.Brick, stone: Style.Stone, glass: Style.Glass, timber: Style.Timber } as const
 
-function addIslandBuildings(lots: Lot[]) {
+function addIslandBuildings(lots: Lot[], banks: boolean) {
   const rot = -Math.atan2(ACROSS[1], ACROSS[0]) // a lot's local x runs across the island
-  const all = [...ISLAND_BUILDINGS, ...BANK_TOWERS]
+  const all = banks ? [...ISLAND_BUILDINGS, ...BANK_TOWERS] : ISLAND_BUILDINGS
   all.forEach((b, i) => {
     const [x, z] = islandXZ(b.s, b.u)
     const onIsland = ISLAND_BUILDINGS.includes(b)
@@ -487,12 +580,28 @@ function countUpTo(sorted: Float32Array, value: number): number {
 }
 
 let cache: CityLayout | null = null
+let realCity: RealBuildings | null = null
+const listeners = new Set<() => void>()
 
 /** The city's lots and roads, built on first use and kept. */
 export function getCity(): CityLayout {
-  if (!cache) cache = generate()
+  if (!cache) cache = generate(realCity)
   return cache
 }
+
+/** Hand over the real buildings once they've loaded: the city is laid out again with them. */
+export function setRealBuildings(real: RealBuildings) {
+  realCity = real
+  cache = null
+  listeners.forEach((f) => f())
+}
+
+/** For useSyncExternalStore: call `f` when the layout changes; `cityVersion` says which one it is. */
+export function onCityChange(f: () => void): () => void {
+  listeners.add(f)
+  return () => listeners.delete(f)
+}
+export const cityVersion = () => (realCity ? 1 : 0)
 
 /** Buildings standing in `year` (counting ones still going up). */
 export function buildingsAt(year: number): number {

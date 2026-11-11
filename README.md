@@ -50,11 +50,13 @@ at 12 years a second.
 
 - 🏙️ **The city grows.** Paving spreads out from the Battery: New Amsterdam by
   1664, about 42nd Street by 1850, the whole city by 1950.
-- 🏗️ **The city is built.** Streets are laid and buildings rise out of the
-  ground as the years pass, in grey concrete at first. Low blocks are replaced
-  by towers in Wall Street and Midtown. A counter shows the population (the
-  census, 1624 to today) and how many buildings and kilometres of street
-  exist. The buildings and streets are procedural, not a survey.
+- 🏗️ **The real city is built.** All 422,000 buildings standing on the map
+  today, from the city's own Building Footprints data, rise in the year the
+  city records each one was built, at its real place, size and roof height.
+  Before them stands a procedural "lost city" of the buildings that came
+  first, and each lost building comes down when the first real one on its
+  ground goes up. A counter shows the population (the census, 1624 to today)
+  and how many buildings and kilometres of street exist.
 - 🌉 **The bridges open.** The Brooklyn (1883), Williamsburg (1903),
   Manhattan and Queensboro (1909), Hell Gate (1916), Triborough (1936) and
   Roosevelt Island (1955) bridges are built in their real years, with the
@@ -122,10 +124,18 @@ estimates, and which are design choices.
 - **The city grows as a circle around the Battery.** That's a simplification.
   The real city grew up Manhattan's spine, and Brooklyn grew out from its own
   centre.
-- **The buildings and streets are made up.** They follow New York's real
-  rules (growth outward from the Battery, tilted grids, towers in the business
-  cores), but no building is in its real place, and each stands for a few real
-  ones. Only Roosevelt Island's buildings are placed from photographs.
+- **Today's buildings are real; the ones before them are made up.** The data
+  only knows buildings that still stand, so everything demolished before is
+  missing from it. The lost city fills that gap: it follows New York's real
+  rules (growth outward from the Battery, tilted grids), but no lost building
+  is in its real place, and each stands for a few. Where nothing stands today,
+  a lost building is cleared in about 1950, an estimate.
+- **The construction years are partly estimates too.** 64% of them are
+  round numbers (47,680 buildings are dated exactly 1920), so the city fills
+  in with jumps at 1910, 1920 and 1930. Each real building is drawn as the
+  smallest box around its outline, with its real roof height. Roosevelt
+  Island's own buildings are still placed from photographs.
+- **The streets are made up.** They follow the same rules as the lost city.
 - **Heights share one scale.** Trees, buildings and animals are drawn at their
   real size × 2.9 (hills ×15), so they stay in proportion to each other.
   Footprints and street widths are real.
@@ -147,9 +157,14 @@ no texture images.
 - **Grass and streets:** a shader paints grass, paving and the street grid, all
   driven by the year.
 - **Water:** procedural water with a shoreline that follows the sea level.
-- **The city:** about 60,000 buildings and 50,000 street segments, placed once
-  and built by the shader as the Year changes. The bridges are planned from the
-  real shoreline so each spans its river.
+- **The city:** about 464,000 buildings and 50,000 street segments, placed once
+  and built by the shader as the Year changes. 422,000 of the buildings are
+  real: `scripts/build-nyc-buildings.mjs` downloads the city's
+  [Building Footprints](https://data.cityofnewyork.us/d/5zhs-2jue) (NYC Open
+  Data), reduces each outline to its smallest rectangle and packs them into a
+  5 MB binary file the page loads after it starts. The rest are the procedural
+  lost city. The bridges are planned from the real shoreline so each spans its
+  river.
 - **Weather:** sky, fog, clouds, and rain or snow.
 - **Animals:** the deer and foxes are Quaternius's rigged low-poly models (CC0,
   from [Poly Pizza](https://poly.pizza/u/Quaternius)). Their animations are

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { useFrame } from '@react-three/fiber'
 import {
   ClampToEdgeWrapping,
@@ -23,7 +23,15 @@ import {
 import { height, shapeKey, type TerrainParams } from '../noise'
 import { WORLD } from '../world/shore'
 import type { ScaleMode } from '../scale'
-import { BUILDING_EXAGGERATION, getCity, storeyHeight } from './layout'
+import {
+  BUILDING_EXAGGERATION,
+  cityVersion,
+  getCity,
+  onCityChange,
+  setRealBuildings,
+  storeyHeight,
+} from './layout'
+import { loadRealBuildings } from './realBuildings'
 import { EXAGGERATION } from '../scale'
 import { buildShapes, KINDS } from './shapes'
 
@@ -338,7 +346,16 @@ export function City({
   show?: boolean
 }) {
   const uniforms = useMemo(makeUniforms, [])
-  const built = useMemo(() => buildCity(uniforms), [uniforms])
+  // the real buildings arrive a moment after the page (realBuildings.ts); until
+  // then, or if they can't be loaded, the city is the procedural one alone
+  useEffect(() => {
+    loadRealBuildings()
+      .then(setRealBuildings)
+      .catch((err) => console.warn('Real buildings failed to load; drawing the procedural city.', err))
+  }, [])
+  const version = useSyncExternalStore(onCityChange, cityVersion)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const built = useMemo(() => buildCity(uniforms), [uniforms, version])
   useEffect(
     () => () => built.disposables.forEach((d) => d.dispose()),
     [built],

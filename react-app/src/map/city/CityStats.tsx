@@ -1,6 +1,7 @@
 import { TIMELINE_MAX, TIMELINE_MIN } from '../timeline'
 import { bridgesOpenBy } from './bridges'
-import { buildingsAt, roadKmAt } from './layout'
+import { useSyncExternalStore } from 'react'
+import { buildingsAt, cityVersion, onCityChange, roadKmAt } from './layout'
 import {
   formatPopulation,
   POPULATION,
@@ -17,6 +18,7 @@ const py = (people: number) => H - 4 - (people / POPULATION_MAX) * (H - 10)
 
 /** Population curve with the current year marked, and what has been built so far. */
 export function CityStats({ year }: { year: number }) {
+  useSyncExternalStore(onCityChange, cityVersion) // count again once the real buildings arrive
   const people = populationForYear(year)
   const dataPoints = POPULATION.filter(([y]) => y <= POPULATION_DATA_END)
   const line = dataPoints.map(([y, p]) => `${px(y).toFixed(1)},${py(p).toFixed(1)}`).join(' ')

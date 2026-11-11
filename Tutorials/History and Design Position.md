@@ -112,6 +112,7 @@ One control, the **History Timeline** (1609 → 2100), drives all of it.
 | The city grows out from the Battery | Paving spreads in a circle around the Battery: New Amsterdam (~0.8 km) by 1664, ~2.5 km by 1800, ~6.5 km (42nd St) by 1850, into Harlem and Brooklyn by 1900, the whole city by 1950. | **Estimate.** A circle is a simplification; the real city grew up Manhattan's spine and out from Brooklyn's own centre. |
 | The forest is cleared for the city | Trees vanish where the paving reaches; about 8% survive as street and park trees. | **Stylized** share. |
 | The 1811 grid | Street lines fade in from 1811 over ten years, only on paved ground, at Manhattan's 29° angle. | Year and angle **real**; spacing approximate. |
+| The buildings | The 421,993 buildings standing today rise in the year the city records for each (NYC Building Footprints), at their real place and roof height. Before them, a procedural "lost city" stands for the buildings since torn down. | Standing buildings **real** (64% of years are rounded); the lost city **procedural**, cleared by ~1950 where nothing stands today. |
 | Roosevelt Island apart from the city | The island is never paved and keeps its trees in every era. | A **design choice**: the island did have buildings throughout. |
 | The names | The header changes Mannahatta → New Amsterdam → New York City; the panel shows Minnehanonck → Hog Island → Blackwell's → Welfare → Roosevelt Island, plus the latest event. | **Real**; a few dates differ by a year between sources. |
 | Sea level | Rises 2.94 mm a year from 1856 (the Battery gauge), drawn at the hills' 15× so it shows; held flat before 1856. After today, a steep stylized curve. | **Measured** up to today; **stylized** after. |
@@ -138,9 +139,12 @@ paving; the ground shader draws the grid; `Props.tsx` clears the trees.
   this: the coast could grow over time, the way the paving does.
 - **The city's growth is a circle.** Better: digitize a handful of historical
   maps (1767 Ratzer, 1836, 1879, 1916) into "built-up by year" outlines.
-- **No buildings.** The Octagon, the Smallpox Hospital, the lighthouse, the
-  Tram and Cornell Tech could appear as simple markers at their real sites and
-  years.
+- **Buildings are boxes, and the demolished ones are invented.** Today's
+  buildings are real but drawn as the rectangle around each outline. Buildings
+  torn down before today aren't in the data; a historical source (the 1916
+  Bromley atlases, or the NYPL's digitized building footprints) could replace
+  the lost city. Roosevelt Island's own landmarks (the Octagon, the Smallpox
+  Hospital, the lighthouse) are still placed from photographs.
 - **The island's own shape changed** (its tips and seawalls were built up over
   time). Not modelled.
 - **Self-critique:** the circle-from-the-Battery growth and the 8% street-tree

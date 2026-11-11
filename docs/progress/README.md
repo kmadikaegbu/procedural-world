@@ -220,6 +220,24 @@ class session — more granular than the by-class summary above.
 - A climate timeline (1950–2100) that drives sea level through a stylized
   rise curve, with Play/Stop animation — watch the coast flood over time
 
+### City
+
+- **Real buildings (2026-11-10).** All 421,993 buildings standing on the map
+  today come from NYC Open Data's
+  [Building Footprints](https://data.cityofnewyork.us/d/5zhs-2jue): each at its
+  real place, as the smallest rectangle around its outline, at its real roof
+  height, rising in its recorded construction year.
+  `react-app/scripts/build-nyc-buildings.mjs` downloads them and packs them into
+  `public/data/nyc-buildings.bin` (5.2 MB); `map/city/realBuildings.ts` loads it
+  after the page starts, and the city rebuilds once it arrives.
+- **The lost city.** The data only holds buildings that still stand, so the
+  procedural buildings now stand for the ones that were torn down: each comes
+  down when the first real building on its ground goes up, or in about 1950
+  where nothing stands today. Roosevelt Island keeps its photo-placed buildings.
+- **Caveats:** 64% of the years are round numbers, so the city fills in with
+  jumps at 1910, 1920 and 1930; 3,758 buildings have no year and get an
+  estimate from the city's growth.
+
 ### Props & weather
 
 - Seeded tree scattering, clustered by a density-noise field, with a

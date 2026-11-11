@@ -238,6 +238,32 @@ class session — more granular than the by-class summary above.
   jumps at 1910, 1920 and 1930; 3,758 buildings have no year and get an
   estimate from the city's growth.
 
+### Interface
+
+- **Guided tour (2026-11-10).** A first visit opens a five-stop tour of the
+  history (1609 → the city spreads → the real skyline → the last wild land →
+  2100). Each stop ticks itself off when you do it, or its button does it for
+  you; "Take the tour" in the panel reopens it (`src/tour/`).
+- **Explore and Lab.** The panel opens in Explore (the History Timeline, the
+  fly-to buttons and weather presets); the Lab shows every slider. Both
+  choices are remembered in the browser.
+- **The story of New York.** A card at the bottom of the screen tells the
+  city's history in 37 chapters (1609 → 2100) with the population of each
+  year. Play holds on each chapter for 5 seconds; arrows step between them
+  and "Show me" flies the camera there (`src/story/`).
+- **The story on the map.** Each chapter has a real location. As it arrives
+  the camera glides there (`map/CameraFlight.tsx`, which now also smooths the
+  Island / Battery / Midtown buttons) and the map marks it with a labelled
+  beacon, a line (the wall, the bridges, the first subway), an outline
+  (Central Park) or a circle (the fires, Sandy's flood)
+  (`story/StoryMarker.tsx`). "Camera follows the story" turns the flying off.
+- **Follow an animal.** The camera can now zoom to about 20 m (it stopped at
+  670 m). Deer / Fox / Birds buttons fly down to an animal and follow it as it
+  moves, saying what it's doing (`map/wildlife/FollowCam.tsx`).
+- The tour and the Explore/Lab split are borrowed from a classmate's
+  project, Jessica Hsiao's *Wildform*, and credited in the README's
+  precedents.
+
 ### Props & weather
 
 - Seeded tree scattering, clustered by a density-noise field, with a

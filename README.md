@@ -88,7 +88,32 @@ lighthouse), Four Freedoms and Southpoint parks, sports fields, paths and the
 banks either side were placed from four aerial photographs of the real
 island. See [Roosevelt Island Layout](<Tutorials/Roosevelt Island Layout.md>).
 
-You can also:
+**Follow the story.** As the years pass, a card at the bottom of the screen
+tells New York's story in 37 chapters, from the Lenape's Mannahatta through
+New Amsterdam, slavery, the Revolution, the grid, the Erie Canal,
+immigration, Central Park, the bridges, the subway, the skyscrapers, the
+1975 crisis, September 11 and Hurricane Sandy, to the rising sea. Each
+chapter shows the population of its year. Play stops on each chapter for a
+few seconds so it can be read. As each chapter arrives, the camera glides to
+where it happened, and the map marks it: a beacon with a label (Fort
+Amsterdam, Federal Hall, the Triangle factory, the Empire State Building), a
+line for the Dutch wall, the bridges and the first subway, an outline for
+Central Park, and a circle for the great fires and Sandy's flood. Locations
+are approximate, to the street corner.
+
+**Watch the wildlife up close.** You can zoom in to about 20 m. The
+**Deer**, **Fox** and **Birds** buttons fly down to an animal and follow it,
+saying what it's doing (grazing, fleeing a fox, flying with the flock). There
+are far more in the early years, before the city paves their land.
+
+**Start with the tour.** On a first visit a short guided tour opens at the top
+of the screen: five stops from Mannahatta in 1609, through the city's spread,
+the 1811 grid and the skyline, to the last wild land and the sea in 2100. Each
+stop says what to try, ticks itself off when you've done it, and has a button
+that does it for you. The panel opens in **Explore**, which shows only the
+history and the weather. The **Lab** is the same app with every slider.
+
+In the Lab you can also:
 
 - Change the weather: rain, snow that settles on the ground, fog, clouds and
   the sun's position.
@@ -113,6 +138,7 @@ The project is a response to earlier attempts to picture or plan this ground:
 | **Johnson and Burgee's Roosevelt Island plan** (1969) | It treated the island as a planned counter-city. Here, that difference shows up as ground that never gets paved. |
 | **OMA, *Delirious New York*** (1978) | Koolhaas celebrates the grid as the machine that makes the city. This model shows what the grid replaced. |
 | **Louis Kahn's Four Freedoms Park** (designed 1973, opened 2012) | It shows landscape as a monument, with the island's tip as a place to look back at the city. |
+| **Jessica Hsiao, *Wildform*** (a classmate's project, 2026) | A game where plants grow architecture between two buildings. I borrowed its way of teaching (a guided first run with a checklist, and a simple Play view beside a Lab with every dial), not its code. Its story runs the other way: there, nature builds; here, the city replaces nature. |
 
 The full argument, with a year-by-year history and sources, is in
 **[History and Design Position](<Tutorials/History and Design Position.md>)**.

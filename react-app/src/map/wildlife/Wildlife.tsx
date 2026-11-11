@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { setActiveSim } from './active'
 import { useFrame } from '@react-three/fiber'
 import {
   CircleGeometry,
@@ -290,6 +291,11 @@ export function Wildlife({
   onStats?: (s: WildlifeStats) => void
 }) {
   const sim = useMemo(() => new WildlifeSim(), [])
+  // let the follow camera find the animals (active.ts)
+  useEffect(() => {
+    setActiveSim(sim)
+    return () => setActiveSim(null)
+  }, [sim])
   const meshes = useRef<Partial<Record<Species, InstancedMesh | null>>>({})
   const cones = useRef<InstancedMesh>(null)
   const prints = useRef<InstancedMesh>(null)

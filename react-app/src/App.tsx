@@ -42,6 +42,16 @@ import {
   streetGridForYear,
 } from './map/timeline'
 import { CityStats } from './map/city/CityStats'
+import { Tour } from './tour/Tour'
+import { StoryCard } from './story/StoryCard'
+import { CHAPTERS, HOLD_SECONDS, chapterAfter, chapterAt, type Chapter } from './story/chapters'
+import { StoryMarker } from './story/StoryMarker'
+import { CameraFlight, type Flight } from './map/CameraFlight'
+import { height } from './map/noise'
+import { at } from './map/world/project'
+import { FollowCam } from './map/wildlife/FollowCam'
+import type { Species } from './map/wildlife/sim'
+import { STOPS, type Place, type TourActions } from './tour/stops'
 import {
   Weather,
   WEATHER_PRESETS,
@@ -52,6 +62,37 @@ import type { Precip } from './weather/presets'
 import './App.css'
 
 type SceneMode = 'map' | 'voxel'
+
+/**
+ * Explore shows only the history: the Year, Play, the fly-to buttons and the
+ * weather. The Lab is the same app with every slider showing.
+ */
+type UiMode = 'explore' | 'lab'
+
+// remembered per browser; storage can be missing or blocked, so every access is guarded
+const UI_MODE_KEY = 'pw.uiMode'
+const TOUR_SEEN_KEY = 'pw.tourSeen'
+const readStore = (key: string) => {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+const writeStore = (key: string, value: string) => {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    // not remembered; nothing else depends on it
+  }
+}
+
+/** The fly-to targets: where the camera looks, and from how far. */
+const PLACES: Record<Place, { x: number; z: number; distance: number }> = {
+  island: { x: 0, z: 0, distance: 110 },
+  battery: { x: BATTERY.x + 6, z: BATTERY.z - 6, distance: 160 },
+  midtown: { x: -86, z: 26, distance: 220 },
+}
 
 type Vec3 = [number, number, number]
 
@@ -81,12 +122,12 @@ const BRUSH_TOOLS: { tool: BrushTool; label: string; hint: string }[] = [
 // Map and Voxel share one camera, aimed at Roosevelt Island: from the
 // south-east, pulled back just far enough for the island's whole 96-unit
 // (3.2 km) length to fit the 50° view, plus 8% margin — the framing rule in
-// scale.ts. Works out to ~111 units (3.7 km). You can zoom in to 670 m, or out
+// scale.ts. Works out to ~111 units (3.7 km). You can zoom in to about 20 m, or out
 // to ~37 km to see all of Manhattan and its neighbours (the map is ~21 × 26 km).
 const CAMERA = {
   position: cameraAt([46, 44, 92], framingDistance(ISLAND_LENGTH_UNITS, 50) * 1.08),
   target: [0, 2, 0] as Vec3,
-  minDistance: 20,
+  minDistance: 0.6, // about 20 m: close enough to watch a deer graze or a bird fly
   maxDistance: 1100,
   far: 4000, // the default far plane (1,000) would cut the city off when zoomed out
 }
@@ -175,15 +216,39 @@ function App() {
   const [timelineYear, setTimelineYear] = useState(TIMELINE_DEFAULT)
   const [timelinePlaying, setTimelinePlaying] = useState(false)
   const controlsRef = useRef<OrbitControlsImpl>(null)
+  const [uiMode, setUiModeState] = useState<UiMode>(() =>
+    readStore(UI_MODE_KEY) === 'lab' ? 'lab' : 'explore',
+  )
+  const setUiMode = (m: UiMode) => {
+    setUiModeState(m)
+    writeStore(UI_MODE_KEY, m)
+    if (m === 'explore') setScene('map') // Explore has no Voxel switch, so don't leave it on
+  }
+  const lab = uiMode === 'lab'
+  // the guided tour opens by itself on a first visit
+  const [tourOpen, setTourOpen] = useState(() => readStore(TOUR_SEEN_KEY) === null)
+  const [tourStep, setTourStep] = useState(0)
+  const [tourDone, setTourDone] = useState(0)
+  const [place, setPlace] = useState<Place | null>(null)
+  // the story card, and whether Play stops on each chapter so it can be read
+  const [storyOpen, setStoryOpen] = useState(true)
+  const [storyPause, setStoryPause] = useState(true)
+  // the camera flies to each chapter's place as the story reaches it
+  const [storyCamera, setStoryCamera] = useState(true)
+  const [flight, setFlight] = useState<Flight | null>(null)
+  const [holding, setHolding] = useState(false)
+  // the follow camera: which kind of animal it's on, and what that animal is doing
+  const [follow, setFollow] = useState<Species | null>(null)
+  const [followStatus, setFollowStatus] = useState<string | null>(null)
 
   // fly the camera to a place, keeping the way it is looking
-  const lookAt = (x: number, z: number, distance: number) => {
+  const flyTo = (to: Place) => {
     const c = controlsRef.current
     if (!c) return
-    const dir = c.object.position.clone().sub(c.target).normalize()
-    c.target.set(x, 2, z)
-    c.object.position.copy(c.target).addScaledVector(dir, distance)
-    c.update()
+    const { x, z, distance } = PLACES[to]
+    setFlight({ x, y: 2, z, distance })
+    setPlace(to)
+    setFollow(null)
   }
 
   // the brush is live exactly while the Sculpt tab is open
@@ -242,36 +307,99 @@ function App() {
   // the Year slider is a meta-control: it just drives the existing
   // Sea Level param through a stylized curve, rather than being a separate
   // terrain parameter of its own. Scrubbing manually stops any Play run.
+  const yearRef = useRef(TIMELINE_DEFAULT)
   const setYear = (year: number) => {
     const clamped = Math.min(Math.max(year, TIMELINE_MIN), TIMELINE_MAX)
+    yearRef.current = clamped
     setTimelineYear(clamped)
     setT('seaLevel', seaLevelForYear(clamped))
   }
+  const storyPauseRef = useRef(storyPause)
+  storyPauseRef.current = storyPause && storyOpen
 
   // Play: advance the year at a fixed real-time rate until 2100, then stop.
+  // With the story on, it stops on each chapter's year for a few seconds first.
   useEffect(() => {
     if (!timelinePlaying) return
     let raf = 0
     let last = performance.now()
+    let holdUntil = 0
     const tick = (now: number) => {
       const dt = (now - last) / 1000
       last = now
-      setTimelineYear((y) => {
-        const next = y + dt * TIMELINE_YEARS_PER_SECOND
-        if (next >= TIMELINE_MAX) {
-          setTimelinePlaying(false)
-          setT('seaLevel', seaLevelForYear(TIMELINE_MAX))
-          return TIMELINE_MAX
+      if (now >= holdUntil) {
+        if (holdUntil) {
+          holdUntil = 0
+          setHolding(false)
         }
-        setT('seaLevel', seaLevelForYear(next))
-        return next
-      })
+        const y = yearRef.current
+        let next = y + dt * TIMELINE_YEARS_PER_SECOND
+        const chapter = storyPauseRef.current ? chapterAfter(y) : null
+        if (chapter && next >= chapter.year) {
+          next = chapter.year
+          holdUntil = now + HOLD_SECONDS * 1000
+          setHolding(true)
+        }
+        if (next >= TIMELINE_MAX) {
+          setYear(TIMELINE_MAX)
+          setTimelinePlaying(false)
+          return
+        }
+        setYear(next)
+      }
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
+    return () => {
+      cancelAnimationFrame(raf)
+      setHolding(false)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timelinePlaying])
+
+  // the story card's buttons
+  const jumpToChapter = (c: Chapter) => {
+    setTimelinePlaying(false)
+    setYear(c.year)
+  }
+  const showChapter = (c: Chapter) => {
+    const [x, z] = at(...c.where.at)
+    const y = Math.max(height(x, z, terrainView), terrainView.seaLevel)
+    setFlight({ x, y, z, distance: c.where.view })
+    setFollow(null)
+  }
+  // as the story reaches a new chapter, fly there (unless you're following an animal)
+  const chapter = chapterAt(timelineYear)
+  useEffect(() => {
+    if (storyOpen && storyCamera && !follow) showChapter(CHAPTERS[chapter])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chapter, storyOpen, storyCamera])
+
+  // the tour's stops tick off in order, each as soon as its condition holds
+  useEffect(() => {
+    if (!tourOpen || tourDone >= STOPS.length) return
+    if (STOPS[tourDone].done({ year: timelineYear, place, playing: timelinePlaying })) {
+      setTourDone(tourDone + 1)
+    }
+  }, [tourOpen, tourDone, timelineYear, place, timelinePlaying])
+
+  const tourActions: TourActions = {
+    setYear,
+    play: () => {
+      if (timelineYear >= TIMELINE_MAX) setYear(TIMELINE_MIN)
+      setTimelinePlaying(true)
+    },
+    stop: () => setTimelinePlaying(false),
+    fly: flyTo,
+  }
+  const openTour = () => {
+    setTourStep(Math.min(tourDone, STOPS.length - 1))
+    setTourOpen(true)
+  }
+  const closeTour = () => {
+    setTourOpen(false)
+    writeStore(TOUR_SEEN_KEY, '1')
+  }
 
   // terraform edits: snapshot before each stroke so Undo can step back
   const pushHistory = () =>
@@ -379,6 +507,13 @@ function App() {
             maxDistance={CAMERA.maxDistance}
             maxPolarAngle={Math.PI / 2.05} // keep the camera above the ground
           />
+          <CameraFlight controls={controlsRef} flight={flight} />
+          {scene === 'map' && (
+            <FollowCam controls={controlsRef} species={follow} onStatus={setFollowStatus} />
+          )}
+          {scene === 'map' && storyOpen && (
+            <StoryMarker where={CHAPTERS[chapter].where} params={terrainView} />
+          )}
         </Canvas>
       </div>
 
@@ -403,7 +538,50 @@ function App() {
           <p className="site-subtitle">{headerSubtitle}</p>
         </header>
 
+        {storyOpen && (
+          <StoryCard
+            year={timelineYear}
+            holding={holding}
+            onJump={jumpToChapter}
+            onShow={showChapter}
+            onClose={() => setStoryOpen(false)}
+          />
+        )}
+
+        {tourOpen && (
+          <Tour
+            step={tourStep}
+            doneCount={tourDone}
+            actions={tourActions}
+            onStep={setTourStep}
+            onClose={closeTour}
+            onOpenLab={() => {
+              closeTour()
+              setUiMode('lab')
+            }}
+          />
+        )}
+
         <div className="panel">
+          <div className="segmented" title="Explore shows the history. The Lab is the same app with every slider: terrain, sculpting, trees, animals.">
+            <button className={!lab ? 'active' : ''} onClick={() => setUiMode('explore')}>
+              Explore
+            </button>
+            <button className={lab ? 'active' : ''} onClick={() => setUiMode('lab')}>
+              Lab
+            </button>
+          </div>
+          <div className="panel-actions">
+            <button
+              onClick={() => (tourOpen ? closeTour() : openTour())}
+              title="A guided run through the city's history, from 1609 to 2100, in five stops."
+            >
+              {tourOpen ? 'Hide the tour' : 'Take the tour'}
+            </button>
+          </div>
+
+          {lab && (
+            <>
           <div className="panel-title">Scene</div>
           <div className="segmented">
             <button
@@ -443,6 +621,8 @@ function App() {
             Pauses rain/snow, cloud drift and waves. Terrain, seed and biomes
             still respond live — the noise stack keeps driving the height field.
           </p>
+            </>
+          )}
 
           <>
             <div className="panel-title">History Timeline</div>
@@ -500,6 +680,47 @@ function App() {
 
             <div className="segmented">
               <button
+                className={storyOpen ? 'active' : ''}
+                onClick={() => setStoryOpen(true)}
+                title="Tell the story of New York at the bottom of the screen, a chapter for each turning point, as the years pass."
+              >
+                Story on
+              </button>
+              <button
+                className={!storyOpen ? 'active' : ''}
+                onClick={() => setStoryOpen(false)}
+                title="Hide the story."
+              >
+                Story off
+              </button>
+            </div>
+            <label
+              className="row"
+              title={`While playing, stop on each chapter for ${HOLD_SECONDS} seconds so it can be read.`}
+            >
+              <span>Pause at each chapter</span>
+              <input
+                type="checkbox"
+                checked={storyPause}
+                disabled={!storyOpen}
+                onChange={(e) => setStoryPause(e.target.checked)}
+              />
+            </label>
+            <label
+              className="row"
+              title="Fly the camera to each chapter's place as the story reaches it, and mark it on the map."
+            >
+              <span>Camera follows the story</span>
+              <input
+                type="checkbox"
+                checked={storyCamera}
+                disabled={!storyOpen}
+                onChange={(e) => setStoryCamera(e.target.checked)}
+              />
+            </label>
+
+            <div className="segmented">
+              <button
                 className={showCity ? 'active' : ''}
                 onClick={() => setShowCity(true)}
                 title="Draw the city's streets and buildings as they were in the chosen year. They are laid and raised as the years pass."
@@ -519,24 +740,41 @@ function App() {
 
             <div className="segmented">
               <button
-                onClick={() => lookAt(0, 0, 140)}
+                onClick={() => flyTo('island')}
                 title="Fly to Roosevelt Island."
               >
                 Island
               </button>
               <button
-                onClick={() => lookAt(BATTERY.x + 6, BATTERY.z - 6, 160)}
+                onClick={() => flyTo('battery')}
                 title="Fly to the Battery, the southern tip of Manhattan, where the city began."
               >
                 Battery
               </button>
               <button
-                onClick={() => lookAt(-86, 26, 220)}
+                onClick={() => flyTo('midtown')}
                 title="Fly to Midtown Manhattan."
               >
                 Midtown
               </button>
             </div>
+
+            <div className="panel-title">Watch the wildlife</div>
+            <div className="segmented" title="Fly down to an animal and follow it. Orbit and zoom around it as it moves.">
+              {(['deer', 'fox', 'bird'] as const).map((sp) => (
+                <button
+                  key={sp}
+                  className={follow === sp ? 'active' : ''}
+                  onClick={() => setFollow(follow === sp ? null : sp)}
+                >
+                  {sp === 'deer' ? 'Deer' : sp === 'fox' ? 'Fox' : 'Birds'}
+                </button>
+              ))}
+            </div>
+            <p className="hint-text">
+              {followStatus ??
+                'Pick an animal to fly down and follow it, or zoom in anywhere on wild land. There are more in the early years, before the city paves their land.'}
+            </p>
 
             <p className="hint-text">
               <strong>{islandName}</strong>
@@ -549,10 +787,36 @@ function App() {
               since 1856, held flat before). After today it is a stylized
               curve, not a forecast. The city's spread is an estimate. Population is
               the census (before 1790, estimates; after 2020, stylized). The
-              buildings and streets are procedural, not a survey. Sources
-              are in the History and Design Position note.
+              buildings standing today are real (NYC Building Footprints); the
+              ones before them and the streets are procedural. Sources are in
+              the History and Design Position note.
             </p>
           </>
+
+          {!lab && (
+            <>
+              <div className="panel-title">Weather</div>
+              <div className="preset-grid">
+                {WEATHER_KINDS.map((k) => (
+                  <button
+                    key={k}
+                    className={kind === k ? 'active' : ''}
+                    onClick={() => applyPreset(k)}
+                    title={WEATHER_KIND_HINTS[k]}
+                  >
+                    {k}
+                  </button>
+                ))}
+              </div>
+              <p className="hint-text">
+                The <strong>Lab</strong> (top of this panel) has every slider: the
+                terrain's noise, the sculpt brush, the trees and the animals.
+              </p>
+            </>
+          )}
+
+          {lab && (
+          <>
 
           <>
             <div className="panel-title">View</div>
@@ -1299,8 +1563,17 @@ function App() {
             >
               New seed
             </button>
+          </div>
+          </>
+          )}
+
+          <div className="panel-actions">
             <button
-              onClick={() => controlsRef.current?.reset()}
+              onClick={() => {
+                controlsRef.current?.reset()
+                setPlace(null)
+                setFollow(null)
+              }}
               title="Reset the camera to its starting position and zoom."
             >
               Reset view

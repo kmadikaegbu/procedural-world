@@ -61,6 +61,12 @@ at 12 years a second.
   Manhattan and Queensboro (1909), Hell Gate (1916), Triborough (1936) and
   Roosevelt Island (1955) bridges are built in their real years, with the
   tramway (1976) and its two cabins.
+- 🗽 **Liberty rises.** The Statue of Liberty stands on Liberty Island,
+  built in code: Fort Wood's eleven-pointed star (1811), the granite pedestal
+  rising in 1884–86, then the statue with her torch, crown and tablet. Her
+  copper weathers from brown to green by about 1906. The monument is enlarged
+  like the buildings, and nudged about 150 m east of its real spot because the
+  real one sits right at the map's edge.
 - 🌳 **The forest goes.** Trees are cleared as the city arrives, and a few
   survive as street trees.
 - 📐 **The grid appears.** From 1811, Manhattan's street grid fades in on built

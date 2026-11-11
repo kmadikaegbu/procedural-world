@@ -264,6 +264,15 @@ class session — more granular than the by-class summary above.
   project, Jessica Hsiao's *Wildform*, and credited in the README's
   precedents.
 
+### Landmarks
+
+- **The Statue of Liberty (2026-11-11).** Built from simple shapes in
+  `map/city/Liberty.tsx`: Liberty Island, Fort Wood's star (from 1811), the
+  foundation and Hunt's pedestal (rising 1884–86), and the figure with torch,
+  crown and tablet, dedicated in 1886. Her copper turns from brown to green
+  between 1886 and 1906. Enlarged with the scale's objects factor like the
+  buildings; moved ~150 m east so the enlarged island stays inside the map.
+
 ### Props & weather
 
 - Seeded tree scattering, clustered by a density-noise field, with a

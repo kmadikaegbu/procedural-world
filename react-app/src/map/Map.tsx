@@ -6,6 +6,7 @@ import type { WeatherParams } from '../weather/presets'
 import { Props } from './Props'
 import { City } from './city/City'
 import { Bridges } from './city/BridgeLayer'
+import { Liberty } from './city/Liberty'
 import { Wildlife } from './wildlife/Wildlife'
 import type { WildlifeSettings } from './wildlife/settings'
 import type { WildlifeStats } from './wildlife/sim'
@@ -94,6 +95,7 @@ export function Map({
         <>
           <City params={params} year={year} scaleMode={forest.scaleMode} />
           <Bridges params={params} year={year} scaleMode={forest.scaleMode} />
+          <Liberty params={params} year={year} scaleMode={forest.scaleMode} />
         </>
       )}
       {main && wildlife?.settings.show && (

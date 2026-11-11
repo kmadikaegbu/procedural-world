@@ -97,16 +97,16 @@ export function StoryMarker({ where, params }: { where: Where; params: TerrainPa
   return (
     <group>
       {/* the beacon */}
-      <mesh position={[x, ground + tall / 2, z]} renderOrder={10}>
+      <mesh position={[x, ground + tall / 2, z]} renderOrder={10} visible={where.beacon !== false}>
         <cylinderGeometry args={[width, width, tall, 10, 1, true]} />
         <meshBasicMaterial color={color} transparent opacity={0.55} depthWrite={false} side={DoubleSide} />
       </mesh>
-      <mesh position={[x, ground + tall, z]}>
+      <mesh visible={where.beacon !== false} position={[x, ground + tall, z]}>
         <sphereGeometry args={[width * 3, 16, 12]} />
         <meshBasicMaterial color={color} />
       </mesh>
       {/* the pulse at its foot */}
-      <mesh ref={ring} position={[x, ground + 0.1, z]} rotation-x={-Math.PI / 2} renderOrder={10}>
+      <mesh visible={where.beacon !== false} ref={ring} position={[x, ground + 0.1, z]} rotation-x={-Math.PI / 2} renderOrder={10}>
         <ringGeometry args={[tall * 0.18, tall * 0.22, 48]} />
         <meshBasicMaterial color={color} transparent opacity={0.6} depthWrite={false} side={DoubleSide} />
       </mesh>

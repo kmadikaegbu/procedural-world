@@ -37,6 +37,8 @@ export interface Where {
   path?: LatLon[]
   ring?: LatLon[]
   km?: number
+  /** False: just the label, no beacon (where the map already shows the thing itself). */
+  beacon?: boolean
   /** Colour: the story's usual cyan, or fire, water or park. */
   tone?: 'story' | 'fire' | 'water' | 'park'
 }
@@ -142,7 +144,7 @@ export const CHAPTERS: Chapter[] = [
     year: 1886,
     title: 'Liberty',
     text: 'The Statue of Liberty is dedicated in the harbour. From 1892, Ellis Island beside it processes more than 12 million immigrants.',
-    where: { at: [40.6892, -74.0445], view: 90, label: 'The Statue of Liberty' },
+    where: { at: [40.6892, -74.0445], view: 75, label: 'The Statue of Liberty', beacon: false },
   },
   {
     year: 1898,
